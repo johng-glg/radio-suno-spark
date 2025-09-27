@@ -21,7 +21,7 @@ const MOODS = [
 ];
 
 interface LandingPageProps {
-  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean) => void;
+  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean) => void;
   onAuthNavigate: () => void;
   user: AuthUser | null;
 }
@@ -30,6 +30,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string>("");
   const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
+  const [wildcardMode, setWildcardMode] = useState<boolean>(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -44,7 +45,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const handleStartRadio = () => {
     if (selectedGenres.length === 0) return;
     const mood = selectedMood === "none" ? undefined : selectedMood;
-    onStartRadio(selectedGenres, mood, instrumentalMode);
+    onStartRadio(selectedGenres, mood, instrumentalMode, wildcardMode);
   };
 
   const handleSignOut = async () => {
@@ -160,12 +161,14 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
               </Select>
             </div>
 
-            {/* Instrumental Mode Toggle */}
+            {/* Audio Options */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Volume2 className="h-5 w-5 text-accent" />
                 <h3 className="text-lg font-semibold">Audio Style</h3>
               </div>
+              
+              {/* Instrumental Mode Toggle */}
               <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg">
                 <Label htmlFor="instrumental-mode" className="flex-1 cursor-pointer">
                   <span className="font-medium">Instrumental Only</span>
@@ -177,6 +180,21 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                   id="instrumental-mode"
                   checked={instrumentalMode}
                   onCheckedChange={setInstrumentalMode}
+                />
+              </div>
+
+              {/* Wildcard Mode Toggle */}
+              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg">
+                <Label htmlFor="wildcard-mode" className="flex-1 cursor-pointer">
+                  <span className="font-medium">Wild Card Mode</span>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Add random creative twists to generated music
+                  </p>
+                </Label>
+                <Switch
+                  id="wildcard-mode"
+                  checked={wildcardMode}
+                  onCheckedChange={setWildcardMode}
                 />
               </div>
             </div>

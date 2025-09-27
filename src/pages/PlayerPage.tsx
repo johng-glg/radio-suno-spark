@@ -40,10 +40,11 @@ interface PlayerPageProps {
   selectedGenres: string[];
   selectedMood?: string;
   instrumentalMode?: boolean;
+  wildcardMode?: boolean;
   onBack: () => void;
 }
 
-export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, onBack }: PlayerPageProps) {
+export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, onBack }: PlayerPageProps) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -203,7 +204,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           if (!generationLockRef.current && !isGenerating) {
             generationLockRef.current = true;
             console.log('Generating second song for queue...');
-            generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+            generateWithBuildPrompt(wildcardMode, instrumentalMode)
               .finally(() => { generationLockRef.current = false; });
           } else {
             console.log('Skipped generation: already generating');
@@ -348,7 +349,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('No existing songs found, generating initial songs');
     
     try {
-      const result = await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+      const result = await generateWithBuildPrompt(wildcardMode, instrumentalMode);
 
       if (result?.success && result.song_id) {
         // Poll for the song to be completed and added to queue
@@ -466,7 +467,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       // Generate a new song
       if (!generationLockRef.current && !isGenerating) {
         generationLockRef.current = true;
-        await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+        await generateWithBuildPrompt(wildcardMode, instrumentalMode)
           .finally(() => { generationLockRef.current = false; });
       }
       setQueueStrategy('existing'); // Switch to existing for next
@@ -481,7 +482,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         // Fallback to generation if no existing songs
         if (!generationLockRef.current && !isGenerating) {
           generationLockRef.current = true;
-          await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+          await generateWithBuildPrompt(wildcardMode, instrumentalMode)
             .finally(() => { generationLockRef.current = false; });
         }
       }
