@@ -33,7 +33,8 @@ export default function LandingPage({ onStartRadio }: LandingPageProps) {
 
   const handleStartRadio = () => {
     if (selectedGenres.length === 0) return;
-    onStartRadio(selectedGenres, selectedMood || undefined);
+    const mood = selectedMood === "none" ? undefined : selectedMood;
+    onStartRadio(selectedGenres, mood);
   };
 
   return (
@@ -90,7 +91,7 @@ export default function LandingPage({ onStartRadio }: LandingPageProps) {
                   <SelectValue placeholder="Choose a mood..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific mood</SelectItem>
+                  <SelectItem value="none">No specific mood</SelectItem>
                   {MOODS.map((mood) => (
                     <SelectItem key={mood} value={mood}>
                       {mood.charAt(0).toUpperCase() + mood.slice(1)}
