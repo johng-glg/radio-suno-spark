@@ -67,7 +67,9 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   };
 
   const handleRefreshPendingSongs = async () => {
+    console.log('Starting refresh, setting isRefreshing to true');
     setIsRefreshing(true);
+    
     try {
       console.log('Refreshing pending songs...');
       
@@ -80,13 +82,15 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           description: "Failed to clean up pending songs. Please try again.",
           variant: "destructive"
         });
-      } else {
-        console.log('Refresh result:', data);
-        toast({
-          title: "Songs Refreshed",
-          description: `Checked ${data.checked} songs, updated ${data.updated} stuck songs.`,
-        });
+        return;
       }
+      
+      console.log('Refresh result:', data);
+      toast({
+        title: "Songs Refreshed",
+        description: `Checked ${data.checked} songs, updated ${data.updated} stuck songs.`,
+      });
+      
     } catch (error) {
       console.error('Error in refresh:', error);
       toast({
@@ -95,6 +99,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
         variant: "destructive"
       });
     } finally {
+      console.log('Refresh complete, setting isRefreshing to false');
       setIsRefreshing(false);
     }
   };
