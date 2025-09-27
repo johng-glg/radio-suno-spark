@@ -93,12 +93,12 @@ serve(async (req) => {
         // This is a bit of a workaround since we don't have direct task IDs for old songs
         console.log(`Attempting to find Suno task for song ${song.id} with prompt: ${song.prompt.substring(0, 50)}...`);
         
-        // For now, let's mark old generating songs as failed if they're older than 1 hour
+        // For now, let's mark old generating songs as failed if they're older than 5 minutes
         const songAge = new Date().getTime() - new Date(song.created_at).getTime();
-        const oneHourInMs = 60 * 60 * 1000;
+        const fiveMinutesInMs = 5 * 60 * 1000;
         
-        if (songAge > oneHourInMs) {
-          console.log(`Song ${song.id} is older than 1 hour, marking as failed`);
+        if (songAge > fiveMinutesInMs) {
+          console.log(`Song ${song.id} is older than 5 minutes, marking as failed`);
           
           const { error: updateError } = await supabase
             .from('songs')
