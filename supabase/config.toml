@@ -1,1 +1,19 @@
 project_id = "kbvsckoacdgpgiiqrhqv"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 9999
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://a3e168f8-40c9-4243-841b-80ad45ef9489.lovableproject.com"]
+jwt_expiry = 3600
+enable_signup = true
+
+[functions.generate-music]
+verify_jwt = true

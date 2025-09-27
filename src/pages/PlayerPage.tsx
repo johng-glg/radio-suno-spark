@@ -9,15 +9,20 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useMusicGeneration } from "@/hooks/useMusicGeneration";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Song {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   genre: string;
   mood?: string;
   url?: string;
-  status: 'generating' | 'ready' | 'playing' | 'finished';
+  status: 'generating' | 'completed' | 'failed';
+  prompt?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PlayerPageProps {
@@ -36,6 +41,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
+  const { generateMusic, isGenerating } = useMusicGeneration();
 
   // Mock audio element setup
   useEffect(() => {
@@ -66,41 +72,127 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     }
   }, [currentSong]);
 
-  // Initialize with first song
+  // Initialize with first song and load queue from database
   useEffect(() => {
+    loadQueueFromDatabase();
     generateInitialSongs();
   }, [selectedGenres, selectedMood]);
 
-  const generateInitialSongs = async () => {
-    // Mock initial songs generation
-    const mockSongs: Song[] = [
-      {
-        id: '1',
-        title: `${selectedGenres[0]} Vibes`,
-        description: `A ${selectedMood || 'beautiful'} ${selectedGenres[0].toLowerCase()} track`,
-        genre: selectedGenres[0],
-        mood: selectedMood,
-        status: 'ready',
-        url: '/placeholder-audio.mp3' // This would be replaced with actual Suno API URL
-      },
-      {
-        id: '2',
-        title: 'AI Generated Mix',
-        description: 'Next track generating...',
-        genre: selectedGenres[Math.floor(Math.random() * selectedGenres.length)],
-        mood: selectedMood,
-        status: 'generating'
+  const loadQueueFromDatabase = async () => {
+    try {
+      // Load existing queue from database
+      const { data: queueData, error } = await supabase
+        .from('queue')
+        .select(`
+          id,
+          position,
+          status,
+          songs (
+            id,
+            title,
+            description,
+            genre,
+            mood,
+            url,
+            status,
+            prompt,
+            created_at,
+            updated_at
+          )
+        `)
+        .order('position', { ascending: true });
+
+      if (error) {
+        console.error('Error loading queue:', error);
+        return;
       }
-    ];
-    
-    setCurrentSong(mockSongs[0]);
-    setQueue(mockSongs.slice(1));
-    
-    toast({
-      title: "Radio Started!",
-      description: `Playing ${selectedGenres.join(", ")} ${selectedMood ? `(${selectedMood})` : ''}`,
-    });
+
+      if (queueData && queueData.length > 0) {
+        const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
+        if (songs.length > 0) {
+          setCurrentSong(songs[0]);
+          setQueue(songs.slice(1));
+          return; // Don't generate initial songs if we have existing queue
+        }
+      }
+    } catch (error) {
+      console.error('Error loading queue from database:', error);
+    }
   };
+
+  const generateInitialSongs = async () => {
+    if (currentSong) return; // Don't generate if we already have songs from database
+    
+    // Create prompts based on selected preferences
+    const genre = selectedGenres[0];
+    const moodText = selectedMood ? ` with a ${selectedMood} mood` : '';
+    const prompt = `Create a ${genre.toLowerCase()} track${moodText}. Make it engaging and radio-friendly.`;
+    
+    console.log('Generating initial song with prompt:', prompt);
+    
+    const result = await generateMusic({
+      prompt,
+      genre,
+      mood: selectedMood,
+      title: `${genre} Radio Track`,
+      make_instrumental: Math.random() > 0.7 // 30% chance of instrumental
+    });
+
+    if (result?.success && result.song_id) {
+      // Poll for the song to be completed and added to queue
+      pollForNewSongs();
+      
+      toast({
+        title: "Radio Started!",
+        description: `Generating ${genre} ${selectedMood ? `(${selectedMood})` : ''} tracks...`,
+      });
+    }
+  };
+
+  const pollForNewSongs = async () => {
+    try {
+      const { data: queueData, error } = await supabase
+        .from('queue')
+        .select(`
+          songs (
+            id,
+            title,
+            description,
+            genre,
+            mood,
+            url,
+            status
+          )
+        `)
+        .order('position', { ascending: true })
+        .limit(5);
+
+      if (error) {
+        console.error('Error polling for songs:', error);
+        return;
+      }
+
+      if (queueData && queueData.length > 0) {
+        const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
+        const completedSongs = songs.filter(song => song.status === 'completed' && song.url);
+        
+        if (completedSongs.length > 0 && !currentSong) {
+          setCurrentSong(completedSongs[0]);
+          setQueue(completedSongs.slice(1));
+        } else if (completedSongs.length > 0) {
+          setQueue(completedSongs.slice(currentSong ? 1 : 0));
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for songs:', error);
+    }
+  };
+
+  // Poll for song updates every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(pollForNewSongs, 5000);
+    return () => clearInterval(interval);
+  }, [currentSong]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -136,27 +228,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     }
   };
 
-  const generateNextSong = () => {
-    // Mock next song generation
-    const newSong: Song = {
-      id: Date.now().toString(),
-      title: `AI Mix ${Math.floor(Math.random() * 1000)}`,
-      description: `Another ${selectedMood || 'amazing'} track`,
-      genre: selectedGenres[Math.floor(Math.random() * selectedGenres.length)],
+  const generateNextSong = async () => {
+    if (queue.length >= 3 || isGenerating) return; // Don't generate if queue is full or already generating
+    
+    const genre = selectedGenres[Math.floor(Math.random() * selectedGenres.length)];
+    const moodText = selectedMood ? ` with a ${selectedMood} mood` : '';
+    const prompt = `Create a ${genre.toLowerCase()} track${moodText}. Make it unique and different from previous tracks.`;
+    
+    console.log('Generating next song:', { genre, mood: selectedMood, prompt });
+    
+    await generateMusic({
+      prompt,
+      genre,
       mood: selectedMood,
-      status: 'generating'
-    };
-    
-    setQueue(prev => [...prev, newSong]);
-    
-    // Simulate generation completion
-    setTimeout(() => {
-      setQueue(prev => prev.map(song => 
-        song.id === newSong.id 
-          ? { ...song, status: 'ready', url: '/placeholder-audio.mp3' }
-          : song
-      ));
-    }, 3000);
+      title: `${genre} Mix`,
+      make_instrumental: Math.random() > 0.6 // 40% chance of instrumental
+    });
   };
 
   const handleLike = (isLike: boolean) => {
@@ -346,8 +433,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
                     <p className="font-medium">{song.title}</p>
                     <p className="text-sm text-muted-foreground">{song.description}</p>
                   </div>
-                  <Badge variant={song.status === 'ready' ? 'default' : 'secondary'}>
-                    {song.status === 'ready' ? 'Ready' : 'Generating...'}
+                  <Badge variant={song.status === 'completed' ? 'default' : 'secondary'}>
+                    {song.status === 'completed' ? 'Ready' : 'Generating...'}
                   </Badge>
                 </div>
               ))}
