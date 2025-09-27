@@ -14,7 +14,101 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      prompt_pools: {
+        Row: {
+          created_at: string
+          id: string
+          type: string
+          value: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          type: string
+          value: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          type?: string
+          value?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
+      queue: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          song_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position: number
+          song_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          song_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      songs: {
+        Row: {
+          created_at: string
+          description: string | null
+          genre: string
+          id: string
+          mood: string | null
+          prompt: string
+          status: string
+          title: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          genre: string
+          id?: string
+          mood?: string | null
+          prompt: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          genre?: string
+          id?: string
+          mood?: string | null
+          prompt?: string
+          status?: string
+          title?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
