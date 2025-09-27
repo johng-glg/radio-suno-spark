@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft 
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 interface Song {
@@ -34,6 +35,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
   const [volume, setVolume] = useState([80]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
 
   // Mock audio element setup
   useEffect(() => {
@@ -166,6 +168,23 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     });
   };
 
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive"
+      });
+    } else {
+      onBack(); // Navigate back to landing page
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      });
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -201,9 +220,25 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
           <Music className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-bold">AI Radio</h1>
         </div>
-        <Button variant="ghost" size="icon">
-          <Settings className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center space-x-3">
+          {user && (
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">{user.email}</span>
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleSignOut}
+            title="Sign Out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="max-w-2xl mx-auto space-y-8">

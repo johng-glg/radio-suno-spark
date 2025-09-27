@@ -1,10 +1,14 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <Index />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Index />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
