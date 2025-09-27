@@ -235,7 +235,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const getOptimalExistingSong = async (excludeSongId?: string) => {
     try {
-      // Build query to get songs with user interaction data
+      // Build query to get songs with user interaction data  
+      // Convert selected genres to lowercase for case-insensitive matching
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      
       let query = supabase
         .from('songs')
         .select(`
@@ -243,7 +246,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           user_song_interactions!left(interaction_type)
         `)
         .eq('status', 'ready')
-        .in('genre', selectedGenres)
+        .in('genre', genresLowerCase)
         .not('url', 'is', null);
       
       if (excludeSongId) {
