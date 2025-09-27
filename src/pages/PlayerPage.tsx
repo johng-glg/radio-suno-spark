@@ -180,36 +180,36 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
         }
       }
       
-      // If no ready songs in queue, try to find pre-made songs for current genres
+      // If no ready songs in queue, try to find any previously generated songs for current genres
       if (selectedGenres.length > 0) {
-        console.log('Looking for pre-made songs for genres:', selectedGenres);
+        console.log('Looking for any ready songs for genres:', selectedGenres);
         
-        const { data: premadeSongs, error: premadeError } = await supabase
+        const { data: readySongs, error: readyError } = await supabase
           .from('songs')
           .select('*')
           .eq('status', 'ready')
           .in('genre', selectedGenres)
           .not('url', 'is', null)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false }) // Get most recent first
           .limit(5);
 
-        if (premadeError) {
-          console.error('Error loading pre-made songs:', premadeError);
+        if (readyError) {
+          console.error('Error loading ready songs:', readyError);
           return false;
         }
 
-         if (premadeSongs && premadeSongs.length > 0) {
-           console.log('Found pre-made songs:', premadeSongs.length);
+         if (readySongs && readySongs.length > 0) {
+           console.log('Found ready songs from other users:', readySongs.length);
            
            // Show immediate feedback for instant playback
            toast({
              title: "Music Ready!",
-             description: `Playing ${premadeSongs[0].title} instantly while generating new tracks...`,
+             description: `Playing ${readySongs[0].title} instantly while generating new tracks...`,
            });
            
            // Add these songs to the queue if not already there
            const songsToQueue = [];
-           for (const song of premadeSongs) {
+           for (const song of readySongs) {
              const { data: existingQueue } = await supabase
                .from('queue')
                .select('id')
@@ -241,8 +241,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
              await supabase.from('queue').insert(queueInserts);
            }
            
-           setCurrentSong(premadeSongs[0] as Song);
-           setQueue(premadeSongs.slice(1) as Song[]);
+           setCurrentSong(readySongs[0] as Song);
+           setQueue(readySongs.slice(1) as Song[]);
            return true;
          }
       }
