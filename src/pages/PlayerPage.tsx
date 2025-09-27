@@ -87,6 +87,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
 
   // Initialize with first song and load queue from database
   useEffect(() => {
+    // Clear existing songs when genre selection changes
+    console.log('Genre/mood changed, clearing queue and loading new songs');
+    setCurrentSong(null);
+    setQueue([]);
+    
+    // Clear the database queue as well
+    const clearDatabaseQueue = async () => {
+      try {
+        await supabase.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        console.log('Database queue cleared');
+      } catch (error) {
+        console.error('Error clearing database queue:', error);
+      }
+    };
+    
+    clearDatabaseQueue();
     generateInitialSongs(); // This now handles both loading existing and generating new songs
     
     // Set up real-time subscription to queue changes
