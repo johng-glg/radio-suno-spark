@@ -35,16 +35,20 @@ serve(async (req) => {
   try {
     console.log('Starting pending songs check...');
 
-    // Initialize Supabase client
+    // Initialize Supabase client with service role
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY');
 
-    if (!sunoApiKey) {
-      throw new Error('SUNO_API_KEY not found in environment variables');
+    if (!supabaseServiceKey) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY not found in environment variables');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     // Get all songs with generating status
     const { data: pendingSongs, error: fetchError } = await supabase
@@ -98,7 +102,7 @@ serve(async (req) => {
         const fiveMinutesInMs = 5 * 60 * 1000;
         
         if (songAge > fiveMinutesInMs) {
-          console.log(`Song ${song.id} is older than 5 minutes, marking as failed`);
+          console.log(`Song ${song.id} is older than ${Math.round(songAge / 1000 / 60)} minutes, marking as failed`);
           
           const { error: updateError } = await supabase
             .from('songs')
@@ -109,15 +113,13 @@ serve(async (req) => {
             .eq('id', song.id);
 
           if (updateError) {
-            console.error(`Error updating song ${song.id}:`, updateError);
+            console.error(`Error updating song ${song.id}:`, updateError.message, updateError);
             errorCount++;
           } else {
             console.log(`Successfully marked song ${song.id} as failed`);
             updatedCount++;
           }
         } else {
-          // For newer songs, we could try to check with Suno API
-          // But without the task ID, this is challenging
           console.log(`Song ${song.id} is recent (${Math.round(songAge / 1000 / 60)} minutes old), keeping as generating`);
         }
 
