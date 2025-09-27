@@ -22,7 +22,7 @@ interface Song {
   genre: string;
   mood?: string;
   url?: string;
-  status: 'generating' | 'completed' | 'failed';
+  status: 'generating' | 'ready' | 'failed';
   prompt?: string;
   created_at?: string;
   updated_at?: string;
@@ -89,6 +89,39 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
   useEffect(() => {
     loadQueueFromDatabase();
     generateInitialSongs();
+    
+    // Set up real-time subscription to queue changes
+    const queueChannel = supabase
+      .channel('queue-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'queue'
+        },
+        () => {
+          console.log('Queue changed, reloading...');
+          loadQueueFromDatabase();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public', 
+          table: 'songs'
+        },
+        (payload) => {
+          console.log('Song updated:', payload);
+          loadQueueFromDatabase();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(queueChannel);
+    };
   }, [selectedGenres, selectedMood]);
 
   const loadQueueFromDatabase = async () => {
@@ -192,13 +225,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
 
       if (queueData && queueData.length > 0) {
         const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
-        const completedSongs = songs.filter(song => song.status === 'completed' && song.url);
+        const readySongs = songs.filter(song => song.status === 'ready' && song.url);
         
-        if (completedSongs.length > 0 && !currentSong) {
-          setCurrentSong(completedSongs[0]);
-          setQueue(completedSongs.slice(1));
-        } else if (completedSongs.length > 0) {
-          setQueue(completedSongs.slice(currentSong ? 1 : 0));
+        if (readySongs.length > 0 && !currentSong) {
+          console.log('Setting first ready song as current:', readySongs[0]);
+          setCurrentSong(readySongs[0]);
+          setQueue(readySongs.slice(1));
+        } else if (readySongs.length > 0) {
+          console.log('Adding ready songs to queue:', readySongs.length);
+          setQueue(readySongs.slice(currentSong ? 1 : 0));
         }
       }
     } catch (error) {
@@ -534,8 +569,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
                       </div>
                     )}
                   </div>
-                  <Badge variant={song.status === 'completed' ? 'default' : 'secondary'}>
-                    {song.status === 'completed' ? 'Ready' : 'Generating...'}
+                  <Badge variant={song.status === 'ready' ? 'default' : 'secondary'}>
+                    {song.status === 'ready' ? 'Ready' : 'Generating...'}
                   </Badge>
                 </div>
               ))}
