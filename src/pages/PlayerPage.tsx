@@ -51,6 +51,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState([80]);
+  const [currentInteraction, setCurrentInteraction] = useState<'like' | 'dislike' | null>(null);
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
@@ -91,6 +92,30 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       };
     }
   }, [currentSong]);
+
+  // Volume control
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume[0] / 100;
+    }
+  }, [volume]);
+
+  // Load interaction status when song changes
+  useEffect(() => {
+    if (currentSong && user) {
+      const loadInteraction = async () => {
+        const { data } = await supabase
+          .from('user_song_interactions')
+          .select('interaction_type')
+          .eq('user_id', user.id)
+          .eq('song_id', currentSong.id)
+          .maybeSingle();
+        
+        setCurrentInteraction(data?.interaction_type as 'like' | 'dislike' | null || null);
+      };
+      loadInteraction();
+    }
+  }, [currentSong, user]);
 
   // Auto-play when a new song loads
   useEffect(() => {
@@ -490,36 +515,73 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  const handleLike = (isLike: boolean) => {
-    if (isLike) {
-      toast({
-        title: "Liked!",
-        description: "We'll play more tracks like this",
-      });
-    } else {
-      // Handle thumbs down - exclude last used mood and instrument
-      if (currentSong?.prompt_metadata?.selected_words) {
-        const { mood, instrument } = currentSong.prompt_metadata.selected_words;
-        
-        if (mood) {
-          addExclusion('mood', mood);
-          setLastDislikedElements(prev => ({ ...prev, mood }));
-        }
-        if (instrument) {
-          addExclusion('instrument', instrument);
-          setLastDislikedElements(prev => ({ ...prev, instrument }));
-        }
-        
+  const handleLike = async (isLike: boolean) => {
+    if (!currentSong || !user) return;
+
+    try {
+      const interactionType = isLike ? 'like' : 'dislike';
+      
+      // Save to database
+      const { error } = await supabase
+        .from('user_song_interactions')
+        .upsert({
+          user_id: user.id,
+          song_id: currentSong.id,
+          interaction_type: interactionType
+        }, {
+          onConflict: 'user_id,song_id'
+        });
+
+      if (error) {
+        console.error('Error saving interaction:', error);
         toast({
-          title: "Disliked",
-          description: `We'll avoid ${mood ? mood + ' mood' : ''}${mood && instrument ? ' and ' : ''}${instrument ? instrument + ' sounds' : ''} in future tracks`,
+          title: "Error",
+          description: "Failed to save your reaction. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state
+      setCurrentInteraction(interactionType);
+
+      if (isLike) {
+        toast({
+          title: "Liked!",
+          description: "We'll play more tracks like this",
         });
       } else {
-        toast({
-          title: "Disliked",
-          description: "We'll try different styles in the future",
-        });
+        // Handle thumbs down - exclude last used mood and instrument
+        if (currentSong?.prompt_metadata?.selected_words) {
+          const { mood, instrument } = currentSong.prompt_metadata.selected_words;
+          
+          if (mood) {
+            addExclusion('mood', mood);
+            setLastDislikedElements(prev => ({ ...prev, mood }));
+          }
+          if (instrument) {
+            addExclusion('instrument', instrument);
+            setLastDislikedElements(prev => ({ ...prev, instrument }));
+          }
+          
+          toast({
+            title: "Disliked",
+            description: `We'll avoid ${mood ? mood + ' mood' : ''}${mood && instrument ? ' and ' : ''}${instrument ? instrument + ' sounds' : ''} in future tracks`,
+          });
+        } else {
+          toast({
+            title: "Disliked",
+            description: "We'll try different styles in the future",
+          });
+        }
       }
+    } catch (error) {
+      console.error('Error handling like/dislike:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your reaction. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -738,15 +800,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             {/* Controls */}
             <div className="flex items-center justify-center space-x-6">
               <Button
-                variant="ghost"
-                size="icon"
-                className="player-control"
-                onClick={() => handleLike(false)}
-              >
-                <ThumbsDown className="h-5 w-5" />
-              </Button>
-              
-              <Button
                 size="icon"
                 className="h-16 w-16 rounded-full neon-glow"
                 onClick={handlePlayPause}
@@ -770,7 +823,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Button
                 variant="ghost"
                 size="icon"
-                className={`player-control ${currentSong?.user_interaction === 'like' ? 'text-green-400' : ''}`}
+                className={`player-control transition-colors ${currentInteraction === 'like' ? 'text-green-400 hover:text-green-300' : 'hover:text-green-400'}`}
                 onClick={() => handleLike(true)}
               >
                 <ThumbsUp className="h-5 w-5" />
@@ -779,7 +832,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Button
                 variant="ghost"
                 size="icon"
-                className={`player-control ${currentSong?.user_interaction === 'dislike' ? 'text-red-400' : ''}`}
+                className={`player-control transition-colors ${currentInteraction === 'dislike' ? 'text-red-400 hover:text-red-300' : 'hover:text-red-400'}`}
                 onClick={() => handleLike(false)}
               >
                 <ThumbsDown className="h-5 w-5" />
