@@ -140,62 +140,66 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
               </div>
             </div>
 
-            {/* Mood Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold">Mood (Optional)</h3>
-              </div>
-              <Select value={selectedMood} onValueChange={setSelectedMood}>
-                <SelectTrigger className="w-full bg-muted/30">
-                  <SelectValue placeholder="Choose a mood..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No specific mood</SelectItem>
-                  {MOODS.map((mood) => (
-                    <SelectItem key={mood} value={mood}>
-                      {mood.charAt(0).toUpperCase() + mood.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Audio Options */}
+            {/* Audio Style & Options */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Volume2 className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold">Audio Style</h3>
+                <h3 className="text-lg font-semibold">Audio Style & Options</h3>
               </div>
               
-              {/* Instrumental Mode Toggle */}
-              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg">
-                <Label htmlFor="instrumental-mode" className="flex-1 cursor-pointer">
-                  <span className="font-medium">Instrumental Only</span>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Generate music without vocals
-                  </p>
-                </Label>
-                <Switch
-                  id="instrumental-mode"
-                  checked={instrumentalMode}
-                  onCheckedChange={setInstrumentalMode}
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Left Column - Mood Selection */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-4 w-4 text-accent" />
+                    <span className="font-medium text-sm">Mood</span>
+                  </div>
+                  <Select value={selectedMood} onValueChange={setSelectedMood}>
+                    <SelectTrigger className="w-full bg-muted/30">
+                      <SelectValue placeholder="Choose mood..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border border-border z-50">
+                      <SelectItem value="none">No specific mood</SelectItem>
+                      {MOODS.map((mood) => (
+                        <SelectItem key={mood} value={mood}>
+                          {mood.charAt(0).toUpperCase() + mood.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Wildcard Mode Toggle */}
-              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg">
-                <Label htmlFor="wildcard-mode" className="flex-1 cursor-pointer">
-                  <span className="font-medium">Wild Card Mode</span>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add random creative twists to generated music
-                  </p>
-                </Label>
-                <Switch
-                  id="wildcard-mode"
-                  checked={wildcardMode}
-                  onCheckedChange={setWildcardMode}
-                />
+                {/* Right Column - Audio Options */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Music className="h-4 w-4 text-accent" />
+                    <span className="font-medium text-sm">Style Options</span>
+                  </div>
+                  
+                  {/* Instrumental Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                    <Label htmlFor="instrumental-mode" className="cursor-pointer">
+                      <span className="text-sm font-medium">Instrumental</span>
+                    </Label>
+                    <Switch
+                      id="instrumental-mode"
+                      checked={instrumentalMode}
+                      onCheckedChange={setInstrumentalMode}
+                    />
+                  </div>
+
+                  {/* Wildcard Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                    <Label htmlFor="wildcard-mode" className="cursor-pointer">
+                      <span className="text-sm font-medium">Wild Card</span>
+                    </Label>
+                    <Switch
+                      id="wildcard-mode"
+                      checked={wildcardMode}
+                      onCheckedChange={setWildcardMode}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
