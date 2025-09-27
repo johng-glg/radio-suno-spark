@@ -182,31 +182,50 @@ serve(async (req) => {
     }
 
     // Poll task endpoint until succeeded or timeout
-    const maxWaitMs = 60_000; // 60s (Edge function timeout safe)
-    const pollIntervalMs = 5_000;
+    const maxWaitMs = 180_000; // 3 minutes for generation
+    const pollIntervalMs = 10_000; // 10 seconds
     const startTime = Date.now();
 
     let finalResult: any | null = null;
+    
+    console.log(`Starting to poll Suno task ${taskId}`);
+    
     while (Date.now() - startTime < maxWaitMs) {
-      const taskResp = await fetch(`https://api.sunoapi.com/api/v1/suno/task/${taskId}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${sunoApiKey}` },
-      });
+      try {
+        const taskResp = await fetch(`https://api.sunoapi.com/api/v1/suno/task/${taskId}`, {
+          method: 'GET',
+          headers: { 
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json'
+          },
+        });
 
-      if (!taskResp.ok) {
-        const tErr = await taskResp.text();
-        console.warn('Suno task poll error:', tErr);
-      } else {
-        const tData = await taskResp.json();
-        const items = Array.isArray(tData?.data) ? tData.data : [];
-        if (items.length > 0) {
-          // Suno may return 2 clips; pick the first
-          const item = items[0];
-          if (item?.state === 'succeeded' && item?.audio_url) {
-            finalResult = item;
-            break;
+        if (!taskResp.ok) {
+          const tErr = await taskResp.text();
+          console.error(`Suno task poll error (${taskResp.status}):`, tErr);
+        } else {
+          const tData = await taskResp.json();
+          console.log('Suno API response:', JSON.stringify(tData, null, 2));
+          
+          if (tData.code === 200 && Array.isArray(tData.data) && tData.data.length > 0) {
+            // Suno may return multiple clips; pick the first one that's succeeded
+            const succeededItem = tData.data.find((item: any) => item.state === 'succeeded' && item.audio_url);
+            
+            if (succeededItem) {
+              finalResult = succeededItem;
+              console.log('Found succeeded task:', succeededItem.clip_id);
+              break;
+            } else {
+              // Check if any are still running/pending
+              const runningItems = tData.data.filter((item: any) => 
+                item.state === 'running' || item.state === 'pending'
+              );
+              console.log(`Still processing: ${runningItems.length} items in progress`);
+            }
           }
         }
+      } catch (error) {
+        console.error('Error polling Suno task:', error);
       }
 
       // Wait before next poll
@@ -222,6 +241,7 @@ serve(async (req) => {
 
     if (finalResult?.audio_url) {
       updateData.url = finalResult.audio_url;
+      console.log('Updating song with audio URL:', finalResult.audio_url);
     }
 
     if (finalResult?.lyrics) {
