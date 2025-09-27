@@ -40,7 +40,7 @@ export function useUserPreferences() {
         .from('user_preferences')
         .select('excluded_moods, excluded_instruments, wild_card_mode')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error loading preferences:', error);

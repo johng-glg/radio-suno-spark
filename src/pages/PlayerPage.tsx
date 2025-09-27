@@ -136,22 +136,33 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
   const generateInitialSongs = async () => {
     if (currentSong) return; // Don't generate if we already have songs from database
     
-    // Create prompts based on selected preferences
-    const genre = selectedGenres[0];
-    const moodText = selectedMood ? ` with a ${selectedMood} mood` : '';
-    const prompt = `Create a ${genre.toLowerCase()} track${moodText}. Make it engaging and radio-friendly.`;
+    console.log('Generating initial songs with Build Prompt system');
     
-    console.log('Generating initial song with prompt:', prompt);
-    
-    const result = await generateWithBuildPrompt(preferences.wild_card_mode);
+    try {
+      const result = await generateWithBuildPrompt(preferences.wild_card_mode);
 
-    if (result?.success && result.song_id) {
-      // Poll for the song to be completed and added to queue
-      pollForNewSongs();
-      
+      if (result?.success && result.song_id) {
+        // Poll for the song to be completed and added to queue
+        pollForNewSongs();
+        
+        toast({
+          title: "Radio Started!",
+          description: `Generating tracks with intelligent prompt system...`,
+        });
+      } else {
+        // Handle API errors gracefully
+        toast({
+          title: "Service Temporarily Unavailable",
+          description: "The music generation service is currently down. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error generating initial songs:', error);
       toast({
-        title: "Radio Started!",
-        description: `Generating ${genre} ${selectedMood ? `(${selectedMood})` : ''} tracks...`,
+        title: "Connection Error", 
+        description: "Unable to connect to music generation service. Please check your connection and try again.",
+        variant: "destructive",
       });
     }
   };
