@@ -82,8 +82,8 @@ export function useMusicGeneration() {
       }
 
       toast({
-        title: "Demo Mode",
-        description: result.demo_mode ? "Running in demo mode - Suno API is unavailable" : "Music Generated!",
+        title: result.status === 'ready' ? 'Music Generated!' : 'Generating Music',
+        description,
       });
 
       return result;
