@@ -60,7 +60,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const { preferences, toggleWildCardMode, addExclusion } = useUserPreferences();
   
 
-  // Mock audio element setup
+  // Audio element setup
   useEffect(() => {
     if (audioRef.current) {
       const audio = audioRef.current;
@@ -88,6 +88,18 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       };
     }
   }, [currentSong]);
+
+  // Auto-play when a new song loads
+  useEffect(() => {
+    if (currentSong?.url && audioRef.current) {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((error) => {
+        console.log('Auto-play prevented by browser:', error);
+        // Don't show error toast for auto-play prevention, it's expected behavior
+      });
+    }
+  }, [currentSong?.url]);
 
   // Initialize with first song and load queue from database
   useEffect(() => {
