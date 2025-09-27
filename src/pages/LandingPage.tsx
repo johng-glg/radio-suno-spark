@@ -78,7 +78,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                 AI Radio
               </h1>
             </div>
-            <p className="text-xl text-muted-foreground max-w-lg mx-auto">
+            <p className="text-xl text-muted-foreground max-w-lg mx-auto text-center">
               Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
             </p>
           </div>
