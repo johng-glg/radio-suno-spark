@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import LandingPage from "./LandingPage";
 import PlayerPage from "./PlayerPage";
 
@@ -6,11 +6,6 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState<'landing' | 'player'>('landing');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string>();
-
-  // Force dark mode for the radio app
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
 
   const handleStartRadio = (genres: string[], mood?: string) => {
     setSelectedGenres(genres);
