@@ -54,6 +54,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
   const audioRef = useRef<HTMLAudioElement>(null);
+  const generationLockRef = useRef(false); // prevent concurrent generations
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
@@ -199,8 +200,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         
         // Generate the second song (for queue position 2)
         setTimeout(() => {
-          console.log('Generating second song for queue...');
-          generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+          if (!generationLockRef.current && !isGenerating) {
+            generationLockRef.current = true;
+            console.log('Generating second song for queue...');
+            generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+              .finally(() => { generationLockRef.current = false; });
+          } else {
+            console.log('Skipped generation: already generating');
+          }
         }, 1000);
         
         // Add another existing song as 3rd in queue
@@ -334,11 +341,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     const hasExistingSongs = await loadQueueFromDatabase();
     
     if (hasExistingSongs) {
-      console.log('Using existing songs, generating new ones in background');
-      // Generate new songs in the background while playing existing ones
-      setTimeout(() => {
-        generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
-      }, 2000); // Small delay to let the UI load
+      console.log('Using existing songs; generation will follow the alternating strategy.');
       return;
     }
     
@@ -461,7 +464,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     
     if (queueStrategy === 'generated') {
       // Generate a new song
-      await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+      if (!generationLockRef.current && !isGenerating) {
+        generationLockRef.current = true;
+        await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+          .finally(() => { generationLockRef.current = false; });
+      }
       setQueueStrategy('existing'); // Switch to existing for next
     } else {
       // Add an existing song
@@ -472,7 +479,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         setQueueStrategy('generated'); // Switch to generated for next
       } else {
         // Fallback to generation if no existing songs
-        await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+        if (!generationLockRef.current && !isGenerating) {
+          generationLockRef.current = true;
+          await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode)
+            .finally(() => { generationLockRef.current = false; });
+        }
       }
     }
   };

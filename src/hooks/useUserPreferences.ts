@@ -72,10 +72,13 @@ export function useUserPreferences() {
 
       const { error } = await supabase
         .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          ...updatedPreferences
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            ...updatedPreferences
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (error) {
         console.error('Error updating preferences:', error);
