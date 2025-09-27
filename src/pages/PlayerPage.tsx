@@ -58,6 +58,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [isRefreshing, setIsRefreshing] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
+  const initializationRef = useRef(false); // prevent multiple initializations
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
@@ -222,25 +223,9 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           description: `Playing ${existingSong.title} instantly while preparing more tracks...`,
         });
         
-        // Generate the second song (for queue position 2)
+        // Schedule a SINGLE generation after a delay (no concurrent generations)
         setTimeout(() => {
-          if (!generationLockRef.current && !isGenerating) {
-            generationLockRef.current = true;
-            console.log('Generating second song for queue...');
-            generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-              .finally(() => { generationLockRef.current = false; });
-          } else {
-            console.log('Skipped generation: already generating');
-          }
-        }, 1000);
-        
-        // Add another existing song as 3rd in queue
-        setTimeout(async () => {
-          const nextExistingSong = await getOptimalExistingSong(existingSong.id);
-          if (nextExistingSong) {
-            await addSongToQueue(nextExistingSong);
-            setQueue(prev => [...prev, nextExistingSong]);
-          }
+          generateNextSong();
         }, 2000);
         
         return true;
@@ -485,33 +470,45 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   };
 
   const generateNextSong = async () => {
-    if (queue.length >= 3 || isGenerating) return; // Don't generate if queue is full or already generating
+    // Strict concurrency control - only one generation at a time
+    if (generationLockRef.current || isGenerating) {
+      console.log('Generation already in progress, skipping...');
+      return;
+    }
     
-    console.log('Generating next song with current strategy:', queueStrategy);
+    if (queue.length >= 3) {
+      console.log('Queue is full, skipping generation');
+      return;
+    }
     
-    if (queueStrategy === 'generated') {
-      // Generate a new song
-      if (!generationLockRef.current && !isGenerating) {
-        generationLockRef.current = true;
-          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-          .finally(() => { generationLockRef.current = false; });
-      }
-      setQueueStrategy('existing'); // Switch to existing for next
-    } else {
-      // Add an existing song
-      const existingSong = await getOptimalExistingSong();
-      if (existingSong) {
-        await addSongToQueue(existingSong);
-        setQueue(prev => [...prev, existingSong]);
-        setQueueStrategy('generated'); // Switch to generated for next
+    generationLockRef.current = true;
+    console.log('Starting generation with strategy:', queueStrategy);
+    
+    try {
+      if (queueStrategy === 'generated') {
+        // Generate a new song
+        console.log('Generating new song...');
+        await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
+        setQueueStrategy('existing'); // Switch to existing for next
       } else {
-        // Fallback to generation if no existing songs
-        if (!generationLockRef.current && !isGenerating) {
-          generationLockRef.current = true;
-          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-            .finally(() => { generationLockRef.current = false; });
+        // Add an existing song
+        console.log('Looking for existing song...');
+        const existingSong = await getOptimalExistingSong();
+        if (existingSong) {
+          await addSongToQueue(existingSong);
+          setQueue(prev => [...prev, existingSong]);
+          setQueueStrategy('generated'); // Switch to generated for next
+        } else {
+          // Fallback to generation if no existing songs
+          console.log('No existing songs, generating new one...');
+          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
         }
       }
+    } catch (error) {
+      console.error('Error in generateNextSong:', error);
+    } finally {
+      generationLockRef.current = false;
+      console.log('Generation complete, lock released');
     }
   };
 
