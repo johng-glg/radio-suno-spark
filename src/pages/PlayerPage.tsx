@@ -32,6 +32,8 @@ interface Song {
     selected_words?: Record<string, string>;
     wild_card_applied?: boolean;
   };
+  // User interaction
+  user_interaction?: 'like' | 'dislike' | null;
 }
 
 interface PlayerPageProps {
@@ -50,6 +52,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [volume, setVolume] = useState([80]);
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
+  const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
@@ -163,116 +166,154 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const loadQueueFromDatabase = async () => {
     try {
-      // First, try to load any existing ready songs from the queue
-      const { data: queueData, error } = await supabase
-        .from('queue')
-        .select(`
-          id,
-          position,
-          status,
-          songs (
-            id,
-            title,
-            description,
-            genre,
-            mood,
-            url,
-            status,
-            prompt,
-            created_at,
-            updated_at
-          )
-        `)
-        .order('position', { ascending: true });
-
-      if (error) {
-        console.error('Error loading queue:', error);
-        return;
-      }
-
-      if (queueData && queueData.length > 0) {
-        const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
-        const readySongs = songs.filter(song => song.status === 'ready' && song.url);
+      console.log('Loading optimized queue strategy...');
+      
+      // Strategy: Start with existing song, then alternate between generated and existing
+      // First, get an existing song from database that matches our genres and user preferences
+      const existingSong = await getOptimalExistingSong();
+      
+      if (existingSong) {
+        console.log('Found optimal existing song:', existingSong.title);
+        setCurrentSong(existingSong);
         
-        if (readySongs.length > 0) {
-          console.log('Found existing ready songs in queue:', readySongs.length);
-          setCurrentSong(readySongs[0]);
-          setQueue(readySongs.slice(1));
-          return true; // Return true to indicate we found existing songs
-        }
+        // Show immediate feedback for instant playback
+        toast({
+          title: "Music Ready!",
+          description: `Playing ${existingSong.title} instantly while preparing more tracks...`,
+        });
+        
+        // Add to queue if not already there
+        await addSongToQueue(existingSong);
+        
+        // Generate the second song (for queue position 2)
+        setTimeout(() => {
+          console.log('Generating second song for queue...');
+          generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+        }, 1000);
+        
+        // Add another existing song as 3rd in queue
+        setTimeout(async () => {
+          const nextExistingSong = await getOptimalExistingSong(existingSong.id);
+          if (nextExistingSong) {
+            await addSongToQueue(nextExistingSong);
+            setQueue(prev => [...prev, nextExistingSong]);
+          }
+        }, 2000);
+        
+        return true;
       }
       
-      // If no ready songs in queue, try to find any previously generated songs for current genres
-      if (selectedGenres.length > 0) {
-        console.log('Looking for any ready songs for genres:', selectedGenres);
-        
-        const { data: readySongs, error: readyError } = await supabase
-          .from('songs')
-          .select('*')
-          .eq('status', 'ready')
-          .in('genre', selectedGenres)
-          .not('url', 'is', null)
-          .order('created_at', { ascending: false }) // Get most recent first
-          .limit(5);
-
-        if (readyError) {
-          console.error('Error loading ready songs:', readyError);
-          return false;
-        }
-
-         if (readySongs && readySongs.length > 0) {
-           console.log('Found ready songs from other users:', readySongs.length);
-           
-           // Show immediate feedback for instant playback
-           toast({
-             title: "Music Ready!",
-             description: `Playing ${readySongs[0].title} instantly while generating new tracks...`,
-           });
-           
-           // Add these songs to the queue if not already there
-           const songsToQueue = [];
-           for (const song of readySongs) {
-             const { data: existingQueue } = await supabase
-               .from('queue')
-               .select('id')
-               .eq('song_id', song.id)
-               .maybeSingle();
-               
-             if (!existingQueue) {
-               songsToQueue.push(song);
-             }
-           }
-           
-           if (songsToQueue.length > 0) {
-             // Get next position
-             const { data: queueCount } = await supabase
-               .from('queue')
-               .select('position')
-               .order('position', { ascending: false })
-               .limit(1);
-               
-             let nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
-             
-             // Add to queue
-             const queueInserts = songsToQueue.map(song => ({
-               song_id: song.id,
-               position: nextPosition++,
-               status: 'queued'
-             }));
-             
-             await supabase.from('queue').insert(queueInserts);
-           }
-           
-           setCurrentSong(readySongs[0] as Song);
-           setQueue(readySongs.slice(1) as Song[]);
-           return true;
-         }
-      }
-      
-      return false; // No existing songs found
-    } catch (error) {
-      console.error('Error loading queue from database:', error);
+      console.log('No existing songs found, falling back to generation');
       return false;
+      
+    } catch (error) {
+      console.error('Error loading optimized queue:', error);
+      return false;
+    }
+  };
+
+  const getOptimalExistingSong = async (excludeSongId?: string) => {
+    try {
+      // Build query to get songs with user interaction data
+      let query = supabase
+        .from('songs')
+        .select(`
+          *,
+          user_song_interactions!left(interaction_type)
+        `)
+        .eq('status', 'ready')
+        .in('genre', selectedGenres)
+        .not('url', 'is', null);
+      
+      if (excludeSongId) {
+        query = query.neq('id', excludeSongId);
+      }
+      
+      // Prioritize songs user hasn't heard or liked
+      const { data: songs, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(20); // Get a pool to choose from
+      
+      if (error) {
+        console.error('Error fetching existing songs:', error);
+        return null;
+      }
+      
+      if (!songs || songs.length === 0) return null;
+      
+      // Sort by preference: liked > unheard > disliked
+      const songsWithScores = songs.map(song => {
+        const interaction = song.user_song_interactions?.[0];
+        let score = 0;
+        
+        if (!interaction) score = 2; // Unheard songs get priority
+        else if (interaction.interaction_type === 'like') score = 3; // Liked songs highest
+        else if (interaction.interaction_type === 'dislike') score = 1; // Disliked songs lowest
+        
+        return { ...song, score, user_interaction: interaction?.interaction_type || null };
+      });
+      
+      // Sort by score and pick from top candidates
+      songsWithScores.sort((a, b) => b.score - a.score);
+      const topSongs = songsWithScores.slice(0, 5); // Top 5 candidates
+      
+      // Randomly pick from top candidates for variety
+      const selectedSong = topSongs[Math.floor(Math.random() * topSongs.length)];
+      
+      // Clean up the song object to match Song interface
+      const cleanSong: Song = {
+        id: selectedSong.id,
+        title: selectedSong.title,
+        description: selectedSong.description,
+        genre: selectedSong.genre,
+        mood: selectedSong.mood,
+        url: selectedSong.url,
+        status: selectedSong.status as 'generating' | 'ready' | 'failed',
+        prompt: selectedSong.prompt,
+        created_at: selectedSong.created_at,
+        updated_at: selectedSong.updated_at,
+        prompt_metadata: (selectedSong as any).prompt_metadata || undefined,
+        user_interaction: selectedSong.user_interaction as 'like' | 'dislike' | null
+      };
+      
+      return cleanSong;
+      
+    } catch (error) {
+      console.error('Error getting optimal existing song:', error);
+      return null;
+    }
+  };
+
+  const addSongToQueue = async (song: Song) => {
+    try {
+      // Check if song already in queue
+      const { data: existingQueue } = await supabase
+        .from('queue')
+        .select('id')
+        .eq('song_id', song.id)
+        .maybeSingle();
+        
+      if (existingQueue) return; // Already in queue
+      
+      // Get next position
+      const { data: queueCount } = await supabase
+        .from('queue')
+        .select('position')
+        .order('position', { ascending: false })
+        .limit(1);
+        
+      const nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
+      
+      // Add to queue
+      await supabase.from('queue').insert({
+        song_id: song.id,
+        position: nextPosition,
+        status: 'queued'
+      });
+      
+      console.log('Added song to queue at position:', nextPosition);
+    } catch (error) {
+      console.error('Error adding song to queue:', error);
     }
   };
 
@@ -404,13 +445,24 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const generateNextSong = async () => {
     if (queue.length >= 3 || isGenerating) return; // Don't generate if queue is full or already generating
     
-    const genre = selectedGenres[Math.floor(Math.random() * selectedGenres.length)];
-    const moodText = selectedMood ? ` with a ${selectedMood} mood` : '';
-    const prompt = `Create a ${genre.toLowerCase()} track${moodText}. Make it unique and different from previous tracks.`;
+    console.log('Generating next song with current strategy:', queueStrategy);
     
-    console.log('Generating next song:', { genre, mood: selectedMood, prompt });
-    
-    await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+    if (queueStrategy === 'generated') {
+      // Generate a new song
+      await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+      setQueueStrategy('existing'); // Switch to existing for next
+    } else {
+      // Add an existing song
+      const existingSong = await getOptimalExistingSong();
+      if (existingSong) {
+        await addSongToQueue(existingSong);
+        setQueue(prev => [...prev, existingSong]);
+        setQueueStrategy('generated'); // Switch to generated for next
+      } else {
+        // Fallback to generation if no existing songs
+        await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
+      }
+    }
   };
 
   const handleLike = (isLike: boolean) => {
@@ -646,10 +698,19 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Button
                 variant="ghost"
                 size="icon"
-                className="player-control"
+                className={`player-control ${currentSong?.user_interaction === 'like' ? 'text-green-400' : ''}`}
                 onClick={() => handleLike(true)}
               >
                 <ThumbsUp className="h-5 w-5" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`player-control ${currentSong?.user_interaction === 'dislike' ? 'text-red-400' : ''}`}
+                onClick={() => handleLike(false)}
+              >
+                <ThumbsDown className="h-5 w-5" />
               </Button>
             </div>
 
