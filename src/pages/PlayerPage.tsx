@@ -103,6 +103,27 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     };
     
     clearDatabaseQueue();
+    
+    // Force refresh of current song data to get updated descriptions
+    if (currentSong) {
+      const refreshSongData = async () => {
+        try {
+          const { data: updatedSong } = await supabase
+            .from('songs')
+            .select('*')
+            .eq('id', currentSong.id)
+            .single();
+          
+          if (updatedSong) {
+            setCurrentSong(updatedSong as Song);
+          }
+        } catch (error) {
+          console.error('Error refreshing song data:', error);
+        }
+      };
+      refreshSongData();
+    }
+    
     generateInitialSongs(); // This now handles both loading existing and generating new songs
     
     // Set up real-time subscription to queue changes
