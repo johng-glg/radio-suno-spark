@@ -29,6 +29,7 @@ interface GeneratedMusic {
     selected_words?: Record<string, string>;
     wild_card_applied?: boolean;
   };
+  demo_mode?: boolean;
   error?: string;
 }
 
@@ -81,8 +82,8 @@ export function useMusicGeneration() {
       }
 
       toast({
-        title: "Music Generated!",
-        description,
+        title: "Demo Mode",
+        description: result.demo_mode ? "Running in demo mode - Suno API is unavailable" : "Music Generated!",
       });
 
       return result;
