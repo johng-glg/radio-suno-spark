@@ -5,10 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Volume2 } from "lucide-react";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Volume2, RefreshCw } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const GENRES = [
   "Lo-fi", "Country", "EDM", "Jazz", "Ambient", "Rock", 
@@ -31,6 +32,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const [selectedMood, setSelectedMood] = useState<string>("");
   const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
   const [wildcardMode, setWildcardMode] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -64,6 +66,39 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
     }
   };
 
+  const handleRefreshPendingSongs = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log('Refreshing pending songs...');
+      
+      const { data, error } = await supabase.functions.invoke('check-pending-songs');
+      
+      if (error) {
+        console.error('Error refreshing pending songs:', error);
+        toast({
+          title: "Refresh Failed",
+          description: "Failed to clean up pending songs. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        console.log('Refresh result:', data);
+        toast({
+          title: "Songs Refreshed",
+          description: `Checked ${data.checked} songs, updated ${data.updated} stuck songs.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error in refresh:', error);
+      toast({
+        title: "Refresh Failed",
+        description: "An error occurred while refreshing songs.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 radio-gradient">
       <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
@@ -79,6 +114,19 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           
           {/* Auth Button - positioned absolutely on the right */}
           <div className="absolute top-0 right-0 flex items-center space-x-2">
+            {/* Refresh Button */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleRefreshPendingSongs}
+              disabled={isRefreshing}
+              title="Clean up stuck songs"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            
             {user ? (
               <Button 
                 variant="ghost" 
