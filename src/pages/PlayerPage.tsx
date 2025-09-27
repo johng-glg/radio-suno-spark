@@ -182,47 +182,53 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
           return false;
         }
 
-        if (premadeSongs && premadeSongs.length > 0) {
-          console.log('Found pre-made songs:', premadeSongs.length);
-          
-          // Add these songs to the queue if not already there
-          const songsToQueue = [];
-          for (const song of premadeSongs) {
-            const { data: existingQueue } = await supabase
-              .from('queue')
-              .select('id')
-              .eq('song_id', song.id)
-              .single();
-              
-            if (!existingQueue) {
-              songsToQueue.push(song);
-            }
-          }
-          
-          if (songsToQueue.length > 0) {
-            // Get next position
-            const { data: queueCount } = await supabase
-              .from('queue')
-              .select('position')
-              .order('position', { ascending: false })
-              .limit(1);
-              
-            let nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
-            
-            // Add to queue
-            const queueInserts = songsToQueue.map(song => ({
-              song_id: song.id,
-              position: nextPosition++,
-              status: 'queued'
-            }));
-            
-            await supabase.from('queue').insert(queueInserts);
-          }
-          
-          setCurrentSong(premadeSongs[0] as Song);
-          setQueue(premadeSongs.slice(1) as Song[]);
-          return true;
-        }
+         if (premadeSongs && premadeSongs.length > 0) {
+           console.log('Found pre-made songs:', premadeSongs.length);
+           
+           // Show immediate feedback for instant playback
+           toast({
+             title: "Music Ready!",
+             description: `Playing ${premadeSongs[0].title} instantly while generating new tracks...`,
+           });
+           
+           // Add these songs to the queue if not already there
+           const songsToQueue = [];
+           for (const song of premadeSongs) {
+             const { data: existingQueue } = await supabase
+               .from('queue')
+               .select('id')
+               .eq('song_id', song.id)
+               .maybeSingle();
+               
+             if (!existingQueue) {
+               songsToQueue.push(song);
+             }
+           }
+           
+           if (songsToQueue.length > 0) {
+             // Get next position
+             const { data: queueCount } = await supabase
+               .from('queue')
+               .select('position')
+               .order('position', { ascending: false })
+               .limit(1);
+               
+             let nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
+             
+             // Add to queue
+             const queueInserts = songsToQueue.map(song => ({
+               song_id: song.id,
+               position: nextPosition++,
+               status: 'queued'
+             }));
+             
+             await supabase.from('queue').insert(queueInserts);
+           }
+           
+           setCurrentSong(premadeSongs[0] as Song);
+           setQueue(premadeSongs.slice(1) as Song[]);
+           return true;
+         }
       }
       
       return false; // No existing songs found
