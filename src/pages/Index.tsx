@@ -9,6 +9,7 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState<'landing' | 'player' | 'auth'>('landing');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string>();
+  const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
   const { user, loading } = useAuth();
 
   // Force dark mode for the radio app
@@ -33,13 +34,14 @@ const Index = () => {
     setCurrentPage('auth');
   }
 
-  const handleStartRadio = (genres: string[], mood?: string) => {
+  const handleStartRadio = (genres: string[], mood?: string, instrumental?: boolean) => {
     if (!user) {
       setCurrentPage('auth');
       return;
     }
     setSelectedGenres(genres);
     setSelectedMood(mood);
+    setInstrumentalMode(instrumental || false);
     setCurrentPage('player');
   };
 
@@ -47,6 +49,7 @@ const Index = () => {
     setCurrentPage('landing');
     setSelectedGenres([]);
     setSelectedMood(undefined);
+    setInstrumentalMode(false);
   };
 
   const handleAuthNavigation = () => {
@@ -70,6 +73,7 @@ const Index = () => {
       <PlayerPage
         selectedGenres={selectedGenres}
         selectedMood={selectedMood}
+        instrumentalMode={instrumentalMode}
         onBack={handleBackToLanding}
       />
     );

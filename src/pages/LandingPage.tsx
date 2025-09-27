@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User } from "lucide-react";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Volume2 } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +21,7 @@ const MOODS = [
 ];
 
 interface LandingPageProps {
-  onStartRadio: (genres: string[], mood?: string) => void;
+  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean) => void;
   onAuthNavigate: () => void;
   user: AuthUser | null;
 }
@@ -27,6 +29,7 @@ interface LandingPageProps {
 export default function LandingPage({ onStartRadio, onAuthNavigate, user }: LandingPageProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string>("");
+  const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -41,7 +44,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const handleStartRadio = () => {
     if (selectedGenres.length === 0) return;
     const mood = selectedMood === "none" ? undefined : selectedMood;
-    onStartRadio(selectedGenres, mood);
+    onStartRadio(selectedGenres, mood, instrumentalMode);
   };
 
   const handleSignOut = async () => {
@@ -155,6 +158,27 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Instrumental Mode Toggle */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Volume2 className="h-5 w-5 text-accent" />
+                <h3 className="text-lg font-semibold">Audio Style</h3>
+              </div>
+              <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-lg">
+                <Label htmlFor="instrumental-mode" className="flex-1 cursor-pointer">
+                  <span className="font-medium">Instrumental Only</span>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Generate music without vocals
+                  </p>
+                </Label>
+                <Switch
+                  id="instrumental-mode"
+                  checked={instrumentalMode}
+                  onCheckedChange={setInstrumentalMode}
+                />
+              </div>
             </div>
 
             {/* Start Button */}

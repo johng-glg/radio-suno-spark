@@ -37,10 +37,11 @@ interface Song {
 interface PlayerPageProps {
   selectedGenres: string[];
   selectedMood?: string;
+  instrumentalMode?: boolean;
   onBack: () => void;
 }
 
-export default function PlayerPage({ selectedGenres, selectedMood, onBack }: PlayerPageProps) {
+export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, onBack }: PlayerPageProps) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -283,7 +284,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
       console.log('Using existing songs, generating new ones in background');
       // Generate new songs in the background while playing existing ones
       setTimeout(() => {
-        generateWithBuildPrompt(preferences.wild_card_mode);
+        generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
       }, 2000); // Small delay to let the UI load
       return;
     }
@@ -291,7 +292,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     console.log('No existing songs found, generating initial songs');
     
     try {
-      const result = await generateWithBuildPrompt(preferences.wild_card_mode);
+      const result = await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
 
       if (result?.success && result.song_id) {
         // Poll for the song to be completed and added to queue
@@ -409,7 +410,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     
     console.log('Generating next song:', { genre, mood: selectedMood, prompt });
     
-    await generateWithBuildPrompt(preferences.wild_card_mode);
+    await generateWithBuildPrompt(preferences.wild_card_mode, instrumentalMode);
   };
 
   const handleLike = (isLike: boolean) => {
@@ -578,6 +579,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
                 ))}
                 {selectedMood && (
                   <Badge variant="outline">{selectedMood}</Badge>
+                )}
+                {instrumentalMode && (
+                  <Badge variant="outline" className="text-blue-400 border-blue-400/50">
+                    <Volume2 className="h-3 w-3 mr-1" />
+                    Instrumental
+                  </Badge>
                 )}
                 {preferences.wild_card_mode && (
                   <Badge variant="outline" className="text-yellow-400 border-yellow-400/50">

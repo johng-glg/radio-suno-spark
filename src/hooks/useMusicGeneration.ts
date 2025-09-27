@@ -102,10 +102,11 @@ export function useMusicGeneration() {
   };
 
   // Generate music using the new Build Prompt system
-  const generateWithBuildPrompt = async (wildCardMode = false) => {
+  const generateWithBuildPrompt = async (wildCardMode = false, makeInstrumental = false) => {
     return generateMusic({
       use_build_prompt: true,
-      wild_card_mode: wildCardMode
+      wild_card_mode: wildCardMode,
+      make_instrumental: makeInstrumental
     });
   };
 
