@@ -69,24 +69,26 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
       <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
         {/* Header with Auth */}
         <div className="relative">
-          {/* Auth Button - positioned absolutely to not affect centering */}
+          {/* User Email - positioned absolutely on the left */}
+          {user && (
+            <div className="absolute top-0 left-0 flex items-center space-x-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">{user.email}</span>
+            </div>
+          )}
+          
+          {/* Auth Button - positioned absolutely on the right */}
           <div className="absolute top-0 right-0 flex items-center space-x-2">
             {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <User className="h-4 w-4" />
-                  <span className="hidden sm:inline">{user.email}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </Button>
-              </div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             ) : (
               <Button 
                 variant="outline" 
