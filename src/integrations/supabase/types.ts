@@ -68,6 +68,27 @@ export type Database = {
         }
         Relationships: []
       }
+      prompt_templates: {
+        Row: {
+          created_at: string
+          id: string
+          template: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          template: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       queue: {
         Row: {
           created_at: string
@@ -136,6 +157,60 @@ export type Database = {
           title?: string | null
           updated_at?: string
           url?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          excluded_instruments: string[] | null
+          excluded_moods: string[] | null
+          id: string
+          updated_at: string
+          user_id: string | null
+          wild_card_mode: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          excluded_instruments?: string[] | null
+          excluded_moods?: string[] | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+          wild_card_mode?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          excluded_instruments?: string[] | null
+          excluded_moods?: string[] | null
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+          wild_card_mode?: boolean | null
+        }
+        Relationships: []
+      }
+      word_pools: {
+        Row: {
+          created_at: string
+          id: string
+          type: string
+          value: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          type: string
+          value: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          type?: string
+          value?: string
+          weight?: number | null
         }
         Relationships: []
       }

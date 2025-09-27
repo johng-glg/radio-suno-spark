@@ -17,3 +17,6 @@ enable_signup = true
 
 [functions.generate-music]
 verify_jwt = true
+
+[functions.build-prompt]
+verify_jwt = false

@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useMusicGeneration } from "@/hooks/useMusicGeneration";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Song {
@@ -23,6 +26,12 @@ interface Song {
   prompt?: string;
   created_at?: string;
   updated_at?: string;
+  // New fields for Build Prompt metadata
+  prompt_metadata?: {
+    template_used?: string;
+    selected_words?: Record<string, string>;
+    wild_card_applied?: boolean;
+  };
 }
 
 interface PlayerPageProps {
@@ -38,10 +47,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState([80]);
+  const [showPromptInfo, setShowPromptInfo] = useState(false);
+  const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const audioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
-  const { generateMusic, isGenerating } = useMusicGeneration();
+  const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
+  const { preferences, toggleWildCardMode, addExclusion } = useUserPreferences();
+  
 
   // Mock audio element setup
   useEffect(() => {
@@ -130,13 +143,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     
     console.log('Generating initial song with prompt:', prompt);
     
-    const result = await generateMusic({
-      prompt,
-      genre,
-      mood: selectedMood,
-      title: `${genre} Radio Track`,
-      make_instrumental: Math.random() > 0.7 // 30% chance of instrumental
-    });
+    const result = await generateWithBuildPrompt(preferences.wild_card_mode);
 
     if (result?.success && result.song_id) {
       // Poll for the song to be completed and added to queue
@@ -237,22 +244,40 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
     
     console.log('Generating next song:', { genre, mood: selectedMood, prompt });
     
-    await generateMusic({
-      prompt,
-      genre,
-      mood: selectedMood,
-      title: `${genre} Mix`,
-      make_instrumental: Math.random() > 0.6 // 40% chance of instrumental
-    });
+    await generateWithBuildPrompt(preferences.wild_card_mode);
   };
 
   const handleLike = (isLike: boolean) => {
-    toast({
-      title: isLike ? "Liked!" : "Disliked",
-      description: isLike 
-        ? "We'll play more tracks like this" 
-        : "We'll avoid similar tracks in the future",
-    });
+    if (isLike) {
+      toast({
+        title: "Liked!",
+        description: "We'll play more tracks like this",
+      });
+    } else {
+      // Handle thumbs down - exclude last used mood and instrument
+      if (currentSong?.prompt_metadata?.selected_words) {
+        const { mood, instrument } = currentSong.prompt_metadata.selected_words;
+        
+        if (mood) {
+          addExclusion('mood', mood);
+          setLastDislikedElements(prev => ({ ...prev, mood }));
+        }
+        if (instrument) {
+          addExclusion('instrument', instrument);
+          setLastDislikedElements(prev => ({ ...prev, instrument }));
+        }
+        
+        toast({
+          title: "Disliked",
+          description: `We'll avoid ${mood ? mood + ' mood' : ''}${mood && instrument ? ' and ' : ''}${instrument ? instrument + ' sounds' : ''} in future tracks`,
+        });
+      } else {
+        toast({
+          title: "Disliked",
+          description: "We'll try different styles in the future",
+        });
+      }
+    }
   };
 
   const handleSignOut = async () => {
@@ -307,25 +332,37 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
           <Music className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-bold">AI Radio</h1>
         </div>
-        <div className="flex items-center space-x-3">
-          {user && (
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{user.email}</span>
+          <div className="flex items-center space-x-3">
+            {user && (
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{user.email}</span>
+              </div>
+            )}
+            
+            {/* Wild Card Mode Toggle */}
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="wild-card" className="text-sm hidden sm:inline">Wild Card</Label>
+              <Switch
+                id="wild-card"
+                checked={preferences.wild_card_mode}
+                onCheckedChange={toggleWildCardMode}
+              />
+              <Sparkles className={`h-4 w-4 ${preferences.wild_card_mode ? 'text-yellow-400' : 'text-muted-foreground'}`} />
             </div>
-          )}
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleSignOut}
-            title="Sign Out"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon">
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleSignOut}
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
       </div>
 
       <div className="max-w-2xl mx-auto space-y-8">
@@ -333,14 +370,55 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
         <Card className="bg-card/50 backdrop-blur-sm">
           <CardContent className="p-8 text-center space-y-6">
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold">{currentSong?.title || "Loading..."}</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">{currentSong?.title || "Loading..."}</h2>
+                {currentSong?.prompt_metadata && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPromptInfo(!showPromptInfo)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
               <p className="text-muted-foreground">{currentSong?.description}</p>
+              
+              {/* Show prompt information when toggled */}
+              {showPromptInfo && currentSong?.prompt_metadata && (
+                <div className="bg-muted/20 rounded p-3 text-sm space-y-2">
+                  <p><strong>Generated from:</strong> {currentSong.prompt_metadata.template_used}</p>
+                  {currentSong.prompt_metadata.selected_words && (
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(currentSong.prompt_metadata.selected_words).map(([key, value]) => (
+                        <Badge key={key} variant="outline" className="text-xs">
+                          {key}: {value}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {currentSong.prompt_metadata.wild_card_applied && (
+                    <div className="flex items-center space-x-1">
+                      <Sparkles className="h-3 w-3 text-yellow-400" />
+                      <span className="text-yellow-400 text-xs">Wild Card Applied!</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="flex items-center justify-center space-x-2">
                 {selectedGenres.map(genre => (
                   <Badge key={genre} variant="secondary">{genre}</Badge>
                 ))}
                 {selectedMood && (
                   <Badge variant="outline">{selectedMood}</Badge>
+                )}
+                {preferences.wild_card_mode && (
+                  <Badge variant="outline" className="text-yellow-400 border-yellow-400/50">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Wild Card
+                  </Badge>
                 )}
               </div>
             </div>
@@ -424,6 +502,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
             <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
               <Clock className="h-5 w-5" />
               <span>Coming Up</span>
+              {isGenerating && (
+                <Badge variant="secondary" className="ml-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse mr-1" />
+                  Generating...
+                </Badge>
+              )}
             </h3>
             <div className="space-y-3">
               {queue.slice(0, 3).map((song, index) => (
@@ -432,13 +516,41 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
                   <div className="flex-1">
                     <p className="font-medium">{song.title}</p>
                     <p className="text-sm text-muted-foreground">{song.description}</p>
+                    {song.prompt_metadata?.wild_card_applied && (
+                      <div className="flex items-center space-x-1 mt-1">
+                        <Sparkles className="h-3 w-3 text-yellow-400" />
+                        <span className="text-xs text-yellow-400">Wild Card</span>
+                      </div>
+                    )}
                   </div>
                   <Badge variant={song.status === 'completed' ? 'default' : 'secondary'}>
                     {song.status === 'completed' ? 'Ready' : 'Generating...'}
                   </Badge>
                 </div>
               ))}
+              {queue.length === 0 && !isGenerating && (
+                <p className="text-center text-muted-foreground">Queue is empty. Generating new tracks...</p>
+              )}
             </div>
+            
+            {/* Excluded preferences indicator */}
+            {(preferences.excluded_moods.length > 0 || preferences.excluded_instruments.length > 0) && (
+              <div className="mt-4 p-3 bg-muted/10 rounded border">
+                <p className="text-xs text-muted-foreground mb-2">Currently avoiding:</p>
+                <div className="flex flex-wrap gap-1">
+                  {preferences.excluded_moods.map(mood => (
+                    <Badge key={mood} variant="destructive" className="text-xs">
+                      {mood} mood
+                    </Badge>
+                  ))}
+                  {preferences.excluded_instruments.map(instrument => (
+                    <Badge key={instrument} variant="destructive" className="text-xs">
+                      {instrument}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

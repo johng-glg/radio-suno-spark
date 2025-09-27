@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface GenerateMusicParams {
-  prompt: string;
-  genre: string;
+  // New Build Prompt system
+  use_build_prompt?: boolean;
+  wild_card_mode?: boolean;
+  
+  // Legacy parameters for backwards compatibility
+  prompt?: string;
+  genre?: string;
   mood?: string;
   title?: string;
   make_instrumental?: boolean;
@@ -17,12 +23,19 @@ interface GeneratedMusic {
   status?: string;
   audio_url?: string;
   title?: string;
+  prompt?: string;
+  prompt_metadata?: {
+    template_used?: string;
+    selected_words?: Record<string, string>;
+    wild_card_applied?: boolean;
+  };
   error?: string;
 }
 
 export function useMusicGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const generateMusic = async (params: GenerateMusicParams): Promise<GeneratedMusic | null> => {
     setIsGenerating(true);
@@ -30,8 +43,15 @@ export function useMusicGeneration() {
     try {
       console.log('Generating music with params:', params);
       
+      const requestBody = {
+        user_id: user?.id,
+        use_build_prompt: params.use_build_prompt ?? true,
+        wild_card_mode: params.wild_card_mode ?? false,
+        ...params
+      };
+
       const { data, error } = await supabase.functions.invoke('generate-music', {
-        body: params
+        body: requestBody
       });
 
       if (error) {
@@ -55,9 +75,14 @@ export function useMusicGeneration() {
         return result;
       }
 
+      let description = `${result.title || 'Track'} has been generated`;
+      if (result.prompt_metadata?.wild_card_applied) {
+        description += ' with a wild card twist!';
+      }
+
       toast({
         title: "Music Generated!",
-        description: `${result.title || 'Track'} has been added to your queue`,
+        description,
       });
 
       return result;
@@ -75,8 +100,29 @@ export function useMusicGeneration() {
     }
   };
 
+  // Generate music using the new Build Prompt system
+  const generateWithBuildPrompt = async (wildCardMode = false) => {
+    return generateMusic({
+      use_build_prompt: true,
+      wild_card_mode: wildCardMode
+    });
+  };
+
+  // Keep the legacy method for backwards compatibility
+  const generateMusicLegacy = async (prompt: string, genre: string, mood?: string, title?: string) => {
+    return generateMusic({
+      use_build_prompt: false,
+      prompt,
+      genre,
+      mood,
+      title
+    });
+  };
+
   return {
     generateMusic,
+    generateWithBuildPrompt,
+    generateMusicLegacy,
     isGenerating
   };
 }

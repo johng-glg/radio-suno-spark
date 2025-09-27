@@ -8,9 +8,13 @@ const corsHeaders = {
 };
 
 interface SunoGenerateRequest {
-  prompt: string;
+  user_id?: string;
+  use_build_prompt?: boolean;
+  wild_card_mode?: boolean;
+  // Legacy fields for backwards compatibility
+  prompt?: string;
   title?: string;
-  genre: string;
+  genre?: string;
   mood?: string;
   make_instrumental?: boolean;
   wait_audio?: boolean;
@@ -38,23 +42,84 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { prompt, genre, mood, title, make_instrumental = false, wait_audio = true } = await req.json() as SunoGenerateRequest;
+    const { 
+      user_id, 
+      use_build_prompt = true, 
+      wild_card_mode = false,
+      prompt: legacyPrompt,
+      genre: legacyGenre,
+      mood: legacyMood,
+      title,
+      make_instrumental = false, 
+      wait_audio = true 
+    } = await req.json() as SunoGenerateRequest;
 
-    if (!prompt || !genre) {
-      throw new Error('Prompt and genre are required');
+    let finalPrompt = legacyPrompt;
+    let promptMetadata: any = {};
+
+    // Use Build Prompt workflow if enabled
+    if (use_build_prompt && !legacyPrompt) {
+      console.log('Using Build Prompt workflow');
+      
+      // Call the build-prompt function
+      const buildPromptResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/build-prompt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+        },
+        body: JSON.stringify({
+          user_id,
+          wild_card_mode
+        })
+      });
+
+      if (!buildPromptResponse.ok) {
+        throw new Error('Failed to build prompt');
+      }
+
+      const buildPromptData = await buildPromptResponse.json();
+      if (!buildPromptData.success) {
+        throw new Error(buildPromptData.error || 'Failed to build prompt');
+      }
+
+      finalPrompt = buildPromptData.prompt;
+      promptMetadata = {
+        template_used: buildPromptData.template_used,
+        selected_words: buildPromptData.selected_words,
+        wild_card_applied: buildPromptData.wild_card_applied
+      };
+
+      console.log('Generated prompt:', finalPrompt);
+      console.log('Prompt metadata:', promptMetadata);
     }
 
-    console.log('Generating music with Suno API:', { prompt, genre, mood, title });
+    if (!finalPrompt) {
+      throw new Error('No prompt provided or generated');
+    }
+
+    // Extract genre from selected words or use legacy genre
+    const genre = promptMetadata.selected_words?.genre || legacyGenre || 'electronic';
+    const mood = promptMetadata.selected_words?.mood || legacyMood;
+
+    console.log('Generating music with Suno API:', { 
+      prompt: finalPrompt, 
+      genre, 
+      mood, 
+      title,
+      make_instrumental 
+    });
 
     // Create initial song record in database
     const { data: song, error: insertError } = await supabaseClient
       .from('songs')
       .insert({
-        prompt,
+        prompt: finalPrompt,
         genre,
         mood,
         title: title || `${genre} Track`,
-        status: 'generating'
+        status: 'generating',
+        description: promptMetadata.template_used ? `Generated from: ${promptMetadata.template_used}` : undefined
       })
       .select()
       .single();
@@ -78,7 +143,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: prompt,
+        prompt: finalPrompt,
         title: title || `${genre} Track`,
         make_instrumental,
         wait_audio
@@ -162,7 +227,9 @@ serve(async (req) => {
       suno_id: generatedTrack.id,
       status: generatedTrack.status,
       audio_url: generatedTrack.audio_url,
-      title: generatedTrack.title || song.title
+      title: generatedTrack.title || song.title,
+      prompt: finalPrompt,
+      prompt_metadata: promptMetadata
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
