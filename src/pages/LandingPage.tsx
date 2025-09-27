@@ -68,23 +68,9 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
     <div className="min-h-screen flex items-center justify-center p-4 radio-gradient">
       <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
         {/* Header with Auth */}
-        <div className="flex justify-between items-start">
-          <div className="text-center flex-1">
-            <div className="flex items-center justify-center space-x-3 mb-6">
-              <div className="p-3 rounded-full bg-primary/20 neon-glow">
-                <Radio className="h-8 w-8 text-primary" />
-              </div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
-                AI Radio
-              </h1>
-            </div>
-            <p className="text-xl text-muted-foreground max-w-lg mx-auto text-center">
-              Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
-            </p>
-          </div>
-          
-          {/* Auth Button */}
-          <div className="flex items-center space-x-2 ml-4">
+        <div className="relative">
+          {/* Auth Button - positioned absolutely to not affect centering */}
+          <div className="absolute top-0 right-0 flex items-center space-x-2">
             {user ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -112,6 +98,21 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                 Sign In
               </Button>
             )}
+          </div>
+          
+          {/* Centered content */}
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-3 mb-6">
+              <div className="p-3 rounded-full bg-primary/20 neon-glow">
+                <Radio className="h-8 w-8 text-primary" />
+              </div>
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
+                AI Radio
+              </h1>
+            </div>
+            <p className="text-xl text-muted-foreground max-w-lg mx-auto text-center">
+              Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
+            </p>
           </div>
         </div>
 
