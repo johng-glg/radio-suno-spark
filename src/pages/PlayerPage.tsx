@@ -87,8 +87,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
 
   // Initialize with first song and load queue from database
   useEffect(() => {
-    loadQueueFromDatabase();
-    generateInitialSongs();
+    generateInitialSongs(); // This now handles both loading existing and generating new songs
     
     // Set up real-time subscription to queue changes
     const queueChannel = supabase
@@ -126,7 +125,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
 
   const loadQueueFromDatabase = async () => {
     try {
-      // Load existing queue from database
+      // First, try to load any existing ready songs from the queue
       const { data: queueData, error } = await supabase
         .from('queue')
         .select(`
@@ -155,21 +154,98 @@ export default function PlayerPage({ selectedGenres, selectedMood, onBack }: Pla
 
       if (queueData && queueData.length > 0) {
         const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
-        if (songs.length > 0) {
-          setCurrentSong(songs[0]);
-          setQueue(songs.slice(1));
-          return; // Don't generate initial songs if we have existing queue
+        const readySongs = songs.filter(song => song.status === 'ready' && song.url);
+        
+        if (readySongs.length > 0) {
+          console.log('Found existing ready songs in queue:', readySongs.length);
+          setCurrentSong(readySongs[0]);
+          setQueue(readySongs.slice(1));
+          return true; // Return true to indicate we found existing songs
         }
       }
+      
+      // If no ready songs in queue, try to find pre-made songs for current genres
+      if (selectedGenres.length > 0) {
+        console.log('Looking for pre-made songs for genres:', selectedGenres);
+        
+        const { data: premadeSongs, error: premadeError } = await supabase
+          .from('songs')
+          .select('*')
+          .eq('status', 'ready')
+          .in('genre', selectedGenres)
+          .not('url', 'is', null)
+          .order('created_at', { ascending: true })
+          .limit(5);
+
+        if (premadeError) {
+          console.error('Error loading pre-made songs:', premadeError);
+          return false;
+        }
+
+        if (premadeSongs && premadeSongs.length > 0) {
+          console.log('Found pre-made songs:', premadeSongs.length);
+          
+          // Add these songs to the queue if not already there
+          const songsToQueue = [];
+          for (const song of premadeSongs) {
+            const { data: existingQueue } = await supabase
+              .from('queue')
+              .select('id')
+              .eq('song_id', song.id)
+              .single();
+              
+            if (!existingQueue) {
+              songsToQueue.push(song);
+            }
+          }
+          
+          if (songsToQueue.length > 0) {
+            // Get next position
+            const { data: queueCount } = await supabase
+              .from('queue')
+              .select('position')
+              .order('position', { ascending: false })
+              .limit(1);
+              
+            let nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
+            
+            // Add to queue
+            const queueInserts = songsToQueue.map(song => ({
+              song_id: song.id,
+              position: nextPosition++,
+              status: 'queued'
+            }));
+            
+            await supabase.from('queue').insert(queueInserts);
+          }
+          
+          setCurrentSong(premadeSongs[0] as Song);
+          setQueue(premadeSongs.slice(1) as Song[]);
+          return true;
+        }
+      }
+      
+      return false; // No existing songs found
     } catch (error) {
       console.error('Error loading queue from database:', error);
+      return false;
     }
   };
 
   const generateInitialSongs = async () => {
-    if (currentSong) return; // Don't generate if we already have songs from database
+    // Always check for existing songs first
+    const hasExistingSongs = await loadQueueFromDatabase();
     
-    console.log('Generating initial songs with Build Prompt system');
+    if (hasExistingSongs) {
+      console.log('Using existing songs, generating new ones in background');
+      // Generate new songs in the background while playing existing ones
+      setTimeout(() => {
+        generateWithBuildPrompt(preferences.wild_card_mode);
+      }, 2000); // Small delay to let the UI load
+      return;
+    }
+    
+    console.log('No existing songs found, generating initial songs');
     
     try {
       const result = await generateWithBuildPrompt(preferences.wild_card_mode);
