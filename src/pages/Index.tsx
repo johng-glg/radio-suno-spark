@@ -28,6 +28,11 @@ const Index = () => {
     );
   }
 
+  // Redirect unauthenticated users to auth page by default
+  if (!loading && !user && currentPage !== 'auth') {
+    setCurrentPage('auth');
+  }
+
   const handleStartRadio = (genres: string[], mood?: string) => {
     if (!user) {
       setCurrentPage('auth');
@@ -49,10 +54,14 @@ const Index = () => {
   };
 
   const handleBackFromAuth = () => {
-    setCurrentPage('landing');
+    // Only allow back to landing if user is authenticated
+    if (user) {
+      setCurrentPage('landing');
+    }
   };
 
-  if (currentPage === 'auth') {
+  // Show auth page by default for unauthenticated users
+  if (!loading && !user) {
     return <AuthPage onBack={handleBackFromAuth} />;
   }
 
