@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.build-prompt]
 verify_jwt = false
+
+[functions.check-pending-songs]
+verify_jwt = false
