@@ -197,9 +197,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           description: `Playing ${existingSong.title} instantly while preparing more tracks...`,
         });
         
-        // Add to queue if not already there
-        await addSongToQueue(existingSong);
-        
         // Generate the second song (for queue position 2)
         setTimeout(() => {
           if (!generationLockRef.current && !isGenerating) {
