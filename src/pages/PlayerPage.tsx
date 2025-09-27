@@ -202,7 +202,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           if (!generationLockRef.current && !isGenerating) {
             generationLockRef.current = true;
             console.log('Generating second song for queue...');
-            generateWithBuildPrompt(wildcardMode, instrumentalMode)
+            generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
               .finally(() => { generationLockRef.current = false; });
           } else {
             console.log('Skipped generation: already generating');
@@ -350,7 +350,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('No existing songs found, generating initial songs');
     
     try {
-      const result = await generateWithBuildPrompt(wildcardMode, instrumentalMode);
+      const result = await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
 
       if (result?.success && result.song_id) {
         // Poll for the song to be completed and added to queue
@@ -468,7 +468,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       // Generate a new song
       if (!generationLockRef.current && !isGenerating) {
         generationLockRef.current = true;
-        await generateWithBuildPrompt(wildcardMode, instrumentalMode)
+          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
           .finally(() => { generationLockRef.current = false; });
       }
       setQueueStrategy('existing'); // Switch to existing for next
@@ -483,7 +483,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         // Fallback to generation if no existing songs
         if (!generationLockRef.current && !isGenerating) {
           generationLockRef.current = true;
-          await generateWithBuildPrompt(wildcardMode, instrumentalMode)
+          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
             .finally(() => { generationLockRef.current = false; });
         }
       }

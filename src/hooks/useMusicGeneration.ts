@@ -102,11 +102,18 @@ export function useMusicGeneration() {
   };
 
   // Generate music using the new Build Prompt system
-  const generateWithBuildPrompt = async (wildCardMode = false, makeInstrumental = false) => {
+  const generateWithBuildPrompt = async (
+    wildCardMode = false, 
+    makeInstrumental = false, 
+    genres?: string[], 
+    mood?: string
+  ) => {
     return generateMusic({
       use_build_prompt: true,
       wild_card_mode: wildCardMode,
-      make_instrumental: makeInstrumental
+      make_instrumental: makeInstrumental,
+      genre: genres && genres.length > 0 ? genres[0].toLowerCase() : undefined,
+      mood: mood
     });
   };
 
