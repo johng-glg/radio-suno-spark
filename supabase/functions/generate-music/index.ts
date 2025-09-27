@@ -245,7 +245,21 @@ serve(async (req) => {
     }
 
     if (finalResult?.lyrics) {
-      updateData.description = finalResult.lyrics;
+      // Generate a proper description instead of using lyrics
+      const moodText = genre && finalResult.tags ? 
+        `A ${finalResult.tags.includes('peaceful') ? 'peaceful' : 
+           finalResult.tags.includes('energetic') ? 'energetic' : 
+           finalResult.tags.includes('dreamy') ? 'dreamy' : 
+           finalResult.tags.includes('intense') ? 'intense' : 'atmospheric'} ` : '';
+      
+      const genreText = genre ? `${genre} ` : '';
+      
+      // Extract key instruments from tags if available
+      const instruments = finalResult.tags ? 
+        finalResult.tags.match(/\b(piano|guitar|violin|flute|drums|bass|saxophone|synth|electronic)\b/gi)?.slice(0, 2) || [] : [];
+      const instrumentText = instruments.length > 0 ? ` featuring ${instruments.join(' and ')}` : '';
+      
+      updateData.description = `${moodText}${genreText}composition${instrumentText} with unique musical elements`;
     }
 
     const { error: updateError } = await supabaseClient
