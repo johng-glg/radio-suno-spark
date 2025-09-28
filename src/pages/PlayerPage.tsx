@@ -66,6 +66,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [exhaustedGenreMoods, setExhaustedGenreMoods] = useState<Set<string>>(new Set());
+  const [isSkipping, setIsSkipping] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
@@ -627,28 +628,41 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Maintain queue with exactly 1 next song (library-first)
+  // Maintain queue with at least 2-3 songs (library-first)
   const maintainQueue = async () => {
     try {
       const readySongs = queue.filter(song => song.status === 'ready' && song.url);
       const generatingSongs = queue.filter(song => song.status === 'generating');
       
-      console.log(`Queue status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
+      console.log(`Maintaining queue - current status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
       
-      // Only maintain 1 next song (not 2 ready + 1 generating)
-      if (readySongs.length === 0 && generatingSongs.length === 0) {
-        const nextSong = await getNextSongByPriority(currentSong?.id);
-        if (nextSong) {
-          await addSongToQueue(nextSong);
-          console.log('Added song to maintain queue:', nextSong.title);
-        } else {
-          // Only generate if no library songs available for current genre (excluding current)
-          const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
-          if (!hasLibrarySongs) {
-            console.log('No library songs available in genre (excluding current), starting generation...');
-            startGenerationTask();
+      // Aim to have at least 2 ready songs or 1 ready + 1 generating
+      const targetReadySongs = 2;
+      const songsNeeded = Math.max(0, targetReadySongs - readySongs.length - generatingSongs.length);
+      
+      if (songsNeeded > 0) {
+        console.log(`Need ${songsNeeded} more songs in queue`);
+        
+        for (let i = 0; i < songsNeeded; i++) {
+          const nextSong = await getNextSongByPriority(currentSong?.id);
+          if (nextSong) {
+            await addSongToQueue(nextSong);
+            console.log(`Added song ${i + 1}/${songsNeeded} to queue:`, nextSong.title);
+          } else {
+            // Check if we should generate
+            const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
+            if (!hasLibrarySongs && generatingSongs.length === 0) {
+              console.log('No library songs available, starting generation...');
+              startGenerationTask();
+              break; // Only start one generation at a time
+            } else if (hasLibrarySongs) {
+              console.log('Library songs available but not returned by priority function - might be filtered by mood');
+            }
+            break; // Stop trying if no songs available
           }
         }
+      } else {
+        console.log('Queue adequately maintained');
       }
       
     } catch (error) {
@@ -773,12 +787,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   };
 
   const handleSkip = async () => {
+    if (isSkipping) {
+      console.log('Skip already in progress, ignoring click');
+      return;
+    }
+    
+    setIsSkipping(true);
+    
     try {
+      console.log('Skip button clicked - checking queue state...');
       // Get next ready song from queue
       const readySongs = queue.filter(song => song.status === 'ready' && song.url);
+      console.log(`Queue state: ${readySongs.length} ready songs, ${queue.length} total songs`);
       
       if (readySongs.length > 0) {
         const nextSong = readySongs[0];
+        console.log('Moving to next song:', nextSong.title);
         
         // Remove from database queue
         const { data: queueItem } = await supabase
@@ -789,6 +813,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           
         if (queueItem) {
           await supabase.from('queue').delete().eq('id', queueItem.id);
+          console.log('Removed song from database queue');
         }
         
         setCurrentSong(nextSong);
@@ -799,18 +824,58 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           description: nextSong.title,
         });
         
-        // Maintain queue after skipping
+        // Always maintain queue after skipping to ensure we have next songs
+        console.log('Maintaining queue after skip...');
         setTimeout(() => {
           maintainQueue();
-        }, 1000);
+        }, 500);
         
       } else {
-        console.log('No ready songs in queue, maintaining queue...');
-        await maintainQueue();
+        console.log('No ready songs in queue - trying to find/generate next song...');
+        
+        // Try to find a song immediately
+        const nextSong = await getNextSongByPriority(currentSong?.id);
+        if (nextSong) {
+          console.log('Found priority song for immediate play:', nextSong.title);
+          setCurrentSong(nextSong);
+          setProgress(0);
+          
+          toast({
+            title: 'Next Track',
+            description: nextSong.title,
+          });
+          
+          // Add to queue for UI display
+          await addSongToQueue(nextSong);
+          
+          // Maintain queue to ensure we have more songs
+          setTimeout(() => {
+            maintainQueue();
+          }, 500);
+        } else {
+          // No songs available
+          console.log('No songs available - checking library and generation status');
+          toast({
+            title: "No Next Song",
+            description: "Looking for more music that matches your preferences...",
+            variant: "default"
+          });
+          
+          await maintainQueue();
+        }
       }
       
     } catch (error) {
       console.error('Error in handleSkip:', error);
+      toast({
+        title: "Skip Error",
+        description: "Unable to skip to next song. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setTimeout(() => {
+        setIsSkipping(false);
+      }, 1000); // Prevent rapid clicking
     }
   };
 
@@ -1131,9 +1196,20 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
                 size="icon"
                 className="player-control"
                 onClick={handleSkip}
-                disabled={queue.length === 0 || !queue.some(song => song.status === 'ready')}
+                disabled={isSkipping || (!currentSong && queue.length === 0)}
+                title={
+                  isSkipping 
+                    ? "Finding next song..." 
+                    : queue.length === 0 && !currentSong
+                    ? "No songs available"
+                    : "Skip to next song"
+                }
               >
-                <SkipForward className="h-5 w-5" />
+                {isSkipping ? (
+                  <RefreshCw className="h-5 w-5 animate-spin" />
+                ) : (
+                  <SkipForward className="h-5 w-5" />
+                )}
               </Button>
               
               <Button
