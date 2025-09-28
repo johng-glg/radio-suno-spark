@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,28 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) {
       loadStats();
+
+      // Set up real-time subscription for song status changes
+      const channel = supabase
+        .channel('song_status_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'songs'
+          },
+          (payload) => {
+            console.log('Song status changed:', payload);
+            // Reload stats when any song changes
+            loadStats();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [isAdmin]);
 
