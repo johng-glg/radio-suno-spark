@@ -182,13 +182,20 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             console.log('Adding second priority song to queue:', song2.title);
             await addSongToQueue(song2);
           } else {
-            // Only generate if no library songs available for genre+mood (excluding current)
-            const hasLibrarySongs = await checkLibrarySongsAvailable(song1.id);
-            if (!hasLibrarySongs) {
-              console.log('No library songs available (excluding current), starting generation...');
-              setTimeout(() => {
-                startGenerationTask();
-              }, 1000);
+            // Try genre-only fallback before generating
+            const genreOnly = await getRandomGenreAnyMood(song1.id);
+            if (genreOnly) {
+              console.log('Adding genre-only fallback song to queue:', genreOnly.title);
+              await addSongToQueue(genreOnly);
+            } else {
+              // Only generate if no library songs available in genre (excluding current)
+              const hasLibrarySongs = await checkLibrarySongsAvailable(song1.id, true);
+              if (!hasLibrarySongs) {
+                console.log('No library songs available in genre (excluding current), starting generation...');
+                setTimeout(() => {
+                  startGenerationTask();
+                }, 1000);
+              }
             }
           }
         }
@@ -275,15 +282,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         }
       }
       
-      // Priority 3: Any random song from the Genre
+      // Priority 3: Any random song from the Genre + Mood
       const randomGenreSong = await getRandomGenreSong(excludeSongId);
       if (randomGenreSong) {
-        console.log('Priority 3: Found random Genre song:', randomGenreSong.title);
+        console.log('Priority 3: Found random Genre+Mood song:', randomGenreSong.title);
         return randomGenreSong;
       }
       
-      // Priority 4: Generate new song (return null to trigger generation)
-      console.log('Priority 4: No library songs available, need generation');
+      // Priority 4: Any random song from the Genre (ignore mood)
+      const randomAnyMood = await getRandomGenreAnyMood(excludeSongId);
+      if (randomAnyMood) {
+        console.log('Priority 4: Found random Genre (any mood) song:', randomAnyMood.title);
+        return randomAnyMood;
+      }
+      
+      // Priority 5: Generate new song (return null to trigger generation)
+      console.log('Priority 5: No library songs available in genre, need generation');
       return null;
       
     } catch (error) {
@@ -428,7 +442,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.in('genre', genresLowerCase);
       }
       
-      // Add mood filtering - this was missing!
+      // Mood-specific random
       if (selectedMood) {
         query = query.eq('mood', selectedMood.toLowerCase());
       }
@@ -456,6 +470,43 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
+  // Fallback: Get any random song from Genre (ignore mood)
+  const getRandomGenreAnyMood = async (excludeSongId?: string): Promise<Song | null> => {
+    try {
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      console.log(`Fallback: Looking for random songs by Genre only: ${genresLowerCase.join(',')}`);
+      
+      let query = supabase
+        .from('songs')
+        .select('*')
+        .eq('status', 'ready')
+        .is('requested_by', null)
+        .not('url', 'is', null);
+      
+      if (genresLowerCase.length > 0) {
+        query = query.in('genre', genresLowerCase);
+      }
+      
+      if (excludeSongId) {
+        query = query.neq('id', excludeSongId);
+      }
+      
+      const { data: songs, error } = await query.limit(30);
+      
+      if (error || !songs || songs.length === 0) {
+        console.log('Fallback: No random songs found by Genre only');
+        return null;
+      }
+      
+      const randomSong = songs[Math.floor(Math.random() * songs.length)];
+      console.log(`Fallback: Selected Genre-only song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
+      return cleanSongObject(randomSong);
+    } catch (error) {
+      console.error('Error getting random Genre-only song:', error);
+      return null;
+    }
+  };
+
   // Helper function to clean song object
   const cleanSongObject = (song: any): Song => {
     return {
@@ -476,8 +527,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     };
   };
 
-  // Check if there are any library songs available for current genre+mood (optionally excluding a specific song)
-  const checkLibrarySongsAvailable = async (excludeSongId?: string): Promise<boolean> => {
+  // Check if there are any library songs available for current selection
+  const checkLibrarySongsAvailable = async (excludeSongId?: string, ignoreMood: boolean = false): Promise<boolean> => {
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
       
@@ -492,7 +543,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.in('genre', genresLowerCase);
       }
       
-      if (selectedMood) {
+      if (!ignoreMood && selectedMood) {
         query = query.eq('mood', selectedMood.toLowerCase());
       }
       
@@ -591,10 +642,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           await addSongToQueue(nextSong);
           console.log('Added song to maintain queue:', nextSong.title);
         } else {
-          // Only generate if no library songs available for current genre+mood (excluding current)
-          const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id);
+          // Only generate if no library songs available for current genre (excluding current)
+          const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
           if (!hasLibrarySongs) {
-            console.log('No library songs available (excluding current), starting generation...');
+            console.log('No library songs available in genre (excluding current), starting generation...');
             startGenerationTask();
           }
         }
