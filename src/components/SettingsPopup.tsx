@@ -24,7 +24,7 @@ interface SettingsPopupProps {
 }
 
 const AVAILABLE_GENRES = [
-  "Classical", "EDM", "Rock", "Jazz", "Hip-Hop", "Country"
+  "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
 ];
 
 const AVAILABLE_MOODS = [

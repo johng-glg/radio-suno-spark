@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const GENRES = [
-  "Classical", "EDM", "Rock", "Jazz", "Hip-Hop", "Country"
+  "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
 ];
 
 const MOODS = [
