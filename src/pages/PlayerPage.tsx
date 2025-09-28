@@ -832,7 +832,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               )}
             </h3>
             <div className="space-y-3">
-              {queue.slice(0, 3).map((song, index) => (
+              {queue.filter(song => song.id !== currentSong?.id).slice(0, 3).map((song, index) => (
                 <div key={song.id} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/20">
                   <div className="w-2 h-2 rounded-full bg-primary/60" />
                   <div className="flex-1">
@@ -850,7 +850,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
                   </Badge>
                 </div>
               ))}
-              {queue.length === 0 && !isGenerating && (
+              {queue.filter(song => song.id !== currentSong?.id).length === 0 && !isGenerating && (
                 <p className="text-center text-muted-foreground">Queue is empty. Generating new tracks...</p>
               )}
             </div>
