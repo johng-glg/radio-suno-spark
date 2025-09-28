@@ -128,6 +128,17 @@ export default function AdminPage() {
           variant: "default"
         });
         
+        // Optimistically update UI to show Processing state on the original failed record
+        setStats(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            recent_failed_songs: prev.recent_failed_songs?.map(s =>
+              s.id === songId ? { ...s, resubmitted_at: new Date().toISOString() } : s
+            )
+          };
+        });
+        
         console.log('Resubmit successful, reloading stats...');
         // Force reload stats to update the failed songs list
         await loadStats();
