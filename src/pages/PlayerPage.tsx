@@ -182,10 +182,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             console.log('Adding second priority song to queue:', song2.title);
             await addSongToQueue(song2);
           } else {
-            // Only generate if no library songs available for genre+mood
-            const hasLibrarySongs = await checkLibrarySongsAvailable();
+            // Only generate if no library songs available for genre+mood (excluding current)
+            const hasLibrarySongs = await checkLibrarySongsAvailable(song1.id);
             if (!hasLibrarySongs) {
-              console.log('No library songs available, starting generation...');
+              console.log('No library songs available (excluding current), starting generation...');
               setTimeout(() => {
                 startGenerationTask();
               }, 1000);
@@ -476,8 +476,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     };
   };
 
-  // Check if there are any library songs available for current genre+mood
-  const checkLibrarySongsAvailable = async (): Promise<boolean> => {
+  // Check if there are any library songs available for current genre+mood (optionally excluding a specific song)
+  const checkLibrarySongsAvailable = async (excludeSongId?: string): Promise<boolean> => {
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
       
@@ -494,6 +494,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       if (selectedMood) {
         query = query.eq('mood', selectedMood.toLowerCase());
+      }
+      
+      if (excludeSongId) {
+        query = query.neq('id', excludeSongId);
       }
       
       const { data: songs, error } = await query.limit(1);
@@ -582,15 +586,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       // Only maintain 1 next song (not 2 ready + 1 generating)
       if (readySongs.length === 0 && generatingSongs.length === 0) {
-        const nextSong = await getNextSongByPriority();
+        const nextSong = await getNextSongByPriority(currentSong?.id);
         if (nextSong) {
           await addSongToQueue(nextSong);
           console.log('Added song to maintain queue:', nextSong.title);
         } else {
-          // Only generate if no library songs available for current genre+mood
-          const hasLibrarySongs = await checkLibrarySongsAvailable();
+          // Only generate if no library songs available for current genre+mood (excluding current)
+          const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id);
           if (!hasLibrarySongs) {
-            console.log('No library songs available, starting generation...');
+            console.log('No library songs available (excluding current), starting generation...');
             startGenerationTask();
           }
         }
