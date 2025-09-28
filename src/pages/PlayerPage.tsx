@@ -238,23 +238,31 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const loadQueueFromDatabase = async () => {
     try {
-      console.log('Loading optimized queue strategy...');
+      console.log('Loading optimized queue strategy with library songs first...');
       
-      // Strategy: Start with existing song, then alternate between generated and existing
-      // First, get an existing song from database that matches our genres and user preferences
-      const existingSong = await getOptimalExistingSong();
+      // Strategy: Start with library song immediately, add another library song to queue, then generate
+      // First, get a library song for immediate playback
+      const currentLibrarySong = await getOptimalExistingSong();
       
-      if (existingSong) {
-        console.log('Found optimal existing song:', existingSong.title);
-        setCurrentSong(existingSong);
+      if (currentLibrarySong) {
+        console.log('Found library song for immediate playback:', currentLibrarySong.title);
+        setCurrentSong(currentLibrarySong);
         
         // Show immediate feedback for instant playback
         toast({
           title: "Music Ready!",
-          description: `Playing ${existingSong.title} instantly while preparing more tracks...`,
+          description: `Playing ${currentLibrarySong.title} instantly while preparing more tracks...`,
         });
         
-        // Schedule a SINGLE generation after a delay (no concurrent generations)
+        // Get another library song for the queue (different from current)
+        const nextLibrarySong = await getOptimalExistingSong(currentLibrarySong.id);
+        
+        if (nextLibrarySong) {
+          console.log('Adding second library song to queue:', nextLibrarySong.title);
+          await addSongToQueue(nextLibrarySong);
+        }
+        
+        // Schedule generation after a delay (generated song will be 2nd in queue)
         setTimeout(() => {
           // Strict concurrency control - only allow one generation per session
           if (generationLockRef.current || isGenerating) {
@@ -262,7 +270,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             return;
           }
           
-          console.log('Forcing generation of new songs for genre change...');
+          console.log('Starting generation for second position in queue...');
           generationLockRef.current = true;
           
           generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
@@ -561,8 +569,19 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         setCurrentSong(nextSong);
         setProgress(0);
         
-        // Generate next song in background
-        generateNextSong();
+        // After playing the next song, we need to add the next items to queue
+        // If the next song is a library song, start generating for the next slot
+        // If the next song is generated, add another library song and generate another
+        setTimeout(() => {
+          generateNextSong();
+          
+          // Also add a library song to maintain the pattern
+          getOptimalExistingSong().then(librarySong => {
+            if (librarySong) {
+              addSongToQueue(librarySong);
+            }
+          });
+        }, 1000);
         
         toast({
           title: "Next Track",
