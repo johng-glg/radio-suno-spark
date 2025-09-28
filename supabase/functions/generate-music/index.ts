@@ -37,9 +37,10 @@ serve(async (req) => {
   }
 
   try {
+    // Use service role for system operations
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { 
@@ -171,7 +172,8 @@ serve(async (req) => {
         mood,
         title: title || `${genre} Track`,
         status: 'generating',
-        description: songDescription
+        description: songDescription,
+        requested_by: user_id || null  // Track who requested this generation
       })
       .select()
       .single();

@@ -127,6 +127,7 @@ export type Database = {
           image_url: string | null
           mood: string | null
           prompt: string
+          requested_by: string | null
           status: string
           suno_id: string | null
           title: string | null
@@ -141,6 +142,7 @@ export type Database = {
           image_url?: string | null
           mood?: string | null
           prompt: string
+          requested_by?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           image_url?: string | null
           mood?: string | null
           prompt?: string
+          requested_by?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
@@ -264,6 +267,10 @@ export type Database = {
       seed_premade_songs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      system_update_song: {
+        Args: { song_id: string; update_data: Json }
+        Returns: boolean
       }
     }
     Enums: {
