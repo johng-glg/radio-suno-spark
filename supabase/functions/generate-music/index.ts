@@ -124,6 +124,10 @@ serve(async (req) => {
 
 
     // Create initial song record in database
+    const songDescription = mood && genre ? 
+      `A ${mood} ${genre} track with unique musical elements` : 
+      `A ${genre} track with unique musical elements`;
+    
     const { data: song, error: insertError } = await supabaseClient
       .from('songs')
       .insert({
@@ -132,7 +136,7 @@ serve(async (req) => {
         mood,
         title: title || `${genre} Track`,
         status: 'generating',
-        description: promptMetadata.template_used ? `Generated from: ${promptMetadata.template_used}` : undefined
+        description: songDescription
       })
       .select()
       .single();
