@@ -64,6 +64,84 @@ Deno.serve(async (req) => {
       );
     }
 
+    // First: attempt to create Suno tasks for songs missing suno_id (e.g., due to concurrency limits)
+    {
+      const { data: toCreateSongs } = await supabaseClient
+        .from('songs')
+        .select('id, prompt, title, genre, mood, created_at')
+        .eq('status', 'generating')
+        .is('suno_id', null)
+        .order('created_at', { ascending: true })
+        .limit(10);
+
+      if (toCreateSongs && toCreateSongs.length > 0) {
+        console.log(`Found ${toCreateSongs.length} songs without task_id. Attempting background create...`);
+
+        for (const song of toCreateSongs) {
+          try {
+            const createPayload: Record<string, unknown> = {
+              custom_mode: false,
+              gpt_description_prompt: song.prompt,
+              make_instrumental: false,
+              mv: 'chirp-v5',
+            };
+            if (song.title) createPayload.title = song.title;
+            if (song.genre) createPayload.tags = song.genre;
+
+            let taskId: string | undefined = undefined;
+            let lastErrText = '';
+            for (let attempt = 1; attempt <= 6; attempt++) {
+              const resp = await fetch('https://api.sunoapi.com/api/v1/suno/create', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${sunoApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(createPayload),
+              });
+
+              if (resp.ok) {
+                const c = await resp.json();
+                taskId = c?.task_id;
+                break;
+              }
+
+              const errText = await resp.text();
+              lastErrText = errText;
+              if (resp.status === 429 && errText.toLowerCase().includes('concurrency')) {
+                const jitter = Math.floor(Math.random() * 500);
+                const backoffMs = Math.min(30000, 1000 * Math.pow(2, attempt - 1)) + jitter;
+                console.log(`Concurrency (background) for song ${song.id}. Retry ${attempt}/6 in ${backoffMs}ms...`);
+                await new Promise(r => setTimeout(r, backoffMs));
+                continue;
+              } else {
+                console.error('Create error (non-retryable) for song', song.id, errText);
+                break;
+              }
+            }
+
+            if (taskId) {
+              await supabaseClient
+                .from('songs')
+                .update({ suno_id: taskId, updated_at: new Date().toISOString() })
+                .eq('id', song.id);
+              console.log(`Assigned task_id ${taskId} to song ${song.id}`);
+            } else {
+              await supabaseClient
+                .from('songs')
+                .update({ description: `Create API Error (queued): ${lastErrText}`, updated_at: new Date().toISOString() })
+                .eq('id', song.id);
+            }
+          } catch (error) {
+            console.error('Background create error for song', song.id, error);
+          }
+
+          // Small spacing between requests
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+      }
+    }
+
     let completedCount = 0;
 
     // Process each pending song

@@ -248,7 +248,8 @@ serve(async (req) => {
 
         // Handle concurrency limit with exponential backoff
         if (resp.status === 429 && errText.toLowerCase().includes('concurrency')) {
-          const backoffMs = Math.min(8000, 1000 * Math.pow(2, attempt - 1));
+          const jitter = Math.floor(Math.random() * 500);
+          const backoffMs = Math.min(30000, 1000 * Math.pow(2, attempt - 1)) + jitter;
           console.log(`Concurrency limit reached. Retry ${attempt}/${maxAttempts} in ${backoffMs}ms...`);
           await new Promise((r) => setTimeout(r, backoffMs));
           continue;
@@ -261,16 +262,39 @@ serve(async (req) => {
       throw new Error(`Suno create API error: ${lastErrText}`);
     }
 
-    const createData = await createSunoWithRetry(3);
-    const taskId: string | undefined = createData?.task_id;
+    let taskId: string | undefined;
+    try {
+      const createData = await createSunoWithRetry(6);
+      taskId = createData?.task_id;
 
-    if (!taskId) {
-      console.error('Missing task_id from Suno create response:', createData);
+      if (!taskId) {
+        console.error('Missing task_id from Suno create response:', createData);
+        await supabaseClient
+          .from('songs')
+          .update({ status: 'failed', description: 'No task_id returned from Suno' })
+          .eq('id', song.id);
+        throw new Error('No task_id returned from Suno');
+      }
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      console.warn('Suno create failed; will retry in background:', errMessage);
       await supabaseClient
         .from('songs')
-        .update({ status: 'failed', description: 'No task_id returned from Suno' })
+        .update({ description: `Create API Error: ${errMessage}`, updated_at: new Date().toISOString() })
         .eq('id', song.id);
-      throw new Error('No task_id returned from Suno');
+
+      // Return a queued response so the UI knows this will continue in the background
+      return new Response(
+        JSON.stringify({
+          success: true,
+          song_id: song.id,
+          status: 'generating',
+          message: 'High load at provider; your track is queued and will retry automatically'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Poll task endpoint until succeeded or timeout
