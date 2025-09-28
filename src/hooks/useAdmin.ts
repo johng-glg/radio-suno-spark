@@ -86,21 +86,7 @@ export function useAdmin() {
         return { error: { message: 'Failed song not found' } };
       }
 
-      // Mark the original song as resubmitted for tracking
-      const { error: updateError } = await supabase
-        .from('songs')
-        .update({ 
-          status: 'resubmitted',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', songId);
-
-      if (updateError) {
-        return { error: updateError };
-      }
-
-      // Create a new song record for the resubmission
-      // Use the current admin user as requester to avoid RLS issues
+      // Create a new song record for the resubmission first
       const { data: newSong, error: insertError } = await supabase
         .from('songs')
         .insert({
@@ -116,13 +102,26 @@ export function useAdmin() {
         .single();
 
       if (insertError) {
-        // Rollback the original song status if new song creation fails
+        return { error: insertError };
+      }
+
+      // Only mark original as resubmitted if new song creation succeeded
+      const { error: updateError } = await supabase
+        .from('songs')
+        .update({ 
+          status: 'resubmitted',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', songId);
+
+      if (updateError) {
+        // If marking as resubmitted fails, clean up the new song
         await supabase
           .from('songs')
-          .update({ status: 'failed' })
-          .eq('id', songId);
+          .delete()
+          .eq('id', newSong.id);
         
-        return { error: insertError };
+        return { error: updateError };
       }
 
       return { error: null, newSongId: newSong.id };
