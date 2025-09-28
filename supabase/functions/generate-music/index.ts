@@ -225,29 +225,43 @@ serve(async (req) => {
     if (title) createPayload.title = title;
     if (genre) createPayload.tags = genre;
 
-    const createResp = await fetch('https://api.sunoapi.com/api/v1/suno/create', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${sunoApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(createPayload),
-    });
+    // Helper: create with retries to handle Suno concurrency limits
+    async function createSunoWithRetry(maxAttempts = 3) {
+      let lastErrText = '';
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const resp = await fetch('https://api.sunoapi.com/api/v1/suno/create', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createPayload),
+        });
 
-    if (!createResp.ok) {
-      const errText = await createResp.text();
-      console.error('Suno create API error:', errText);
+        if (resp.ok) {
+          return await resp.json();
+        }
 
-      // Mark song as failed
-      await supabaseClient
-        .from('songs')
-        .update({ status: 'failed', description: `Create API Error: ${errText}` })
-        .eq('id', song.id);
+        const errText = await resp.text();
+        lastErrText = `${resp.status} ${errText}`;
+        console.error('Suno create API error:', errText);
 
-      throw new Error(`Suno create API error: ${createResp.status} ${errText}`);
+        // Handle concurrency limit with exponential backoff
+        if (resp.status === 429 && errText.toLowerCase().includes('concurrency')) {
+          const backoffMs = Math.min(8000, 1000 * Math.pow(2, attempt - 1));
+          console.log(`Concurrency limit reached. Retry ${attempt}/${maxAttempts} in ${backoffMs}ms...`);
+          await new Promise((r) => setTimeout(r, backoffMs));
+          continue;
+        }
+
+        // Non-retryable error
+        throw new Error(`Suno create API error: ${lastErrText}`);
+      }
+
+      throw new Error(`Suno create API error: ${lastErrText}`);
     }
 
-    const createData = await createResp.json();
+    const createData = await createSunoWithRetry(3);
     const taskId: string | undefined = createData?.task_id;
 
     if (!taskId) {
