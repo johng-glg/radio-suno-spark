@@ -46,6 +46,14 @@ interface AdminStats {
     created_at: string;
     likes_count: number;
   }>;
+  top_songs_by_plays?: Array<{
+    id: string;
+    title: string;
+    genre: string;
+    created_at: string;
+    total_plays: number;
+    unique_listeners: number;
+  }>;
 }
 
 export default function AdminPage() {
@@ -658,8 +666,90 @@ export default function AdminPage() {
                    );
                  })()}
                </CardContent>
-             </Card>
-           </TabsContent>
+              </Card>
+
+              {/* Top Songs by Plays */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Music className="h-5 w-5" />
+                    Top Songs by Plays
+                  </CardTitle>
+                  <CardDescription>
+                    Most played songs with total plays and unique listeners
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {stats?.top_songs_by_plays && stats.top_songs_by_plays.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Song</TableHead>
+                          <TableHead>Genre</TableHead>
+                          <TableHead>Total Plays</TableHead>
+                          <TableHead>Unique Listeners</TableHead>
+                          <TableHead>Created</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stats.top_songs_by_plays.map((song, index) => (
+                          <TableRow key={song.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                  index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                                  index === 1 ? 'bg-gray-100 text-gray-800' :
+                                  index === 2 ? 'bg-orange-100 text-orange-800' :
+                                  'bg-muted text-muted-foreground'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                                {index < 3 && (
+                                  <div className="text-lg">
+                                    {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{song.title || 'Untitled'}</p>
+                                <p className="text-xs text-muted-foreground">{song.id.slice(0, 8)}...</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="capitalize">
+                                {song.genre}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Music className="h-4 w-4 text-green-500" />
+                                <span className="font-semibold">{song.total_plays}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Users className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium">{song.unique_listeners}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(song.created_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">
+                      No play data available
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
          </Tabs>
        </div>
      </div>
