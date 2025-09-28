@@ -19,7 +19,6 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
-          email: string | null
           favorite_genres: string[] | null
           id: string
           updated_at: string
@@ -28,7 +27,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           favorite_genres?: string[] | null
           id: string
           updated_at?: string
@@ -37,7 +35,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           favorite_genres?: string[] | null
           id?: string
           updated_at?: string
@@ -260,6 +257,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_current_user_email: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       seed_premade_songs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
