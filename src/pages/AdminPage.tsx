@@ -48,7 +48,7 @@ export default function AdminPage() {
   const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
   const [promotingUserIds, setPromotingUserIds] = useState<Set<string>>(new Set());
   const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
-  const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(false);
+  const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(true);
 
   useEffect(() => {
     if (isAdmin) {
@@ -414,13 +414,13 @@ export default function AdminPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Filter className="h-4 w-4 text-muted-foreground" />
-                    <Label htmlFor="hide-successful" className="text-sm text-muted-foreground">
-                      Hide successful resubmissions
+                    <Label htmlFor="show-successful" className="text-sm text-muted-foreground">
+                      Show successful resubmissions
                     </Label>
                     <Switch
-                      id="hide-successful"
-                      checked={hideSuccessfulResubmissions}
-                      onCheckedChange={setHideSuccessfulResubmissions}
+                      id="show-successful"
+                      checked={!hideSuccessfulResubmissions}
+                      onCheckedChange={(checked) => setHideSuccessfulResubmissions(!checked)}
                     />
                   </div>
                 </div>
