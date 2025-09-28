@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
@@ -37,6 +37,13 @@ interface AdminStats {
     status?: string;
     resubmitted_at?: string | null;
     resubmission_succeeded_at?: string | null;
+  }>;
+  top_songs_by_likes: Array<{
+    id: string;
+    title: string;
+    genre: string;
+    created_at: string;
+    likes_count: number;
   }>;
 }
 
@@ -227,6 +234,7 @@ export default function AdminPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="failed-songs">Failed Generations</TabsTrigger>
+            <TabsTrigger value="top-songs">Top Songs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -517,20 +525,96 @@ export default function AdminPage() {
                         })}
                       </TableBody>
                     </Table>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">
-                      {hideSuccessfulResubmissions && stats?.recent_failed_songs?.length > 0 
-                        ? "All failed generations have been successfully resubmitted" 
-                        : "No failed generations found"
-                      }
-                    </p>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  );
-}
+                   ) : (
+                     <p className="text-center text-muted-foreground py-8">
+                       {hideSuccessfulResubmissions && stats?.recent_failed_songs?.length > 0 
+                         ? "All failed generations have been successfully resubmitted" 
+                         : "No failed generations found"
+                       }
+                     </p>
+                   );
+                 })()}
+               </CardContent>
+             </Card>
+           </TabsContent>
+
+           <TabsContent value="top-songs" className="space-y-6">
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Heart className="h-5 w-5 text-primary" />
+                   Top 10 Songs by Likes
+                 </CardTitle>
+                 <CardDescription>
+                   Most liked songs in the platform
+                 </CardDescription>
+               </CardHeader>
+               <CardContent>
+                 {stats?.top_songs_by_likes && stats.top_songs_by_likes.length > 0 ? (
+                   <Table>
+                     <TableHeader>
+                       <TableRow>
+                         <TableHead>Rank</TableHead>
+                         <TableHead>Song</TableHead>
+                         <TableHead>Genre</TableHead>
+                         <TableHead>Likes</TableHead>
+                         <TableHead>Created</TableHead>
+                       </TableRow>
+                     </TableHeader>
+                     <TableBody>
+                       {stats.top_songs_by_likes.map((song, index) => (
+                         <TableRow key={song.id}>
+                           <TableCell>
+                             <div className="flex items-center gap-2">
+                               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                 index === 0 ? 'bg-yellow-100 text-yellow-800' :
+                                 index === 1 ? 'bg-gray-100 text-gray-800' :
+                                 index === 2 ? 'bg-orange-100 text-orange-800' :
+                                 'bg-muted text-muted-foreground'
+                               }`}>
+                                 {index + 1}
+                               </div>
+                               {index < 3 && (
+                                 <div className="text-lg">
+                                   {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                                 </div>
+                               )}
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             <div>
+                               <p className="font-medium">{song.title || 'Untitled'}</p>
+                               <p className="text-xs text-muted-foreground">{song.id.slice(0, 8)}...</p>
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             <Badge variant="secondary" className="capitalize">
+                               {song.genre}
+                             </Badge>
+                           </TableCell>
+                           <TableCell>
+                             <div className="flex items-center gap-1">
+                               <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                               <span className="font-semibold">{song.likes_count}</span>
+                             </div>
+                           </TableCell>
+                           <TableCell>
+                             {new Date(song.created_at).toLocaleDateString()}
+                           </TableCell>
+                         </TableRow>
+                       ))}
+                     </TableBody>
+                   </Table>
+                 ) : (
+                   <p className="text-center text-muted-foreground py-8">
+                     No songs with likes found
+                   </p>
+                 )}
+               </CardContent>
+             </Card>
+           </TabsContent>
+         </Tabs>
+       </div>
+     </div>
+   );
+ }
