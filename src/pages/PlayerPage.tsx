@@ -55,7 +55,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [currentInteraction, setCurrentInteraction] = useState<'like' | 'dislike' | null>(null);
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
-  const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -530,28 +529,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
     
     generationLockRef.current = true;
-    console.log('Starting generation with strategy:', queueStrategy);
+    console.log('Generating new song for next track...');
     
     try {
-      if (queueStrategy === 'generated') {
-        // Generate a new song
-        console.log('Generating new song...');
-        await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
-        setQueueStrategy('existing'); // Switch to existing for next
-      } else {
-        // Add an existing song
-        console.log('Looking for existing song...');
-        const existingSong = await getOptimalExistingSong();
-        if (existingSong) {
-          await addSongToQueue(existingSong);
-          setQueue(prev => [...prev, existingSong]);
-          setQueueStrategy('generated'); // Switch to generated for next
-        } else {
-          // Fallback to generation if no existing songs
-          console.log('No existing songs, generating new one...');
-          await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
-        }
-      }
+      // Always generate new songs (no more alternating strategy)
+      console.log('Generating new song...');
+      await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
     } catch (error) {
       console.error('Error in generateNextSong:', error);
     } finally {
