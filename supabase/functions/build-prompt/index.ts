@@ -11,6 +11,8 @@ interface BuildPromptRequest {
   user_id?: string;
   wild_card_mode?: boolean;
   exclude_last_selections?: boolean;
+  genre?: string;
+  mood?: string;
 }
 
 interface WordPool {
@@ -43,9 +45,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { user_id, wild_card_mode = false, exclude_last_selections = false } = await req.json() as BuildPromptRequest;
+    const { user_id, wild_card_mode = false, exclude_last_selections = false, genre, mood } = await req.json() as BuildPromptRequest;
 
-    console.log('Building prompt with params:', { user_id, wild_card_mode, exclude_last_selections });
+    console.log('Building prompt with params:', { user_id, wild_card_mode, exclude_last_selections, genre, mood });
 
     // Get user preferences if user_id is provided
     let userPreferences: UserPreferences = {
@@ -92,6 +94,19 @@ serve(async (req) => {
 
     // Replace each placeholder with a random word from word_pools
     for (const placeholder of uniquePlaceholders) {
+      // If we have a specific value provided, use that instead of random selection
+      if (placeholder === 'genre' && genre) {
+        selectedWords[placeholder] = genre.toLowerCase();
+        builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), genre.toLowerCase());
+        continue;
+      }
+      
+      if (placeholder === 'mood' && mood) {
+        selectedWords[placeholder] = mood.toLowerCase();
+        builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), mood.toLowerCase());
+        continue;
+      }
+
       let query = supabaseClient
         .from('word_pools')
         .select('*')

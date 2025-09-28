@@ -70,7 +70,9 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           user_id,
-          wild_card_mode
+          wild_card_mode,
+          genre: legacyGenre,
+          mood: legacyMood
         })
       });
 
