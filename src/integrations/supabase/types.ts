@@ -156,6 +156,8 @@ export type Database = {
           original_song_id: string | null
           prompt: string
           requested_by: string | null
+          resubmission_succeeded_at: string | null
+          resubmitted_at: string | null
           status: string
           suno_id: string | null
           title: string | null
@@ -172,6 +174,8 @@ export type Database = {
           original_song_id?: string | null
           prompt: string
           requested_by?: string | null
+          resubmission_succeeded_at?: string | null
+          resubmitted_at?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
@@ -188,6 +192,8 @@ export type Database = {
           original_song_id?: string | null
           prompt?: string
           requested_by?: string | null
+          resubmission_succeeded_at?: string | null
+          resubmitted_at?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
