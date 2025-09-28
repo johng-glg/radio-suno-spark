@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, RefreshCw
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -55,7 +55,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
   const initializationRef = useRef(false); // prevent multiple initializations
@@ -599,41 +599,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  const handleRefreshPendingSongs = async () => {
-    setIsRefreshing(true);
-    try {
-      console.log('Refreshing pending songs...');
-      
-      const { data, error } = await supabase.functions.invoke('check-pending-songs');
-      
-      if (error) {
-        console.error('Error refreshing pending songs:', error);
-        toast({
-          title: "Refresh Failed",
-          description: "Failed to clean up pending songs. Please try again.",
-          variant: "destructive"
-        });
-      } else {
-        console.log('Refresh result:', data);
-        toast({
-          title: "Songs Refreshed",
-          description: `Checked ${data.checked} songs, updated ${data.updated} stuck songs.`,
-        });
-        
-        // Reload the queue after cleanup
-        await loadQueueFromDatabase();
-      }
-    } catch (error) {
-      console.error('Error in refresh:', error);
-      toast({
-        title: "Refresh Failed",
-        description: "An error occurred while refreshing songs.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -689,16 +654,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Sparkles className={`h-4 w-4 ${preferences.wild_card_mode ? 'text-yellow-400' : 'text-muted-foreground'}`} />
             </div>
             
-            {/* Refresh Button */}
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleRefreshPendingSongs}
-              disabled={isRefreshing}
-              title="Clean up stuck songs"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
             
             <Button 
               variant="ghost" 
