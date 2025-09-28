@@ -787,10 +787,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     instrumentalMode: boolean;
     wildcardMode: boolean;
   }) => {
-    // Clear current song and queue to force regeneration with new settings
-    setCurrentSong(null);
-    setQueue([]);
-    
     // Update user preferences for wildcardMode
     if (newSettings.wildcardMode !== preferences.wild_card_mode) {
       toggleWildCardMode();
@@ -801,7 +797,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     
     toast({
       title: "Settings Updated",
-      description: "Music will be generated with your new preferences",
+      description: "New preferences will apply to next generated songs",
     });
   };
 
