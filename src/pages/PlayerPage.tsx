@@ -650,25 +650,37 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   };
 
   const handleRefreshGeneration = async () => {
+    if (generationLockRef.current || isGenerating) {
+      console.log('Refresh skipped: generation already in progress');
+      return;
+    }
+    generationLockRef.current = true;
     setIsRefreshing(true);
     try {
-      // First clean up any stuck songs
+      // Clean up any stale "generating" rows first
       await supabase.functions.invoke('check-stuck-songs');
-      
-      await generateInitialSongs();
-      toast({
-        title: "Success",
-        description: "Started generating new music tracks",
-      });
+
+      const result = await generateWithBuildPrompt(
+        wildcardMode,
+        instrumentalMode,
+        selectedGenres,
+        selectedMood
+      );
+
+      if (result?.success) {
+        toast({ title: 'Generating…', description: 'Started a new track' });
+        // Kick an immediate poll so the UI updates quickly
+        await pollForNewSongs();
+      } else if (result && result.error?.toLowerCase().includes('concurrency')) {
+        toast({ title: 'Please wait', description: 'A track is already generating' });
+      }
     } catch (error) {
       console.error('Error starting generation:', error);
-      toast({
-        title: "Error", 
-        description: "Failed to start music generation",
-        variant: "destructive"
-      });
+      toast({ title: 'Error', description: 'Failed to start music generation', variant: 'destructive' });
     } finally {
       setIsRefreshing(false);
+      // Release lock after a brief delay to avoid double-presses
+      setTimeout(() => { generationLockRef.current = false; }, 3000);
     }
   };
 
