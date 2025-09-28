@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Volume2 } from "lucide-react";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,9 +26,6 @@ interface LandingPageProps {
 
 export default function LandingPage({ onStartRadio, onAuthNavigate, user }: LandingPageProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedMood, setSelectedMood] = useState<string>("");
-  const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
-  const [wildcardMode, setWildcardMode] = useState<boolean>(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -45,8 +39,14 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
 
   const handleStartRadio = () => {
     if (selectedGenres.length === 0) return;
-    const mood = selectedMood === "none" ? undefined : selectedMood;
-    onStartRadio(selectedGenres, mood, instrumentalMode, wildcardMode);
+    // Randomize mood from available options
+    const randomMood = MOODS[Math.floor(Math.random() * MOODS.length)];
+    // Randomize instrumental mode (30% chance)
+    const randomInstrumental = Math.random() < 0.3;
+    // Randomize wildcard mode (20% chance)
+    const randomWildcard = Math.random() < 0.2;
+    
+    onStartRadio(selectedGenres, randomMood, randomInstrumental, randomWildcard);
   };
 
   const handleSignOut = async () => {
@@ -144,63 +144,6 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
               </div>
             </div>
 
-            {/* Audio Style & Options */}
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Left Column - Mood Selection */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="h-4 w-4 text-accent" />
-                    <span className="font-medium text-sm">Mood</span>
-                  </div>
-                  <Select value={selectedMood} onValueChange={setSelectedMood}>
-                    <SelectTrigger className="w-full bg-muted/30">
-                      <SelectValue placeholder="Choose mood..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border border-border z-50">
-                      <SelectItem value="none">No specific mood</SelectItem>
-                      {MOODS.map((mood) => (
-                        <SelectItem key={mood} value={mood}>
-                          {mood.charAt(0).toUpperCase() + mood.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Right Column - Audio Options */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Music className="h-4 w-4 text-accent" />
-                    <span className="font-medium text-sm">Style Options</span>
-                  </div>
-                  
-                  {/* Instrumental Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                    <Label htmlFor="instrumental-mode" className="cursor-pointer">
-                      <span className="text-sm font-medium">Instrumental</span>
-                    </Label>
-                    <Switch
-                      id="instrumental-mode"
-                      checked={instrumentalMode}
-                      onCheckedChange={setInstrumentalMode}
-                    />
-                  </div>
-
-                  {/* Wildcard Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                    <Label htmlFor="wildcard-mode" className="cursor-pointer">
-                      <span className="text-sm font-medium">Wild Card</span>
-                    </Label>
-                    <Switch
-                      id="wildcard-mode"
-                      checked={wildcardMode}
-                      onCheckedChange={setWildcardMode}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Start Button */}
             <div className="pt-4">
