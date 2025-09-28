@@ -291,9 +291,15 @@ export default function AdminPage() {
                                   ✓ Succeeded
                                 </Badge>
                               ) : isResubmitted ? (
-                                <Badge variant="secondary">
-                                  Resubmitted
-                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  disabled={true}
+                                  className="bg-yellow-500 hover:bg-yellow-600 cursor-not-allowed"
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Processing...
+                                </Button>
                               ) : (
                                 <Button
                                   size="sm"
