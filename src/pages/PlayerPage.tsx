@@ -301,8 +301,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           user_song_interactions!left(interaction_type)
         `)
         .eq('status', 'ready')
-        .in('genre', genresLowerCase)
         .not('url', 'is', null);
+
+      // Only filter by genre if genres are actually selected
+      if (genresLowerCase.length > 0) {
+        query = query.in('genre', genresLowerCase);
+      }
       
       if (excludeSongId) {
         query = query.neq('id', excludeSongId);
