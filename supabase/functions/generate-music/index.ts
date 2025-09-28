@@ -341,7 +341,72 @@ serve(async (req) => {
       }
     } catch (e) {
       const errMessage = e instanceof Error ? e.message : String(e);
-      console.warn('Suno create failed; will retry in background:', errMessage);
+      console.warn('Suno create failed:', errMessage);
+      
+      // Check if it's a concurrency error - fallback to existing song from library
+      if (errMessage.toLowerCase().includes('concurrency')) {
+        console.log('Concurrency limit reached, searching for existing song in genre:', genre);
+        
+        // Find an existing ready song in the same genre
+        const { data: existingSong, error: existingError } = await serviceClient
+          .from('songs')
+          .select('*')
+          .eq('status', 'ready')
+          .eq('genre', genre)
+          .not('requested_by', 'eq', requesterId) // Avoid user's own songs
+          .limit(1)
+          .single();
+        
+        if (existingSong && !existingError) {
+          console.log('Found existing song to use as fallback:', existingSong.id);
+          
+          // Remove the failed generation from database
+          await serviceClient
+            .from('songs')
+            .delete()
+            .eq('id', song.id);
+          
+          // Remove the failed song from queue
+          await serviceClient
+            .from('queue')
+            .delete()
+            .eq('song_id', song.id);
+          
+          // Add the existing song to queue instead
+          const { error: fallbackQueueError } = await serviceClient
+            .from('queue')
+            .insert({
+              song_id: existingSong.id,
+              position: nextPosition,
+              status: 'ready',
+            });
+
+          if (fallbackQueueError) {
+            console.error('Failed to add fallback song to queue:', fallbackQueueError);
+          } else {
+            console.log('Added fallback song to queue:', existingSong.id);
+          }
+          
+          return new Response(
+            JSON.stringify({
+              success: true,
+              song_id: existingSong.id,
+              status: 'ready',
+              audio_url: existingSong.url,
+              title: existingSong.title,
+              prompt: existingSong.prompt,
+              message: 'Server busy - using similar track from library'
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        } else {
+          console.log('No existing song found for fallback in genre:', genre);
+        }
+      }
+      
+      // Fallback to original retry logic for non-concurrency errors or when no existing song found
       await serviceClient
         .from('songs')
         .update({ description: `Create API Error: ${errMessage}`, updated_at: new Date().toISOString() })
