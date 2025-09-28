@@ -120,28 +120,8 @@ serve(async (req) => {
       .eq('status', 'generating')
       .lt('updated_at', staleCutoff);
 
-    // Concurrency guard BEFORE creating a new record
-    const recentCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-    const { data: activeGenerating, error: activeErr } = await supabaseClient
-      .from('songs')
-      .select('id, updated_at')
-      .eq('status', 'generating')
-      .gt('updated_at', recentCutoff)
-      .limit(1);
+    // No server-side concurrency guard: rely on provider limits and frontend lock
 
-    if (activeErr) {
-      console.error('Error checking active generations:', activeErr);
-    }
-
-    if (activeGenerating && activeGenerating.length > 0) {
-      console.log('Concurrency guard: active generation detected, skipping new request');
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Concurrency limit: Another song is still generating'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
 
     // Create initial song record in database
     const { data: song, error: insertError } = await supabaseClient
