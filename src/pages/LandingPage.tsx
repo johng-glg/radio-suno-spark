@@ -32,16 +32,19 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const { toast } = useToast();
 
   const toggleGenre = (genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre) 
+    setSelectedGenres(prev => {
+      // If clicking on a genre when "All Genres" is selected, switch to just that genre
+      if (prev.length === 0) {
+        return [genre];
+      }
+      // Normal toggle behavior
+      return prev.includes(genre) 
         ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
+        : [...prev, genre];
+    });
   };
 
   const handleStartRadio = () => {
-    if (selectedGenres.length === 0) return;
-    
     onStartRadio(selectedGenres, selectedMood || undefined, isInstrumental, isWildcard);
   };
 
@@ -130,10 +133,16 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                 <Music className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold">Choose Your Genres</h3>
                 <Badge variant="secondary" className="text-xs">
-                  {selectedGenres.length} selected
+                  {selectedGenres.length === 0 ? 'all genres' : `${selectedGenres.length} selected`}
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setSelectedGenres([])}
+                  className={`genre-chip ${selectedGenres.length === 0 ? 'selected' : ''}`}
+                >
+                  All Genres
+                </button>
                 {GENRES.map((genre) => (
                   <button
                     key={genre}
@@ -209,19 +218,13 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
             <div className="pt-4">
               <Button 
                 onClick={handleStartRadio}
-                disabled={selectedGenres.length === 0}
-                className="w-full h-14 text-lg font-semibold neon-glow disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-14 text-lg font-semibold neon-glow"
                 size="lg"
               >
                 <Play className="h-6 w-6 mr-3" />
                 {user ? "Start Radio" : "Sign In to Start Radio"}
               </Button>
-              {selectedGenres.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center mt-2">
-                  Select at least one genre to continue
-                </p>
-              )}
-              {!user && selectedGenres.length > 0 && (
+              {!user && (
                 <p className="text-sm text-accent text-center mt-2">
                   Sign in to save your preferences and start listening
                 </p>

@@ -46,19 +46,19 @@ export default function SettingsPopup({
   const [tempWildcardMode, setTempWildcardMode] = useState(wildcardMode);
 
   const handleGenreToggle = (genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre) 
+    setSelectedGenres(prev => {
+      // If clicking on a genre when "All Genres" is selected, switch to just that genre
+      if (prev.length === 0) {
+        return [genre];
+      }
+      // Normal toggle behavior
+      return prev.includes(genre) 
         ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
+        : [...prev, genre];
+    });
   };
 
   const handleSave = () => {
-    // Ensure at least one genre is selected
-    if (selectedGenres.length === 0) {
-      return;
-    }
-    
     onSaveSettings({
       genres: selectedGenres,
       mood: selectedMood,
@@ -88,26 +88,41 @@ export default function SettingsPopup({
           {/* Genre Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Genres</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {AVAILABLE_GENRES.map((genre) => (
-                <div key={genre} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`genre-${genre}`}
-                    checked={selectedGenres.includes(genre)}
-                    onCheckedChange={() => handleGenreToggle(genre)}
-                  />
-                  <Label 
-                    htmlFor={`genre-${genre}`}
-                    className="text-sm cursor-pointer"
-                  >
-                    {genre}
-                  </Label>
-                </div>
-              ))}
+            <div className="space-y-2">
+              {/* All Genres Option */}
+              <div className="flex items-center space-x-2 p-2 bg-muted/10 rounded">
+                <Checkbox
+                  id="genre-all"
+                  checked={selectedGenres.length === 0}
+                  onCheckedChange={() => setSelectedGenres([])}
+                />
+                <Label 
+                  htmlFor="genre-all"
+                  className="text-sm cursor-pointer font-medium"
+                >
+                  All Genres
+                </Label>
+              </div>
+              
+              {/* Individual Genres */}
+              <div className="grid grid-cols-2 gap-2">
+                {AVAILABLE_GENRES.map((genre) => (
+                  <div key={genre} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`genre-${genre}`}
+                      checked={selectedGenres.includes(genre)}
+                      onCheckedChange={() => handleGenreToggle(genre)}
+                    />
+                    <Label 
+                      htmlFor={`genre-${genre}`}
+                      className="text-sm cursor-pointer"
+                    >
+                      {genre}
+                    </Label>
+                  </div>
+                ))}
+              </div>
             </div>
-            {selectedGenres.length === 0 && (
-              <p className="text-xs text-destructive">Please select at least one genre</p>
-            )}
           </div>
 
           {/* Mood Selection */}
@@ -159,11 +174,17 @@ export default function SettingsPopup({
           <div className="space-y-2 p-3 bg-muted/20 rounded-lg">
             <Label className="text-xs text-muted-foreground">Current Selection:</Label>
             <div className="flex flex-wrap gap-1">
-              {selectedGenres.map(genre => (
-                <Badge key={genre} variant="secondary" className="text-xs">
-                  {genre}
+              {selectedGenres.length === 0 ? (
+                <Badge variant="secondary" className="text-xs">
+                  All Genres
                 </Badge>
-              ))}
+              ) : (
+                selectedGenres.map(genre => (
+                  <Badge key={genre} variant="secondary" className="text-xs">
+                    {genre}
+                  </Badge>
+                ))
+              )}
               {selectedMood && (
                 <Badge variant="outline" className="text-xs">
                   {selectedMood}
@@ -191,7 +212,6 @@ export default function SettingsPopup({
           </Button>
           <Button 
             onClick={handleSave}
-            disabled={selectedGenres.length === 0}
           >
             Apply Settings
           </Button>
