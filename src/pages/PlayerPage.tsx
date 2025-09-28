@@ -28,6 +28,7 @@ interface Song {
   prompt?: string;
   created_at?: string;
   updated_at?: string;
+  requested_by?: string | null;
   // New fields for Build Prompt metadata
   prompt_metadata?: {
     template_used?: string;
@@ -55,6 +56,7 @@ interface PlayerPageProps {
 export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, onBack, onSettingsUpdate }: PlayerPageProps) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
+  const [librarySongsUsedInSession, setLibrarySongsUsedInSession] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -238,56 +240,61 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const loadQueueFromDatabase = async () => {
     try {
-      console.log('Loading optimized queue strategy with library songs first...');
+      console.log('Loading optimized queue strategy - library songs for first 2 only...');
       
-      // Strategy: Start with library song immediately, add another library song to queue, then generate
-      // First, get a library song for immediate playback
-      const currentLibrarySong = await getOptimalExistingSong();
-      
-      if (currentLibrarySong) {
-        console.log('Found library song for immediate playback:', currentLibrarySong.title);
-        setCurrentSong(currentLibrarySong);
+      // Only use library songs for the first 2 songs in a session
+      if (librarySongsUsedInSession < 2) {
+        // Strategy: Start with library song immediately for first 2 songs
+        const currentLibrarySong = await getOptimalExistingSong();
         
-        // Show immediate feedback for instant playback
-        toast({
-          title: "Music Ready!",
-          description: `Playing ${currentLibrarySong.title} instantly while preparing more tracks...`,
-        });
-        
-        // Get another library song for the queue (different from current)
-        const nextLibrarySong = await getOptimalExistingSong(currentLibrarySong.id);
-        
-        if (nextLibrarySong) {
-          console.log('Adding second library song to queue:', nextLibrarySong.title);
-          await addSongToQueue(nextLibrarySong);
-        }
-        
-        // Schedule generation after a delay (generated song will be 2nd in queue)
-        setTimeout(() => {
-          // Strict concurrency control - only allow one generation per session
-          if (generationLockRef.current || isGenerating) {
-            console.log('Skipping generation - already in progress (lock:', generationLockRef.current, 'generating:', isGenerating, ')');
-            return;
+        if (currentLibrarySong) {
+          console.log(`Found library song for immediate playback (${librarySongsUsedInSession + 1}/2):`, currentLibrarySong.title);
+          setCurrentSong(currentLibrarySong);
+          setLibrarySongsUsedInSession(prev => prev + 1);
+          
+          // Show immediate feedback for instant playbook
+          toast({
+            title: "Music Ready!",
+            description: `Playing ${currentLibrarySong.title} instantly while preparing more tracks...`,
+          });
+          
+          // If this was the first library song, add one more library song to queue
+          if (librarySongsUsedInSession === 0) {
+            const nextLibrarySong = await getOptimalExistingSong(currentLibrarySong.id);
+            if (nextLibrarySong) {
+              console.log('Adding second library song to queue:', nextLibrarySong.title);
+              await addSongToQueue(nextLibrarySong);
+            }
           }
           
-          console.log('Starting generation for second position in queue...');
-          generationLockRef.current = true;
+          // Always schedule generation after library songs
+          setTimeout(() => {
+            // Strict concurrency control - only allow one generation per session
+            if (generationLockRef.current || isGenerating) {
+              console.log('Skipping generation - already in progress (lock:', generationLockRef.current, 'generating:', isGenerating, ')');
+              return;
+            }
+            
+            console.log('Starting generation for next position in queue...');
+            generationLockRef.current = true;
+            
+            generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
+              .catch(err => console.error('Background generation failed:', err))
+              .finally(() => {
+                // Release lock after a delay to prevent rapid successive calls
+                setTimeout(() => {
+                  generationLockRef.current = false;
+                  console.log('Generation lock released');
+                }, 5000);
+              });
+          }, 3000);
           
-          generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-            .catch(err => console.error('Background generation failed:', err))
-            .finally(() => {
-              // Release lock after a delay to prevent rapid successive calls
-              setTimeout(() => {
-                generationLockRef.current = false;
-                console.log('Generation lock released');
-              }, 5000);
-            });
-        }, 3000); // Increased delay to 3 seconds
-        
-        return true;
+          return true;
+        }
       }
       
-      console.log('No existing songs found, falling back to generation');
+      // After 2 library songs or if no library songs available, only generate
+      console.log('Library song limit reached or no library songs available, generating only...');
       return false;
       
     } catch (error) {
@@ -309,6 +316,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           user_song_interactions!left(interaction_type)
         `)
         .eq('status', 'ready')
+        .is('requested_by', null) // Only get library songs (pre-made songs)
         .not('url', 'is', null);
 
       // Only filter by genre if genres are actually selected
@@ -369,6 +377,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         prompt: selectedSong.prompt,
         created_at: selectedSong.created_at,
         updated_at: selectedSong.updated_at,
+        requested_by: (selectedSong as any).requested_by,
         prompt_metadata: (selectedSong as any).prompt_metadata || undefined,
         user_interaction: selectedSong.user_interaction as 'like' | 'dislike' | null
       };
@@ -468,7 +477,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             mood,
             url,
             image_url,
-            status
+            status,
+            requested_by
           ),
           status
         `)
@@ -548,7 +558,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             mood,
             url,
             image_url,
-            status
+            status,
+            requested_by
           )
         `)
         .order('position', { ascending: true })
@@ -566,21 +577,18 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         // Remove the queue item from database since we're about to play it
         await supabase.from('queue').delete().eq('id', queueItemId);
         
+        // If current song is a library song (null requested_by) and we haven't reached the limit, increment counter
+        if (nextSong.requested_by === null && librarySongsUsedInSession < 2) {
+          setLibrarySongsUsedInSession(prev => prev + 1);
+          console.log(`Library song played (${librarySongsUsedInSession + 1}/2):`, nextSong.title);
+        }
+        
         setCurrentSong(nextSong);
         setProgress(0);
         
-        // After playing the next song, we need to add the next items to queue
-        // If the next song is a library song, start generating for the next slot
-        // If the next song is generated, add another library song and generate another
+        // After playing the next song, only generate new songs (no more library songs after first 2)
         setTimeout(() => {
           generateNextSong();
-          
-          // Also add a library song to maintain the pattern
-          getOptimalExistingSong().then(librarySong => {
-            if (librarySong) {
-              addSongToQueue(librarySong);
-            }
-          });
         }, 1000);
         
         toast({
