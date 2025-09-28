@@ -85,16 +85,56 @@ export function useAdmin() {
     if (!isAdmin) return { error: { message: 'Access denied' } };
 
     try {
-      const { error } = await supabase
+      // First, get the original failed song data
+      const { data: originalSong, error: fetchError } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('id', songId)
+        .eq('status', 'failed')
+        .single();
+
+      if (fetchError || !originalSong) {
+        return { error: { message: 'Failed song not found' } };
+      }
+
+      // Mark the original song as resubmitted for tracking
+      const { error: updateError } = await supabase
         .from('songs')
         .update({ 
-          status: 'generating',
+          status: 'resubmitted',
           updated_at: new Date().toISOString()
         })
-        .eq('id', songId)
-        .eq('status', 'failed');
+        .eq('id', songId);
 
-      return { error };
+      if (updateError) {
+        return { error: updateError };
+      }
+
+      // Create a new song record for the resubmission
+      const { data: newSong, error: insertError } = await supabase
+        .from('songs')
+        .insert({
+          title: originalSong.title,
+          prompt: originalSong.prompt,
+          genre: originalSong.genre,
+          mood: originalSong.mood,
+          requested_by: originalSong.requested_by,
+          status: 'generating'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // Rollback the original song status if new song creation fails
+        await supabase
+          .from('songs')
+          .update({ status: 'failed' })
+          .eq('id', songId);
+        
+        return { error: insertError };
+      }
+
+      return { error: null, newSongId: newSong.id };
     } catch (error) {
       return { error };
     }

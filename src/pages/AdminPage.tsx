@@ -31,6 +31,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isAdmin) {
@@ -65,20 +66,31 @@ export default function AdminPage() {
   };
 
   const handleResubmitSong = async (songId: string, songTitle: string) => {
-    const { error } = await resubmitFailedSong(songId);
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to resubmit song",
-        variant: "destructive"
+    setResubmittingIds(prev => new Set([...prev, songId]));
+    
+    try {
+      const { error, newSongId } = await resubmitFailedSong(songId);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to resubmit song",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `"${songTitle}" has been resubmitted for generation${newSongId ? ` (New ID: ${newSongId.slice(0, 8)}...)` : ''}`,
+          variant: "default"
+        });
+        // Reload stats to update the failed songs list
+        loadStats();
+      }
+    } finally {
+      setResubmittingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(songId);
+        return newSet;
       });
-    } else {
-      toast({
-        title: "Success",
-        description: `"${songTitle}" has been resubmitted for generation`
-      });
-      // Reload stats to update the failed songs list
-      loadStats();
     }
   };
 
@@ -270,11 +282,13 @@ export default function AdminPage() {
                           <TableCell>
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant={resubmittingIds.has(song.id) ? "default" : "outline"}
                               onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
+                              disabled={resubmittingIds.has(song.id)}
+                              className={resubmittingIds.has(song.id) ? "bg-green-600 hover:bg-green-700" : ""}
                             >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Resubmit
+                              <RefreshCw className={`h-4 w-4 mr-2 ${resubmittingIds.has(song.id) ? 'animate-spin' : ''}`} />
+                              {resubmittingIds.has(song.id) ? 'Resubmitting...' : 'Resubmit'}
                             </Button>
                           </TableCell>
                         </TableRow>
