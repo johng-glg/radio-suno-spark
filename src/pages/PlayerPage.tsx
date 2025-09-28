@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, Download
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, Download, RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +57,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
   const [isFetchingImages, setIsFetchingImages] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
@@ -641,6 +642,26 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
+  const handleRefreshGeneration = async () => {
+    setIsRefreshing(true);
+    try {
+      await generateInitialSongs();
+      toast({
+        title: "Success",
+        description: "Started generating new music tracks",
+      });
+    } catch (error) {
+      console.error('Error starting generation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start music generation",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const WaveformBars = () => (
     <div className="flex items-center justify-center space-x-1 h-16">
       {Array.from({ length: 12 }).map((_, i) => (
@@ -865,16 +886,28 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         {/* Queue Preview */}
         <Card className="bg-card/30 backdrop-blur-sm">
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-              <Clock className="h-5 w-5" />
-              <span>Coming Up</span>
-              {isGenerating && (
-                <Badge variant="secondary" className="ml-2">
-                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse mr-1" />
-                  Generating...
-                </Badge>
-              )}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-5 w-5" />
+                <span className="text-lg font-semibold">Coming Up</span>
+                {isGenerating && (
+                  <Badge variant="secondary" className="ml-2">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse mr-1" />
+                    Generating...
+                  </Badge>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshGeneration}
+                disabled={isRefreshing || isGenerating}
+                className="text-muted-foreground hover:text-foreground"
+                title="Generate new music tracks"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
             <div className="space-y-3">
               {queue.filter(song => song.id !== currentSong?.id).slice(0, 3).map((song, index) => (
                 <div key={song.id} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/20">
