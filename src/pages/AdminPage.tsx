@@ -431,7 +431,21 @@ export default function AdminPage() {
                     hideSuccessfulResubmissions ? !song.resubmission_succeeded_at : true
                   ) || [];
                   
-                  return filteredSongs.length > 0 ? (
+                  // Sort by priority: successful resubmissions first, then processing, then failed
+                  const sortedSongs = filteredSongs.sort((a, b) => {
+                    const aSucceeded = !!a.resubmission_succeeded_at;
+                    const aProcessing = !!a.resubmitted_at && !a.resubmission_succeeded_at;
+                    const bSucceeded = !!b.resubmission_succeeded_at;
+                    const bProcessing = !!b.resubmitted_at && !b.resubmission_succeeded_at;
+                    
+                    // Priority: successful (3) > processing (2) > failed (1)
+                    const aPriority = aSucceeded ? 3 : aProcessing ? 2 : 1;
+                    const bPriority = bSucceeded ? 3 : bProcessing ? 2 : 1;
+                    
+                    return bPriority - aPriority;
+                  });
+                  
+                  return sortedSongs.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -443,7 +457,7 @@ export default function AdminPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredSongs.map((song) => {
+                        {sortedSongs.map((song) => {
                           const isResubmitted = song.resubmitted_at && !song.resubmission_succeeded_at;
                           const isResubmissionSucceeded = song.resubmission_succeeded_at;
                           const isResubmitting = resubmittingIds.has(song.id);
