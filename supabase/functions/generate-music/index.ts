@@ -68,7 +68,14 @@ serve(async (req) => {
       wait_audio = true 
     } = await req.json() as SunoGenerateRequest;
 
-    console.log('Generate music request:', { user_id, use_build_prompt, wild_card_mode, genre: legacyGenre, mood: legacyMood });
+    // Resolve requester from the Authorization header
+    const { data: { user: authUser }, error: authError } = await userClient.auth.getUser();
+    if (authError) {
+      console.warn('Auth getUser error:', authError);
+    }
+    const requesterId = authUser?.id ?? null;
+
+    console.log('Generate music request:', { user_id, resolved_user_id: requesterId, use_build_prompt, wild_card_mode, genre: legacyGenre, mood: legacyMood });
 
     let finalPrompt = legacyPrompt;
     let promptMetadata: any = {};
@@ -179,7 +186,7 @@ serve(async (req) => {
       `A ${mood} ${genre} track with unique musical elements` : 
       `A ${genre} track with unique musical elements`;
     
-    console.log('Attempting to insert song with user_id:', user_id, 'requested_by:', user_id || null);
+    console.log('Attempting to insert song with user_id:', user_id, 'resolved_user_id:', requesterId);
     
     const { data: song, error: insertError } = await userClient
       .from('songs')
@@ -190,7 +197,7 @@ serve(async (req) => {
         title: title || `${genre} Track`,
         status: 'generating',
         description: songDescription,
-        requested_by: user_id || null  // Track who requested this generation
+        requested_by: requesterId  // Track who requested this generation
       })
       .select()
       .single();
