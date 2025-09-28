@@ -119,7 +119,8 @@ export function useAdmin() {
           genre: originalSong.genre,
           mood: originalSong.mood,
           requested_by: originalSong.requested_by,
-          status: 'generating'
+          status: 'generating',
+          original_song_id: songId  // Link back to original failed song
         })
         .select()
         .single();

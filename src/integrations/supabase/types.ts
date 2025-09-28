@@ -153,6 +153,7 @@ export type Database = {
           id: string
           image_url: string | null
           mood: string | null
+          original_song_id: string | null
           prompt: string
           requested_by: string | null
           status: string
@@ -168,6 +169,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           mood?: string | null
+          original_song_id?: string | null
           prompt: string
           requested_by?: string | null
           status?: string
@@ -183,6 +185,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           mood?: string | null
+          original_song_id?: string | null
           prompt?: string
           requested_by?: string | null
           status?: string
@@ -191,7 +194,15 @@ export type Database = {
           updated_at?: string
           url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "songs_original_song_id_fkey"
+            columns: ["original_song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_preferences: {
         Row: {
