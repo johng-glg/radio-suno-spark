@@ -37,8 +37,21 @@ serve(async (req) => {
   }
 
   try {
-    // Use service role for system operations
-    const supabaseClient = createClient(
+    // Create client with user permissions for user-initiated operations
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { 
+            Authorization: req.headers.get('Authorization') ?? '',
+          },
+        },
+      }
+    );
+
+    // Use service role for system operations  
+    const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
@@ -115,14 +128,14 @@ serve(async (req) => {
 
     // Cleanup stale generating songs before concurrency check
     const staleCutoff = new Date(Date.now() - 8 * 60 * 1000).toISOString();
-    await supabaseClient
+    await serviceClient
       .from('songs')
       .update({ status: 'failed', description: 'Auto-clean: stale generation' })
       .eq('status', 'generating')
       .lt('updated_at', staleCutoff);
 
     // Check if this is the first song generation (demo mode)
-    const { data: existingSongs, error: countError } = await supabaseClient
+    const { data: existingSongs, error: countError } = await serviceClient
       .from('songs')
       .select('id')
       .eq('status', 'ready')
@@ -132,7 +145,7 @@ serve(async (req) => {
 
     // For the first song, check if we already have a demo song to avoid duplicate generation
     if (isFirstSong) {
-      const { data: demoSong, error: demoError } = await supabaseClient
+      const { data: demoSong, error: demoError } = await serviceClient
         .from('songs')
         .select('*')
         .eq('status', 'ready')
@@ -164,7 +177,7 @@ serve(async (req) => {
       `A ${mood} ${genre} track with unique musical elements` : 
       `A ${genre} track with unique musical elements`;
     
-    const { data: song, error: insertError } = await supabaseClient
+    const { data: song, error: insertError } = await userClient
       .from('songs')
       .insert({
         prompt: finalPrompt,
@@ -185,7 +198,7 @@ serve(async (req) => {
     console.log('Created song record:', song.id);
 
     // Add song to queue immediately with queued status (DB constraint-safe)
-    const { data: queueCount } = await supabaseClient
+    const { data: queueCount } = await serviceClient
       .from('queue')
       .select('position')
       .order('position', { ascending: false })
@@ -193,7 +206,7 @@ serve(async (req) => {
 
     const nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
 
-    const { error: queueError } = await supabaseClient
+    const { error: queueError } = await serviceClient
       .from('queue')
       .insert({
         song_id: song.id,
@@ -271,7 +284,7 @@ serve(async (req) => {
 
       if (!taskId) {
         console.error('Missing task_id from Suno create response:', createData);
-        await supabaseClient
+        await serviceClient
           .from('songs')
           .update({ status: 'failed', description: 'No task_id returned from Suno' })
           .eq('id', song.id);
@@ -280,7 +293,7 @@ serve(async (req) => {
     } catch (e) {
       const errMessage = e instanceof Error ? e.message : String(e);
       console.warn('Suno create failed; will retry in background:', errMessage);
-      await supabaseClient
+      await serviceClient
         .from('songs')
         .update({ description: `Create API Error: ${errMessage}`, updated_at: new Date().toISOString() })
         .eq('id', song.id);
@@ -389,7 +402,7 @@ serve(async (req) => {
       updateData.description = `${moodText}${genreText}composition${instrumentText} with unique musical elements`;
     }
 
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await serviceClient
       .from('songs')
       .update(updateData)
       .eq('id', song.id);
@@ -401,7 +414,7 @@ serve(async (req) => {
     // Add to queue if song is ready
     if (finalResult?.audio_url) {
       // Update existing queue entry to ready status
-      const { error: queueError } = await supabaseClient
+      const { error: queueError } = await serviceClient
         .from('queue')
         .update({ status: 'ready' })
         .eq('song_id', song.id);
@@ -414,7 +427,7 @@ serve(async (req) => {
     }
 
     // Store task_id as suno_id for tracking
-    const { error: taskUpdateError } = await supabaseClient
+    const { error: taskUpdateError } = await serviceClient
       .from('songs')
       .update({ suno_id: taskId })
       .eq('id', song.id);
