@@ -131,6 +131,7 @@ export type Database = {
           mood: string | null
           prompt: string
           status: string
+          suno_id: string | null
           title: string | null
           updated_at: string
           url: string | null
@@ -144,6 +145,7 @@ export type Database = {
           mood?: string | null
           prompt: string
           status?: string
+          suno_id?: string | null
           title?: string | null
           updated_at?: string
           url?: string | null
@@ -157,6 +159,7 @@ export type Database = {
           mood?: string | null
           prompt?: string
           status?: string
+          suno_id?: string | null
           title?: string | null
           updated_at?: string
           url?: string | null

@@ -239,6 +239,7 @@ serve(async (req) => {
       status: finalResult?.audio_url ? 'ready' : 'generating',
       title: finalResult?.title || song.title,
       updated_at: new Date().toISOString(),
+      suno_id: finalResult?.clip_id  // Store the Suno clip ID for fetching images later
     };
 
     if (finalResult?.audio_url) {
