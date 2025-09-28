@@ -22,6 +22,7 @@ interface Song {
   genre: string;
   mood?: string;
   url?: string;
+  image_url?: string;
   status: 'generating' | 'ready' | 'failed';
   prompt?: string;
   created_at?: string;
@@ -299,6 +300,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         genre: selectedSong.genre,
         mood: selectedSong.mood,
         url: selectedSong.url,
+        image_url: (selectedSong as any).image_url,
         status: selectedSong.status as 'generating' | 'ready' | 'failed',
         prompt: selectedSong.prompt,
         created_at: selectedSong.created_at,
@@ -400,6 +402,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             genre,
             mood,
             url,
+            image_url,
             status
           )
         `)
@@ -734,8 +737,16 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             </div>
 
             {/* Album Art / Waveform */}
-            <div className="w-48 h-48 mx-auto bg-radio-surface rounded-lg flex items-center justify-center neon-glow">
-              <WaveformBars />
+            <div className="w-48 h-48 mx-auto bg-radio-surface rounded-lg flex items-center justify-center neon-glow overflow-hidden">
+              {currentSong?.image_url ? (
+                <img 
+                  src={currentSong.image_url} 
+                  alt={`${currentSong.title} album art`}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+              ) : (
+                <WaveformBars />
+              )}
             </div>
 
             {/* Progress Bar */}
