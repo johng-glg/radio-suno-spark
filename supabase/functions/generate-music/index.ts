@@ -68,6 +68,10 @@ serve(async (req) => {
       wait_audio = true 
     } = await req.json() as SunoGenerateRequest;
 
+    // Force instrumental for classical music
+    const isClassical = (legacyGenre && legacyGenre.toLowerCase() === 'classical');
+    const finalMakeInstrumental = isClassical || make_instrumental;
+
     // Resolve requester from the Authorization header
     const { data: { user: authUser }, error: authError } = await userClient.auth.getUser();
     if (authError) {
@@ -147,7 +151,7 @@ serve(async (req) => {
       genre, 
       mood, 
       title,
-      make_instrumental 
+      make_instrumental: finalMakeInstrumental 
     });
 
     // Cleanup stale generating songs before concurrency check
@@ -297,7 +301,7 @@ serve(async (req) => {
     const createPayload: Record<string, unknown> = {
       custom_mode: false,
       gpt_description_prompt: finalPrompt,
-      make_instrumental,
+      make_instrumental: finalMakeInstrumental,
       mv: 'chirp-v5', // default model; can be adjusted later from user prefs
     };
 
