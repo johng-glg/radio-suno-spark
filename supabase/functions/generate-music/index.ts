@@ -143,6 +143,29 @@ serve(async (req) => {
 
     console.log('Created song record:', song.id);
 
+    // Add song to queue immediately with generating status
+    const { data: queueCount } = await supabaseClient
+      .from('queue')
+      .select('position')
+      .order('position', { ascending: false })
+      .limit(1);
+
+    const nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
+
+    const { error: queueError } = await supabaseClient
+      .from('queue')
+      .insert({
+        song_id: song.id,
+        position: nextPosition,
+        status: 'generating',
+      });
+
+    if (queueError) {
+      console.error('Failed to add generating song to queue:', queueError);
+    } else {
+      console.log('Added generating song to queue at position:', nextPosition);
+    }
+
     // Call Suno API (SunoAPI async flow: create -> poll task)
     const sunoApiKey = Deno.env.get('SUNO_API_KEY');
     if (!sunoApiKey) {
@@ -298,26 +321,16 @@ serve(async (req) => {
 
     // Add to queue if song is ready
     if (finalResult?.audio_url) {
-      const { data: queueCount } = await supabaseClient
-        .from('queue')
-        .select('position')
-        .order('position', { ascending: false })
-        .limit(1);
-
-      const nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
-
+      // Update existing queue entry to ready status
       const { error: queueError } = await supabaseClient
         .from('queue')
-        .insert({
-          song_id: song.id,
-          position: nextPosition,
-          status: 'queued',
-        });
+        .update({ status: 'ready' })
+        .eq('song_id', song.id);
 
       if (queueError) {
-        console.error('Failed to add to queue:', queueError);
+        console.error('Failed to update queue status to ready:', queueError);
       } else {
-        console.log('Added song to queue at position:', nextPosition);
+        console.log('Updated queue entry to ready status for song:', song.id);
       }
     }
 

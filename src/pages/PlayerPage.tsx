@@ -444,7 +444,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             url,
             image_url,
             status
-          )
+          ),
+          status
         `)
         .order('position', { ascending: true })
         .limit(5);
