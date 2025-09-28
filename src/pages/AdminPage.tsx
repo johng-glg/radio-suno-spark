@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -38,12 +38,13 @@ interface AdminStats {
 }
 
 export default function AdminPage() {
-  const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong } = useAdmin();
+  const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
   const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
   const [promotingUserIds, setPromotingUserIds] = useState<Set<string>>(new Set());
+  const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isAdmin) {
@@ -108,6 +109,42 @@ export default function AdminPage() {
       }
     } finally {
       setResubmittingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(songId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleCheckStatus = async (songId: string, songTitle: string) => {
+    setCheckingStatusIds(prev => new Set([...prev, songId]));
+    
+    try {
+      const { data, error } = await checkSongStatus(songId);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to check song status",
+          variant: "destructive"
+        });
+      } else {
+        const statusInfo = [
+          `ID: ${data?.id?.slice(0, 8)}...`,
+          `Status: ${data?.status}`,
+          `Updated: ${data?.updated_at ? new Date(data.updated_at).toLocaleString() : 'Never'}`,
+          data?.resubmitted_at ? `Resubmitted: ${new Date(data.resubmitted_at).toLocaleString()}` : null,
+          data?.resubmission_succeeded_at ? `Succeeded: ${new Date(data.resubmission_succeeded_at).toLocaleString()}` : null,
+          data?.original_song_id ? `Original: ${data.original_song_id.slice(0, 8)}...` : null
+        ].filter(Boolean).join('\n');
+
+        toast({
+          title: `Status: "${songTitle || 'Untitled'}"`,
+          description: statusInfo,
+          variant: "default"
+        });
+      }
+    } finally {
+      setCheckingStatusIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(songId);
         return newSet;
@@ -348,6 +385,7 @@ export default function AdminPage() {
                         const isResubmitted = song.resubmitted_at && !song.resubmission_succeeded_at;
                         const isResubmissionSucceeded = song.resubmission_succeeded_at;
                         const isResubmitting = resubmittingIds.has(song.id);
+                        const isCheckingStatus = checkingStatusIds.has(song.id);
                         
                         return (
                           <TableRow key={song.id}>
@@ -360,32 +398,43 @@ export default function AdminPage() {
                               {song.prompt}
                             </TableCell>
                             <TableCell>
-                              {isResubmissionSucceeded ? (
-                                <Badge variant="default" className="bg-green-600">
-                                  ✓ Succeeded
-                                </Badge>
-                              ) : isResubmitted ? (
+                              <div className="flex gap-2">
                                 <Button
                                   size="sm"
-                                  variant="default"
-                                  disabled={true}
-                                  className="bg-yellow-500 hover:bg-yellow-600 cursor-not-allowed"
+                                  variant="ghost"
+                                  onClick={() => handleCheckStatus(song.id, song.title || 'Untitled')}
+                                  disabled={isCheckingStatus}
+                                  title="Check current status"
                                 >
-                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                  Processing...
+                                  <Eye className={`h-4 w-4 ${isCheckingStatus ? 'animate-pulse' : ''}`} />
                                 </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant={isResubmitting ? "default" : "outline"}
-                                  onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
-                                  disabled={isResubmitting}
-                                  className={isResubmitting ? "bg-green-600 hover:bg-green-700" : ""}
-                                >
-                                  <RefreshCw className={`h-4 w-4 mr-2 ${isResubmitting ? 'animate-spin' : ''}`} />
-                                  {isResubmitting ? 'Resubmitting...' : 'Resubmit'}
-                                </Button>
-                              )}
+                                {isResubmissionSucceeded ? (
+                                  <Badge variant="default" className="bg-green-600">
+                                    ✓ Succeeded
+                                  </Badge>
+                                ) : isResubmitted ? (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    disabled={true}
+                                    className="bg-yellow-500 hover:bg-yellow-600 cursor-not-allowed"
+                                  >
+                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                    Processing...
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant={isResubmitting ? "default" : "outline"}
+                                    onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
+                                    disabled={isResubmitting}
+                                    className={isResubmitting ? "bg-green-600 hover:bg-green-700" : ""}
+                                  >
+                                    <RefreshCw className={`h-4 w-4 mr-2 ${isResubmitting ? 'animate-spin' : ''}`} />
+                                    {isResubmitting ? 'Resubmitting...' : 'Resubmit'}
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

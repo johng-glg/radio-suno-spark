@@ -130,11 +130,29 @@ export function useAdmin() {
     }
   };
 
+  const checkSongStatus = async (songId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('songs')
+        .select('id, status, title, created_at, updated_at, resubmitted_at, resubmission_succeeded_at, original_song_id')
+        .eq('id', songId)
+        .single();
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('Error checking song status:', error);
+      return { data: null, error };
+    }
+  };
+
   return {
     isAdmin,
     loading,
     getAdminStats,
     makeUserAdmin,
-    resubmitFailedSong
+    resubmitFailedSong,
+    checkSongStatus
   };
 }
