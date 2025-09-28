@@ -1,0 +1,87 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
+
+export function useAdmin() {
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!data);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  const getAdminStats = async () => {
+    if (!isAdmin) return null;
+
+    try {
+      const { data, error } = await supabase.rpc('get_admin_stats');
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      return null;
+    }
+  };
+
+  const makeUserAdmin = async (email: string) => {
+    if (!isAdmin) return { error: { message: 'Access denied' } };
+
+    try {
+      // First get the user ID from email
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('display_name', `%${email}%`)
+        .maybeSingle();
+
+      if (userError || !userData) {
+        return { error: { message: 'User not found' } };
+      }
+
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userData.id, role: 'admin' });
+
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  return {
+    isAdmin,
+    loading,
+    getAdminStats,
+    makeUserAdmin
+  };
+}

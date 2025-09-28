@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import LandingPage from "./LandingPage";
 import PlayerPage from "./PlayerPage";
 import AuthPage from "./AuthPage";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { Shield } from "lucide-react";
 
 const Index = () => {
   const [currentPage, setCurrentPage] = useState<'landing' | 'player' | 'auth'>('landing');
@@ -12,6 +16,7 @@ const Index = () => {
   const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
   const [wildcardMode, setWildcardMode] = useState<boolean>(false);
   const { user, loading } = useAuth();
+  const { isAdmin } = useAdmin();
 
   // Force dark mode for the radio app
   useEffect(() => {
@@ -85,23 +90,47 @@ const Index = () => {
 
   if (currentPage === 'player') {
     return (
-      <PlayerPage
-        selectedGenres={selectedGenres}
-        selectedMood={selectedMood}
-        instrumentalMode={instrumentalMode}
-        wildcardMode={wildcardMode}
-        onBack={handleBackToLanding}
-        onSettingsUpdate={handleSettingsUpdate}
-      />
+      <>
+        <PlayerPage
+          selectedGenres={selectedGenres}
+          selectedMood={selectedMood}
+          instrumentalMode={instrumentalMode}
+          wildcardMode={wildcardMode}
+          onBack={handleBackToLanding}
+          onSettingsUpdate={handleSettingsUpdate}
+        />
+        {isAdmin && (
+          <div className="fixed top-4 right-4 z-50">
+            <Link to="/admin">
+              <Button variant="outline" size="sm">
+                <Shield className="h-4 w-4 mr-2" />
+                Admin
+              </Button>
+            </Link>
+          </div>
+        )}
+      </>
     );
   }
 
   return (
-    <LandingPage 
-      onStartRadio={handleStartRadio} 
-      onAuthNavigate={handleAuthNavigation}
-      user={user}
-    />
+    <>
+      <LandingPage 
+        onStartRadio={handleStartRadio} 
+        onAuthNavigate={handleAuthNavigation}
+        user={user}
+      />
+      {isAdmin && (
+        <div className="fixed top-4 right-4 z-50">
+          <Link to="/admin">
+            <Button variant="outline" size="sm">
+              <Shield className="h-4 w-4 mr-2" />
+              Admin
+            </Button>
+          </Link>
+        </div>
+      )}
+    </>
   );
 };
 
