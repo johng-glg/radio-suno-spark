@@ -46,16 +46,11 @@ export default function SettingsPopup({
   const [tempWildcardMode, setTempWildcardMode] = useState(wildcardMode);
 
   const handleGenreToggle = (genre: string) => {
-    setSelectedGenres(prev => {
-      // If clicking on a genre when "All Genres" is selected, switch to just that genre
-      if (prev.length === 0) {
-        return [genre];
-      }
-      // Normal toggle behavior
-      return prev.includes(genre) 
+    setSelectedGenres(prev => 
+      prev.includes(genre) 
         ? prev.filter(g => g !== genre)
-        : [...prev, genre];
-    });
+        : [...prev, genre]
+    );
   };
 
   const handleSave = () => {
@@ -88,41 +83,26 @@ export default function SettingsPopup({
           {/* Genre Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Genres</Label>
-            <div className="space-y-2">
-              {/* All Genres Option */}
-              <div className="flex items-center space-x-2 p-2 bg-muted/10 rounded">
-                <Checkbox
-                  id="genre-all"
-                  checked={selectedGenres.length === 0}
-                  onCheckedChange={() => setSelectedGenres([])}
-                />
-                <Label 
-                  htmlFor="genre-all"
-                  className="text-sm cursor-pointer font-medium"
-                >
-                  All Genres
-                </Label>
-              </div>
-              
-              {/* Individual Genres */}
-              <div className="grid grid-cols-2 gap-2">
-                {AVAILABLE_GENRES.map((genre) => (
-                  <div key={genre} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`genre-${genre}`}
-                      checked={selectedGenres.includes(genre)}
-                      onCheckedChange={() => handleGenreToggle(genre)}
-                    />
-                    <Label 
-                      htmlFor={`genre-${genre}`}
-                      className="text-sm cursor-pointer"
-                    >
-                      {genre}
-                    </Label>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              {AVAILABLE_GENRES.map((genre) => (
+                <div key={genre} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`genre-${genre}`}
+                    checked={selectedGenres.includes(genre)}
+                    onCheckedChange={() => handleGenreToggle(genre)}
+                  />
+                  <Label 
+                    htmlFor={`genre-${genre}`}
+                    className="text-sm cursor-pointer"
+                  >
+                    {genre}
+                  </Label>
+                </div>
+              ))}
             </div>
+            {selectedGenres.length === 0 && (
+              <p className="text-xs text-muted-foreground">No genres selected - will use all available genres</p>
+            )}
           </div>
 
           {/* Mood Selection */}
@@ -175,8 +155,8 @@ export default function SettingsPopup({
             <Label className="text-xs text-muted-foreground">Current Selection:</Label>
             <div className="flex flex-wrap gap-1">
               {selectedGenres.length === 0 ? (
-                <Badge variant="secondary" className="text-xs">
-                  All Genres
+                <Badge variant="outline" className="text-xs text-muted-foreground">
+                  All Genres (default)
                 </Badge>
               ) : (
                 selectedGenres.map(genre => (

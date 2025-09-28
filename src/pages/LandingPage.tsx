@@ -32,16 +32,11 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const { toast } = useToast();
 
   const toggleGenre = (genre: string) => {
-    setSelectedGenres(prev => {
-      // If clicking on a genre when "All Genres" is selected, switch to just that genre
-      if (prev.length === 0) {
-        return [genre];
-      }
-      // Normal toggle behavior
-      return prev.includes(genre) 
+    setSelectedGenres(prev => 
+      prev.includes(genre) 
         ? prev.filter(g => g !== genre)
-        : [...prev, genre];
-    });
+        : [...prev, genre]
+    );
   };
 
   const handleStartRadio = () => {
@@ -133,16 +128,10 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                 <Music className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold">Choose Your Genres</h3>
                 <Badge variant="secondary" className="text-xs">
-                  {selectedGenres.length === 0 ? 'all genres' : `${selectedGenres.length} selected`}
+                  {selectedGenres.length === 0 ? 'optional' : `${selectedGenres.length} selected`}
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => setSelectedGenres([])}
-                  className={`genre-chip ${selectedGenres.length === 0 ? 'selected' : ''}`}
-                >
-                  All Genres
-                </button>
                 {GENRES.map((genre) => (
                   <button
                     key={genre}
@@ -153,6 +142,11 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                   </button>
                 ))}
               </div>
+              {selectedGenres.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No genres selected - will use all available genres
+                </p>
+              )}
             </div>
 
             {/* Mood Selection */}
