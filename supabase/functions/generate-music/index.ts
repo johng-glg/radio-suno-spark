@@ -120,7 +120,42 @@ serve(async (req) => {
       .eq('status', 'generating')
       .lt('updated_at', staleCutoff);
 
-    // No server-side concurrency guard: rely on provider limits and frontend lock
+    // Check if this is the first song generation (demo mode)
+    const { data: existingSongs, error: countError } = await supabaseClient
+      .from('songs')
+      .select('id')
+      .eq('status', 'ready')
+      .limit(1);
+
+    const isFirstSong = !existingSongs || existingSongs.length === 0;
+
+    // For the first song, check if we already have a demo song to avoid duplicate generation
+    if (isFirstSong) {
+      const { data: demoSong, error: demoError } = await supabaseClient
+        .from('songs')
+        .select('*')
+        .eq('status', 'ready')
+        .limit(1)
+        .single();
+
+      if (demoSong && !demoError) {
+        console.log('Using existing demo song:', demoSong.id);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            song_id: demoSong.id,
+            status: 'ready',
+            audio_url: demoSong.url,
+            title: demoSong.title,
+            demo_mode: true,
+            message: 'Using existing demo song'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+    }
 
 
     // Create initial song record in database
