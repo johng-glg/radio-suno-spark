@@ -398,6 +398,13 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const addSongToQueue = async (song: Song) => {
     try {
+      // Guard: only add songs matching current selected genres
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      if (genresLowerCase.length > 0 && !genresLowerCase.includes((song.genre || '').toLowerCase())) {
+        console.log('Skipping addSongToQueue: song genre does not match selection', song.genre, selectedGenres);
+        return;
+      }
+
       // Check if song already in queue
       const { data: existingQueue } = await supabase
         .from('queue')
@@ -490,34 +497,50 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           status
         `)
         .order('position', { ascending: true })
-        .limit(5);
+        .limit(10);
 
       if (error) {
         console.error('Error polling for songs:', error);
         return;
       }
 
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+
       if (queueData && queueData.length > 0) {
-        const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
-        
-        // If we don't have a current song yet, pick the first ready one and remove it from queue
+        // Map to include queue id for targeted deletes, then filter by user and genre
+        const items = queueData
+          .map(item => ({ song: item.songs as Song | null, queueId: item.id }))
+          .filter(item => !!item.song)
+          .filter(item => {
+            const s = item.song as Song;
+            const genreOk = genresLowerCase.length === 0 || genresLowerCase.includes((s.genre || '').toLowerCase());
+            const ownerOk = s.requested_by === null || (user?.id ? s.requested_by === user.id : true);
+            return genreOk && ownerOk;
+          });
+
+        // Extract just the songs for UI
+        const filteredSongs = items.map(i => i.song!) as Song[];
+
+        // If we don't have a current song yet, pick the first ready one matching filters and remove it from queue
         if (!currentSong) {
-          const firstReady = songs.find(song => song.status === 'ready' && song.url);
+          const firstReady = filteredSongs.find(song => song.status === 'ready' && !!song.url);
           if (firstReady) {
-            console.log('Setting first ready song as current:', firstReady);
+            console.log('Setting first ready filtered song as current:', firstReady);
             setCurrentSong(firstReady);
-            
-            // Remove the song from queue since it's now playing
+
             const queueItem = queueData.find(item => item.songs?.id === firstReady.id);
             if (queueItem) {
               await supabase.from('queue').delete().eq('id', queueItem.id);
             }
+
+            // Remove it from our local array too
+            const idx = filteredSongs.findIndex(s => s.id === firstReady.id);
+            if (idx >= 0) filteredSongs.splice(idx, 1);
           }
         }
-        
-        // Show remaining songs in queue (since current song is removed from DB queue)
-        const remainingSongs = songs.filter(song => song.id !== currentSong?.id);
-        setQueue(remainingSongs);
+
+        // Show remaining songs in queue (filtered)
+        setQueue(filteredSongs);
       } else {
         // No songs in queue
         setQueue([]);
@@ -552,7 +575,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const handleSkip = async () => {
     try {
-      // Get the next song from database queue to ensure consistency
+      // Get several items from the database queue, then filter by user + genre on the client
       const { data: queueData, error } = await supabase
         .from('queue')
         .select(`
@@ -570,40 +593,52 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           )
         `)
         .order('position', { ascending: true })
-        .limit(1);
+        .limit(10);
 
       if (error) {
         console.error('Error getting next song from queue:', error);
         return;
       }
 
-      if (queueData && queueData.length > 0 && queueData[0].songs) {
-        const nextSong = queueData[0].songs as Song;
-        const queueItemId = queueData[0].id;
-        
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      const items = (queueData || [])
+        .map(item => ({ song: item.songs as Song | null, queueId: item.id }))
+        .filter(item => !!item.song)
+        .filter(item => {
+          const s = item.song as Song;
+          const genreOk = genresLowerCase.length === 0 || genresLowerCase.includes((s.genre || '').toLowerCase());
+          const ownerOk = s.requested_by === null || (user?.id ? s.requested_by === user.id : true);
+          return genreOk && ownerOk;
+        });
+
+      const next = items.find(i => i.song!.status === 'ready' && !!i.song!.url);
+
+      if (next && next.song) {
+        const nextSong = next.song as Song;
+
         // Remove the queue item from database since we're about to play it
-        await supabase.from('queue').delete().eq('id', queueItemId);
-        
+        await supabase.from('queue').delete().eq('id', next.queueId);
+
         // If current song is a library song (null requested_by) and we haven't reached the limit, increment counter
         if (nextSong.requested_by === null && librarySongsUsedInSession < 2) {
           setLibrarySongsUsedInSession(prev => prev + 1);
           console.log(`Library song played (${librarySongsUsedInSession + 1}/2):`, nextSong.title);
         }
-        
+
         setCurrentSong(nextSong);
         setProgress(0);
-        
+
         // After playing the next song, only generate new songs (no more library songs after first 2)
         setTimeout(() => {
           generateNextSong();
         }, 1000);
-        
+
         toast({
-          title: "Next Track",
+          title: 'Next Track',
           description: nextSong.title,
         });
       } else {
-        console.log('No songs in queue, generating fallback...');
+        console.log('No matching songs in queue, generating fallback...');
         await handleEmptyQueueFallback();
       }
     } catch (error) {
