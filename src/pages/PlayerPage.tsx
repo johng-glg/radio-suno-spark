@@ -165,9 +165,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         await supabase.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         console.log('Database queue cleared');
         
-        // Load 2 songs immediately using priority system
+        // Load 1 current song + 1 next (library-first)
         const song1 = await getNextSongByPriority();
-        const song2 = await getNextSongByPriority(song1?.id);
         
         if (song1) {
           console.log('Setting first priority song as current:', song1.title);
@@ -176,17 +175,23 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             title: "Music Ready!",
             description: `Playing ${song1.title} instantly`,
           });
+          
+          // Check if we can get a second library song as next
+          const song2 = await getNextSongByPriority(song1.id);
+          if (song2) {
+            console.log('Adding second priority song to queue:', song2.title);
+            await addSongToQueue(song2);
+          } else {
+            // Only generate if no library songs available for genre+mood
+            const hasLibrarySongs = await checkLibrarySongsAvailable();
+            if (!hasLibrarySongs) {
+              console.log('No library songs available, starting generation...');
+              setTimeout(() => {
+                startGenerationTask();
+              }, 1000);
+            }
+          }
         }
-        
-        if (song2) {
-          console.log('Adding second priority song to queue:', song2.title);
-          await addSongToQueue(song2);
-        }
-        
-        // Always start one generation task for selected Genre + Mood
-        setTimeout(() => {
-          startGenerationTask();
-        }, 1000);
         
       } catch (error) {
         console.error('Error initializing queue:', error);
@@ -439,6 +444,41 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     };
   };
 
+  // Check if there are any library songs available for current genre+mood
+  const checkLibrarySongsAvailable = async (): Promise<boolean> => {
+    try {
+      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      
+      let query = supabase
+        .from('songs')
+        .select('id')
+        .eq('status', 'ready')
+        .is('requested_by', null) // Library songs only
+        .not('url', 'is', null);
+      
+      if (genresLowerCase.length > 0) {
+        query = query.in('genre', genresLowerCase);
+      }
+      
+      if (selectedMood) {
+        query = query.eq('mood', selectedMood.toLowerCase());
+      }
+      
+      const { data: songs, error } = await query.limit(1);
+      
+      if (error) {
+        console.error('Error checking library songs:', error);
+        return false;
+      }
+      
+      return (songs && songs.length > 0);
+      
+    } catch (error) {
+      console.error('Error checking library songs availability:', error);
+      return false;
+    }
+  };
+
   // Start a generation task for selected Genre + Mood
   const startGenerationTask = async () => {
     if (generationLockRef.current || isGenerating) {
@@ -500,7 +540,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Maintain queue with 2 ready + 1 generating songs
+  // Maintain queue with exactly 1 next song (library-first)
   const maintainQueue = async () => {
     try {
       const readySongs = queue.filter(song => song.status === 'ready' && song.url);
@@ -508,23 +548,20 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       console.log(`Queue status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
       
-      // Fill queue if fewer than 2 ready songs
-      while (readySongs.length < 2) {
+      // Only maintain 1 next song (not 2 ready + 1 generating)
+      if (readySongs.length === 0 && generatingSongs.length === 0) {
         const nextSong = await getNextSongByPriority();
         if (nextSong) {
           await addSongToQueue(nextSong);
-          readySongs.push(nextSong);
           console.log('Added song to maintain queue:', nextSong.title);
         } else {
-          // No library songs available, need to generate
-          break;
+          // Only generate if no library songs available for current genre+mood
+          const hasLibrarySongs = await checkLibrarySongsAvailable();
+          if (!hasLibrarySongs) {
+            console.log('No library songs available, starting generation...');
+            startGenerationTask();
+          }
         }
-      }
-      
-      // Ensure there's always one generation task running
-      if (generatingSongs.length === 0 && !generationLockRef.current && !isGenerating) {
-        console.log('No generation task running, starting one...');
-        startGenerationTask();
       }
       
     } catch (error) {
