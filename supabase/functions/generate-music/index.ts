@@ -143,7 +143,7 @@ serve(async (req) => {
 
     console.log('Created song record:', song.id);
 
-    // Add song to queue immediately with generating status
+    // Add song to queue immediately with queued status (DB constraint-safe)
     const { data: queueCount } = await supabaseClient
       .from('queue')
       .select('position')
@@ -157,13 +157,13 @@ serve(async (req) => {
       .insert({
         song_id: song.id,
         position: nextPosition,
-        status: 'generating',
+        status: 'queued',
       });
 
     if (queueError) {
-      console.error('Failed to add generating song to queue:', queueError);
+      console.error('Failed to add song to queue:', queueError);
     } else {
-      console.log('Added generating song to queue at position:', nextPosition);
+      console.log('Added song to queue at position:', nextPosition);
     }
 
     // Call Suno API (SunoAPI async flow: create -> poll task)
