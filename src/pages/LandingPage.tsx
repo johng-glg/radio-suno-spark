@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2 } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,9 @@ interface LandingPageProps {
 
 export default function LandingPage({ onStartRadio, onAuthNavigate, user }: LandingPageProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [isInstrumental, setIsInstrumental] = useState(false);
+  const [isWildcard, setIsWildcard] = useState(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -39,14 +43,8 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
 
   const handleStartRadio = () => {
     if (selectedGenres.length === 0) return;
-    // Randomize mood from available options
-    const randomMood = MOODS[Math.floor(Math.random() * MOODS.length)];
-    // Randomize instrumental mode (30% chance)
-    const randomInstrumental = Math.random() < 0.3;
-    // Randomize wildcard mode (20% chance)
-    const randomWildcard = Math.random() < 0.2;
     
-    onStartRadio(selectedGenres, randomMood, randomInstrumental, randomWildcard);
+    onStartRadio(selectedGenres, selectedMood || undefined, isInstrumental, isWildcard);
   };
 
   const handleSignOut = async () => {
@@ -147,6 +145,64 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                     {genre}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Mood Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="h-5 w-5 text-accent" />
+                <h3 className="text-lg font-semibold">Select a Mood</h3>
+                <Badge variant="secondary" className="text-xs">
+                  {selectedMood ? 'selected' : 'optional'}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {MOODS.map((mood) => (
+                  <button
+                    key={mood}
+                    onClick={() => setSelectedMood(mood === selectedMood ? null : mood)}
+                    className={`genre-chip ${selectedMood === mood ? 'selected' : ''}`}
+                  >
+                    {mood}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Advanced Options */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Advanced Options</h3>
+              <div className="space-y-4">
+                {/* Instrumental Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Volume2 className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Instrumental</p>
+                      <p className="text-sm text-muted-foreground">Generate music without vocals</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isInstrumental}
+                    onCheckedChange={setIsInstrumental}
+                  />
+                </div>
+
+                {/* Wildcard Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Zap className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Wildcard Mode</p>
+                      <p className="text-sm text-muted-foreground">Add unexpected creative twists</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={isWildcard}
+                    onCheckedChange={setIsWildcard}
+                  />
+                </div>
               </div>
             </div>
 
