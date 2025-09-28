@@ -300,10 +300,9 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.neq('id', excludeSongId);
       }
       
-      // Prioritize songs user hasn't heard or liked
-      const { data: songs, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(20); // Get a pool to choose from
+      // Use random ordering to get a diverse pool instead of always newest songs
+      // Get a larger pool for better randomization
+      const { data: songs, error } = await query.limit(50);
       
       if (error) {
         console.error('Error fetching existing songs:', error);
@@ -312,8 +311,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       if (!songs || songs.length === 0) return null;
       
+      // Randomly shuffle the entire array first for better variety
+      const shuffledSongs = [...songs].sort(() => Math.random() - 0.5);
+      
       // Sort by preference: liked > unheard > disliked
-      const songsWithScores = songs.map(song => {
+      const songsWithScores = shuffledSongs.map(song => {
         const interaction = song.user_song_interactions?.[0];
         let score = 0;
         
@@ -321,15 +323,18 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         else if (interaction.interaction_type === 'like') score = 3; // Liked songs highest
         else if (interaction.interaction_type === 'dislike') score = 1; // Disliked songs lowest
         
-        return { ...song, score, user_interaction: interaction?.interaction_type || null };
+        // Add random factor to score for more variety
+        const randomBonus = Math.random() * 0.5; // 0-0.5 random bonus
+        
+        return { ...song, score: score + randomBonus, user_interaction: interaction?.interaction_type || null };
       });
       
       // Sort by score and pick from top candidates
       songsWithScores.sort((a, b) => b.score - a.score);
-      const topSongs = songsWithScores.slice(0, 5); // Top 5 candidates
+      const topCandidates = songsWithScores.slice(0, Math.min(10, songsWithScores.length)); // Top 10 candidates for better variety
       
-      // Randomly pick from top candidates for variety
-      const selectedSong = topSongs[Math.floor(Math.random() * topSongs.length)];
+      // Randomly pick from top candidates
+      const selectedSong = topCandidates[Math.floor(Math.random() * topCandidates.length)];
       
       // Clean up the song object to match Song interface
       const cleanSong: Song = {
