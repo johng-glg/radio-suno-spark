@@ -768,6 +768,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
                 size="icon"
                 className="player-control"
                 onClick={handleSkip}
+                disabled={queue.length === 0 || !queue.some(song => song.status === 'ready')}
               >
                 <SkipForward className="h-5 w-5" />
               </Button>
