@@ -270,7 +270,7 @@ serve(async (req) => {
 
     // Prepare update based on poll result
     const updateData: any = {
-      status: finalResult?.audio_url ? 'ready' : 'generating',
+      status: finalResult?.audio_url ? 'ready' : 'failed',
       title: finalResult?.title || song.title,
       updated_at: new Date().toISOString(),
       suno_id: finalResult?.clip_id  // Store the Suno clip ID for fetching images later
@@ -279,6 +279,9 @@ serve(async (req) => {
     if (finalResult?.audio_url) {
       updateData.url = finalResult.audio_url;
       console.log('Updating song with audio URL:', finalResult.audio_url);
+    } else {
+      updateData.description = 'Generation timeout or no audio returned';
+      console.warn(`Suno task ${taskId} timed out or returned no audio; marking as failed.`);
     }
 
     if (finalResult?.image_url) {
