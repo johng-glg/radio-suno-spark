@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface AdminStats {
   total_users: number;
@@ -46,6 +48,7 @@ export default function AdminPage() {
   const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
   const [promotingUserIds, setPromotingUserIds] = useState<Set<string>>(new Set());
   const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
+  const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(false);
 
   useEffect(() => {
     if (isAdmin) {
@@ -402,89 +405,113 @@ export default function AdminPage() {
           <TabsContent value="failed-songs" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Failed Generations</CardTitle>
-                <CardDescription>
-                  Latest songs that failed to generate
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Recent Failed Generations</CardTitle>
+                    <CardDescription>
+                      Latest songs that failed to generate
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Label htmlFor="hide-successful" className="text-sm text-muted-foreground">
+                      Hide successful resubmissions
+                    </Label>
+                    <Switch
+                      id="hide-successful"
+                      checked={hideSuccessfulResubmissions}
+                      onCheckedChange={setHideSuccessfulResubmissions}
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                {stats?.recent_failed_songs && stats.recent_failed_songs.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Genre</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Prompt</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stats.recent_failed_songs.map((song) => {
-                        const isResubmitted = song.resubmitted_at && !song.resubmission_succeeded_at;
-                        const isResubmissionSucceeded = song.resubmission_succeeded_at;
-                        const isResubmitting = resubmittingIds.has(song.id);
-                        const isCheckingStatus = checkingStatusIds.has(song.id);
-                        
-                        return (
-                          <TableRow key={song.id}>
-                            <TableCell>{song.title || 'Untitled'}</TableCell>
-                            <TableCell className="capitalize">{song.genre}</TableCell>
-                            <TableCell>
-                              {new Date(song.created_at).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate" title={song.prompt}>
-                              {song.prompt}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleCheckStatus(song.id, song.title || 'Untitled')}
-                                  disabled={isCheckingStatus}
-                                  title="Check current status"
-                                >
-                                  <Eye className={`h-4 w-4 ${isCheckingStatus ? 'animate-pulse' : ''}`} />
-                                </Button>
-                                {isResubmissionSucceeded ? (
-                                  <Badge variant="default" className="bg-green-600">
-                                    ✓ Succeeded
-                                  </Badge>
-                                ) : isResubmitted ? (
+                {(() => {
+                  const filteredSongs = stats?.recent_failed_songs?.filter(song => 
+                    hideSuccessfulResubmissions ? !song.resubmission_succeeded_at : true
+                  ) || [];
+                  
+                  return filteredSongs.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Genre</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Prompt</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSongs.map((song) => {
+                          const isResubmitted = song.resubmitted_at && !song.resubmission_succeeded_at;
+                          const isResubmissionSucceeded = song.resubmission_succeeded_at;
+                          const isResubmitting = resubmittingIds.has(song.id);
+                          const isCheckingStatus = checkingStatusIds.has(song.id);
+                          
+                          return (
+                            <TableRow key={song.id}>
+                              <TableCell>{song.title || 'Untitled'}</TableCell>
+                              <TableCell className="capitalize">{song.genre}</TableCell>
+                              <TableCell>
+                                {new Date(song.created_at).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="max-w-xs truncate" title={song.prompt}>
+                                {song.prompt}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
                                   <Button
                                     size="sm"
-                                    variant="default"
-                                    disabled={true}
-                                    className="bg-yellow-500 hover:bg-yellow-600 cursor-not-allowed"
+                                    variant="ghost"
+                                    onClick={() => handleCheckStatus(song.id, song.title || 'Untitled')}
+                                    disabled={isCheckingStatus}
+                                    title="Check current status"
                                   >
-                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                                    Processing...
+                                    <Eye className={`h-4 w-4 ${isCheckingStatus ? 'animate-pulse' : ''}`} />
                                   </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant={isResubmitting ? "default" : "outline"}
-                                    onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
-                                    disabled={isResubmitting}
-                                    className={isResubmitting ? "bg-green-600 hover:bg-green-700" : ""}
-                                  >
-                                    <RefreshCw className={`h-4 w-4 mr-2 ${isResubmitting ? 'animate-spin' : ''}`} />
-                                    {isResubmitting ? 'Resubmitting...' : 'Resubmit'}
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No failed generations found
-                  </p>
-                )}
+                                  {isResubmissionSucceeded ? (
+                                    <Badge variant="default" className="bg-green-600">
+                                      ✓ Succeeded
+                                    </Badge>
+                                  ) : isResubmitted ? (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      disabled={true}
+                                      className="bg-yellow-500 hover:bg-yellow-600 cursor-not-allowed"
+                                    >
+                                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                      Processing...
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant={isResubmitting ? "default" : "outline"}
+                                      onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
+                                      disabled={isResubmitting}
+                                      className={isResubmitting ? "bg-green-600 hover:bg-green-700" : ""}
+                                    >
+                                      <RefreshCw className={`h-4 w-4 mr-2 ${isResubmitting ? 'animate-spin' : ''}`} />
+                                      {isResubmitting ? 'Resubmitting...' : 'Resubmit'}
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">
+                      {hideSuccessfulResubmissions && stats?.recent_failed_songs?.length > 0 
+                        ? "All failed generations have been successfully resubmitted" 
+                        : "No failed generations found"
+                      }
+                    </p>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
