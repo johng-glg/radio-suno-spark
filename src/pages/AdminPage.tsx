@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
@@ -51,6 +51,7 @@ interface AdminStats {
 export default function AdminPage() {
   const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
@@ -227,8 +228,21 @@ export default function AdminPage() {
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage your music generation platform</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Manage your music generation platform</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="h-10 w-10"
+              title="Close admin panel"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
