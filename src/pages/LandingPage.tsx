@@ -66,20 +66,23 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 radio-gradient">
-      <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
-        {/* Header with Auth */}
-        <div className="relative mb-20">
-          {/* User Email - positioned absolutely on the left */}
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 radio-gradient">
+      {/* Auth Header - fixed at top */}
+      <div className="fixed top-0 left-0 right-0 z-10 p-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          {/* User Email - positioned on the left */}
           {user && (
-            <div className="absolute top-0 left-0 flex items-center space-x-2 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{user.email}</span>
             </div>
           )}
           
-          {/* Auth Button - positioned absolutely on the right */}
-          <div className="absolute top-0 right-0 flex items-center space-x-2">
+          {/* Empty div for spacing when no user */}
+          {!user && <div></div>}
+          
+          {/* Auth Button - positioned on the right */}
+          <div className="flex items-center space-x-2">
             {user ? (
               <Button 
                 variant="ghost" 
@@ -102,21 +105,24 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
               </Button>
             )}
           </div>
-          
-          {/* Centered content */}
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-3 mb-6">
-              <div className="p-3 rounded-full bg-primary/20 neon-glow">
-                <Radio className="h-8 w-8 text-primary" />
-              </div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
-                AI Radio
-              </h1>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="w-full max-w-2xl space-y-8 animate-fade-in-up mt-16">
+        {/* AI Radio Title */}
+        <div className="text-center">
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="p-3 rounded-full bg-primary/20 neon-glow">
+              <Radio className="h-8 w-8 text-primary" />
             </div>
-            <p className="text-xl text-muted-foreground max-w-lg mx-auto text-center">
-              Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
-            </p>
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-neon-purple to-neon-cyan bg-clip-text text-transparent">
+              AI Radio
+            </h1>
           </div>
+          <p className="text-xl text-muted-foreground max-w-lg mx-auto text-center">
+            Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
+          </p>
         </div>
 
         {/* Main Card */}
