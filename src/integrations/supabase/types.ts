@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_rate_limits: {
+        Row: {
+          attempt_count: number | null
+          blocked_until: string | null
+          created_at: string | null
+          id: string
+          ip_address: unknown
+          last_attempt: string | null
+        }
+        Insert: {
+          attempt_count?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address: unknown
+          last_attempt?: string | null
+        }
+        Update: {
+          attempt_count?: number | null
+          blocked_until?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          last_attempt?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

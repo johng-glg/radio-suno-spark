@@ -28,15 +28,26 @@ export function useAuth() {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    // Enhanced input validation
+    if (!email || email.length > 255) {
+      return { error: { message: 'Invalid email address' } };
+    }
+    if (!password || password.length < 8) {
+      return { error: { message: 'Password must be at least 8 characters long' } };
+    }
+    if (displayName && displayName.length > 100) {
+      return { error: { message: 'Display name must be less than 100 characters' } };
+    }
+
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          display_name: displayName
+          display_name: displayName?.trim()
         }
       }
     });
@@ -44,8 +55,16 @@ export function useAuth() {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Enhanced input validation
+    if (!email || email.length > 255) {
+      return { error: { message: 'Invalid email address' } };
+    }
+    if (!password) {
+      return { error: { message: 'Password is required' } };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password
     });
     return { error };

@@ -13,15 +13,17 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address").trim(),
-  password: z.string().min(6, "Password must be at least 6 characters")
+  email: z.string().email('Please enter a valid email').max(255, 'Email must be less than 255 characters').trim(),
+  password: z.string().min(1, 'Password is required'),
 });
 
 const signupSchema = z.object({
-  email: z.string().email("Invalid email address").trim(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-  displayName: z.string().trim().min(2, "Display name must be at least 2 characters").optional()
+  email: z.string().email('Please enter a valid email').max(255, 'Email must be less than 255 characters').trim(),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+  displayName: z.string().trim().max(100, 'Display name must be less than 100 characters').optional()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"]
@@ -243,7 +245,7 @@ export default function AuthPage({ onBack }: AuthPageProps) {
                       <Input
                         id="signup-password"
                         type="password"
-                        placeholder="Create a password (6+ characters)"
+                        placeholder="Create a strong password (8+ characters)"
                         value={signupForm.password}
                         onChange={(e) => setSignupForm(prev => ({ ...prev, password: e.target.value }))}
                         className="pl-10"
