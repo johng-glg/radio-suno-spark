@@ -115,12 +115,12 @@ export default function SettingsPopup({
           {/* Mood Selection */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Mood</Label>
-            <Select value={selectedMood || ""} onValueChange={(value) => setSelectedMood(value || undefined)}>
+            <Select value={selectedMood || "none"} onValueChange={(value) => setSelectedMood(value === "none" ? undefined : value)}>
               <SelectTrigger className="border-border">
                 <SelectValue placeholder="Select mood (optional)" />
               </SelectTrigger>
               <SelectContent className="border-border">
-                <SelectItem value="">Any Mood</SelectItem>
+                <SelectItem value="none">Any Mood</SelectItem>
                 {AVAILABLE_MOODS.map((mood) => (
                   <SelectItem key={mood} value={mood}>
                     {mood}
