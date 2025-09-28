@@ -81,7 +81,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         setProgress((audio.currentTime / audio.duration) * 100);
       };
       
-      const handleEnded = () => {
+      const handleEnded = async () => {
+        // Check if queue is empty when song ends
+        if (queue.length <= 1) { // Current song + nothing else
+          console.log('Song ended and queue is empty, fetching fallback...');
+          await handleEmptyQueueFallback();
+        }
         handleSkip();
       };
       
@@ -659,6 +664,58 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       });
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleEmptyQueueFallback = async () => {
+    if (!currentSong) return;
+    
+    console.log('Queue is empty, fetching random fallback song and generating more...');
+    
+    try {
+      // Fetch a random existing song of the same genre as fallback
+      const { data: fallbackSongs, error: fallbackError } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('status', 'ready')
+        .eq('genre', currentSong.genre)
+        .not('url', 'is', null)
+        .neq('id', currentSong.id) // Don't repeat current song
+        .limit(10);
+
+      if (fallbackError) {
+        console.error('Error fetching fallback songs:', fallbackError);
+      } else if (fallbackSongs && fallbackSongs.length > 0) {
+        // Pick a random song from the results
+        const randomSong = fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
+        
+        // Add to queue
+        const { data: queueData, error: queueError } = await supabase
+          .from('queue')
+          .select('position')
+          .order('position', { ascending: false })
+          .limit(1);
+
+        if (!queueError) {
+          const nextPosition = (queueData?.[0]?.position || 0) + 1;
+          
+          await supabase.from('queue').insert({
+            song_id: randomSong.id,
+            position: nextPosition,
+            status: 'queued'
+          });
+          
+          console.log(`Added fallback song "${randomSong.title}" to queue`);
+        }
+      }
+
+      // Also trigger generation for more songs
+      generateInitialSongs().catch(err => 
+        console.error('Background generation failed:', err)
+      );
+      
+    } catch (error) {
+      console.error('Fallback handling failed:', error);
     }
   };
 
