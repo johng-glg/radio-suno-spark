@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Volume2 } from "lucide-react";
+import { Sparkles, Volume2, Zap } from "lucide-react";
 
 interface SettingsPopupProps {
   isOpen: boolean;
@@ -15,11 +15,13 @@ interface SettingsPopupProps {
   currentMood?: string;
   instrumentalMode: boolean;
   wildcardMode: boolean;
+  generateWhenExhausted: boolean;
   onSaveSettings: (settings: {
     genres: string[];
     mood?: string;
     instrumentalMode: boolean;
     wildcardMode: boolean;
+    generateWhenExhausted: boolean;
   }) => void;
 }
 
@@ -38,12 +40,14 @@ export default function SettingsPopup({
   currentMood,
   instrumentalMode,
   wildcardMode,
+  generateWhenExhausted,
   onSaveSettings,
 }: SettingsPopupProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>(currentGenres);
   const [selectedMood, setSelectedMood] = useState<string | undefined>(currentMood);
   const [tempInstrumentalMode, setTempInstrumentalMode] = useState(instrumentalMode);
   const [tempWildcardMode, setTempWildcardMode] = useState(wildcardMode);
+  const [tempGenerateWhenExhausted, setTempGenerateWhenExhausted] = useState(generateWhenExhausted);
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres(prev => 
@@ -59,6 +63,7 @@ export default function SettingsPopup({
       mood: selectedMood,
       instrumentalMode: tempInstrumentalMode,
       wildcardMode: tempWildcardMode,
+      generateWhenExhausted: tempGenerateWhenExhausted,
     });
     onClose();
   };
@@ -69,6 +74,7 @@ export default function SettingsPopup({
     setSelectedMood(currentMood);
     setTempInstrumentalMode(instrumentalMode);
     setTempWildcardMode(wildcardMode);
+    setTempGenerateWhenExhausted(generateWhenExhausted);
     onClose();
   };
 
@@ -148,6 +154,18 @@ export default function SettingsPopup({
                 onCheckedChange={setTempWildcardMode}
               />
             </div>
+
+            {/* Auto-Generate New Songs */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Zap className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Generate fresh music automatically</Label>
+              </div>
+              <Switch
+                checked={tempGenerateWhenExhausted}
+                onCheckedChange={setTempGenerateWhenExhausted}
+              />
+            </div>
           </div>
 
           {/* Current Selection Preview */}
@@ -180,6 +198,12 @@ export default function SettingsPopup({
                 <Badge variant="outline" className="text-xs text-yellow-400 border-yellow-400/50">
                   <Sparkles className="h-3 w-3 mr-1" />
                   Wild Card
+                </Badge>
+              )}
+              {tempGenerateWhenExhausted && (
+                <Badge variant="outline" className="text-xs text-green-400 border-green-400/50">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Auto-Generate
                 </Badge>
               )}
             </div>

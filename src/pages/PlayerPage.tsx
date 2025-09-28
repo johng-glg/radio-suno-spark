@@ -74,7 +74,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
-  const { preferences, toggleWildCardMode, addExclusion } = useUserPreferences();
+  const { preferences, toggleWildCardMode, addExclusion, updatePreferences } = useUserPreferences();
   
 
   // Audio element setup
@@ -271,6 +271,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           // Mark this Genre+Mood as exhausted
           setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
           console.log('Genre+Mood combination exhausted:', genreMoodKey);
+          
+          // Check user preference: if generate_when_exhausted is true, trigger generation immediately
+          if (preferences.generate_when_exhausted) {
+            console.log('No unplayed songs for', genreMoodKey, 'generating fresh content...');
+            return null; // Trigger generation
+          }
         }
       }
       
@@ -1016,14 +1022,25 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     mood?: string;
     instrumentalMode: boolean;
     wildcardMode: boolean;
+    generateWhenExhausted: boolean;
   }) => {
     // Update user preferences for wildcardMode
     if (newSettings.wildcardMode !== preferences.wild_card_mode) {
       toggleWildCardMode();
     }
     
-    // Call the parent component to update settings
-    onSettingsUpdate?.(newSettings);
+    // Update user preferences for generateWhenExhausted
+    if (newSettings.generateWhenExhausted !== preferences.generate_when_exhausted) {
+      updatePreferences({ generate_when_exhausted: newSettings.generateWhenExhausted });
+    }
+    
+    // Call the parent component to update settings (excluding the new preference as it's internal)
+    onSettingsUpdate?.({
+      genres: newSettings.genres,
+      mood: newSettings.mood,
+      instrumentalMode: newSettings.instrumentalMode,
+      wildcardMode: newSettings.wildcardMode
+    });
     
     toast({
       title: "Settings Updated",
@@ -1340,6 +1357,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         currentMood={selectedMood}
         instrumentalMode={instrumentalMode}
         wildcardMode={wildcardMode}
+        generateWhenExhausted={preferences.generate_when_exhausted}
         onSaveSettings={handleSettingsSave}
       />
     </div>

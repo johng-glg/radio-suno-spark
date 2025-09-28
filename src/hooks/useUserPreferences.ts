@@ -7,12 +7,14 @@ interface UserPreferences {
   excluded_moods: string[];
   excluded_instruments: string[];
   wild_card_mode: boolean;
+  generate_when_exhausted: boolean;
 }
 
 const defaultPreferences: UserPreferences = {
   excluded_moods: [],
   excluded_instruments: [],
-  wild_card_mode: false
+  wild_card_mode: false,
+  generate_when_exhausted: true
 };
 
 export function useUserPreferences() {
@@ -38,7 +40,7 @@ export function useUserPreferences() {
       setLoading(true);
       const { data, error } = await supabase
         .from('user_preferences')
-        .select('excluded_moods, excluded_instruments, wild_card_mode')
+        .select('excluded_moods, excluded_instruments, wild_card_mode, generate_when_exhausted')
         .eq('user_id', user.id)
         .maybeSingle();
 

@@ -215,6 +215,7 @@ export type Database = {
           created_at: string
           excluded_instruments: string[] | null
           excluded_moods: string[] | null
+          generate_when_exhausted: boolean | null
           id: string
           updated_at: string
           user_id: string | null
@@ -224,6 +225,7 @@ export type Database = {
           created_at?: string
           excluded_instruments?: string[] | null
           excluded_moods?: string[] | null
+          generate_when_exhausted?: boolean | null
           id?: string
           updated_at?: string
           user_id?: string | null
@@ -233,6 +235,7 @@ export type Database = {
           created_at?: string
           excluded_instruments?: string[] | null
           excluded_moods?: string[] | null
+          generate_when_exhausted?: boolean | null
           id?: string
           updated_at?: string
           user_id?: string | null
