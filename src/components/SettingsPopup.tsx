@@ -81,15 +81,15 @@ export default function SettingsPopup({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-popover border-border">
+      <DialogContent className="max-w-md border-border z-50">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Music Settings</DialogTitle>
+          <DialogTitle>Music Settings</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6 py-4">
           {/* Genre Selection */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium text-foreground">Genres</Label>
+            <Label className="text-sm font-medium">Genres</Label>
             <div className="grid grid-cols-2 gap-2">
               {AVAILABLE_GENRES.map((genre) => (
                 <div key={genre} className="flex items-center space-x-2">
@@ -100,7 +100,7 @@ export default function SettingsPopup({
                   />
                   <Label 
                     htmlFor={`genre-${genre}`}
-                    className="text-sm text-foreground cursor-pointer"
+                    className="text-sm cursor-pointer"
                   >
                     {genre}
                   </Label>
@@ -114,12 +114,12 @@ export default function SettingsPopup({
 
           {/* Mood Selection */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium text-foreground">Mood</Label>
+            <Label className="text-sm font-medium">Mood</Label>
             <Select value={selectedMood || ""} onValueChange={(value) => setSelectedMood(value || undefined)}>
-              <SelectTrigger className="bg-input border-border text-foreground">
+              <SelectTrigger className="border-border">
                 <SelectValue placeholder="Select mood (optional)" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
+              <SelectContent className="border-border">
                 <SelectItem value="">Any Mood</SelectItem>
                 {AVAILABLE_MOODS.map((mood) => (
                   <SelectItem key={mood} value={mood}>
@@ -136,7 +136,7 @@ export default function SettingsPopup({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Volume2 className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium text-foreground">Instrumental Mode</Label>
+                <Label className="text-sm font-medium">Instrumental Mode</Label>
               </div>
               <Switch
                 checked={tempInstrumentalMode}
@@ -148,7 +148,7 @@ export default function SettingsPopup({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Sparkles className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium text-foreground">Wild Card Mode</Label>
+                <Label className="text-sm font-medium">Wild Card Mode</Label>
               </div>
               <Switch
                 checked={tempWildcardMode}
