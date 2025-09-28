@@ -139,6 +139,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   // Initialize with first song and load queue from database
   useEffect(() => {
+    // Prevent duplicate initializations
+    if (initializationRef.current) {
+      console.log('Initialization already in progress, skipping...');
+      return;
+    }
+    
+    initializationRef.current = true;
+    
     // Clear existing songs when genre selection changes
     console.log('Genre/mood changed, clearing queue and loading new songs');
     setCurrentSong(null);
@@ -154,29 +162,37 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       }
     };
     
-    clearDatabaseQueue();
-    
-    // Force refresh of current song data to get updated descriptions
-    if (currentSong) {
-      const refreshSongData = async () => {
-        try {
-          const { data: updatedSong } = await supabase
-            .from('songs')
-            .select('*')
-            .eq('id', currentSong.id)
-            .single();
-          
-          if (updatedSong) {
-            setCurrentSong(updatedSong as Song);
+    const initializePlayer = async () => {
+      try {
+        await clearDatabaseQueue();
+        
+        // Force refresh of current song data to get updated descriptions
+        if (currentSong) {
+          try {
+            const { data: updatedSong } = await supabase
+              .from('songs')
+              .select('*')
+              .eq('id', currentSong.id)
+              .single();
+            
+            if (updatedSong) {
+              setCurrentSong(updatedSong as Song);
+            }
+          } catch (error) {
+            console.error('Error refreshing song data:', error);
           }
-        } catch (error) {
-          console.error('Error refreshing song data:', error);
         }
-      };
-      refreshSongData();
-    }
+        
+        await generateInitialSongs(); // This now handles both loading existing and generating new songs
+      } finally {
+        // Reset initialization flag after a delay to allow for legitimate re-initializations
+        setTimeout(() => {
+          initializationRef.current = false;
+        }, 2000);
+      }
+    };
     
-    generateInitialSongs(); // This now handles both loading existing and generating new songs
+    initializePlayer();
     
     // Set up real-time subscription to queue changes
     const queueChannel = supabase
@@ -209,6 +225,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
     return () => {
       supabase.removeChannel(queueChannel);
+      initializationRef.current = false;
     };
   }, [selectedGenres, selectedMood]);
 
@@ -232,15 +249,24 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         
         // Schedule a SINGLE generation after a delay (no concurrent generations)
         setTimeout(() => {
-          // Force generation of new songs when switching genres, don't just rely on alternating strategy
-          console.log('Forcing generation of new songs for genre change...');
-          // Add delay to prevent concurrent requests
-          if (!generationLockRef.current && !isGenerating) {
-            generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-              .catch(err => console.error('Background generation failed:', err));
-          } else {
-            console.log('Skipping generation - already in progress');
+          // Strict concurrency control - only allow one generation per session
+          if (generationLockRef.current || isGenerating) {
+            console.log('Skipping generation - already in progress (lock:', generationLockRef.current, 'generating:', isGenerating, ')');
+            return;
           }
+          
+          console.log('Forcing generation of new songs for genre change...');
+          generationLockRef.current = true;
+          
+          generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
+            .catch(err => console.error('Background generation failed:', err))
+            .finally(() => {
+              // Release lock after a delay to prevent rapid successive calls
+              setTimeout(() => {
+                generationLockRef.current = false;
+                console.log('Generation lock released');
+              }, 5000);
+            });
         }, 3000); // Increased delay to 3 seconds
         
         return true;
