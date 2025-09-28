@@ -10,13 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const GENRES = [
-  "Lo-fi", "Country", "EDM", "Jazz", "Ambient", "Rock", 
-  "Hip-Hop", "Classical", "Folk", "Electronic"
+  "Electronic", "Pop", "Rock", "Jazz", "Classical", "Hip-Hop", 
+  "Indie", "Metal", "R&B", "Country"
 ];
 
 const MOODS = [
-  "Energetic", "Chill", "Happy", "Melancholic", 
-  "Intense", "Peaceful", "Uplifting", "Dark"
+  "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
 ];
 
 interface LandingPageProps {

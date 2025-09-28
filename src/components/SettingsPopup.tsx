@@ -29,8 +29,7 @@ const AVAILABLE_GENRES = [
 ];
 
 const AVAILABLE_MOODS = [
-  "Energetic", "Chill", "Happy", "Melancholic", 
-  "Intense", "Peaceful", "Uplifting", "Dark"
+  "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
 ];
 
 export default function SettingsPopup({
