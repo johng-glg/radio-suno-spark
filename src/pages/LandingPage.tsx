@@ -104,7 +104,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           </div>
           
           {/* Centered content */}
-          <div className="text-center">
+          <div className="text-center mt-16">
             <div className="flex items-center justify-center space-x-3 mb-6">
               <div className="p-3 rounded-full bg-primary/20 neon-glow">
                 <Radio className="h-8 w-8 text-primary" />
