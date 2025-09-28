@@ -165,6 +165,9 @@ export default function AdminPage() {
           description: statusInfo,
           variant: "default"
         });
+
+        // Reload stats to update the UI with current status
+        loadStats();
       }
     } finally {
       setCheckingStatusIds(prev => {
