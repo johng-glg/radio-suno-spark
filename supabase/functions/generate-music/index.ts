@@ -246,6 +246,11 @@ serve(async (req) => {
       console.log('Updating song with audio URL:', finalResult.audio_url);
     }
 
+    if (finalResult?.image_url) {
+      updateData.image_url = finalResult.image_url;
+      console.log('Updating song with image URL:', finalResult.image_url);
+    }
+
     if (finalResult?.lyrics) {
       // Generate a proper description instead of using lyrics
       const moodText = genre && finalResult.tags ? 
