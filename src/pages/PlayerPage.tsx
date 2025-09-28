@@ -968,7 +968,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             <div className="space-y-3">
               {queue.filter(song => song.id !== currentSong?.id).slice(0, 3).map((song, index) => (
                 <div key={song.id} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/20">
-                  <div className="w-2 h-2 rounded-full bg-primary/60" />
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-muted/40 flex-shrink-0">
+                    {song.image_url ? (
+                      <img 
+                        src={song.image_url} 
+                        alt={`${song.title} album art`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-full h-full flex items-center justify-center ${song.image_url ? 'hidden' : ''}`}>
+                      <Music className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
                   <div className="flex-1">
                     <p className="font-medium">{song.title}</p>
                     <p className="text-sm text-muted-foreground">{song.description}</p>
