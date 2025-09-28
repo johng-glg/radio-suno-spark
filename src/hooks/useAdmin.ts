@@ -78,10 +78,30 @@ export function useAdmin() {
     }
   };
 
+  const resubmitFailedSong = async (songId: string) => {
+    if (!isAdmin) return { error: { message: 'Access denied' } };
+
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .update({ 
+          status: 'generating',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', songId)
+        .eq('status', 'failed');
+
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
   return {
     isAdmin,
     loading,
     getAdminStats,
-    makeUserAdmin
+    makeUserAdmin,
+    resubmitFailedSong
   };
 }

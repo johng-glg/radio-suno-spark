@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -26,7 +26,7 @@ interface AdminStats {
 }
 
 export default function AdminPage() {
-  const { isAdmin, loading, getAdminStats, makeUserAdmin } = useAdmin();
+  const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong } = useAdmin();
   const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -61,6 +61,24 @@ export default function AdminPage() {
         description: "User has been made admin successfully"
       });
       setNewAdminEmail('');
+    }
+  };
+
+  const handleResubmitSong = async (songId: string, songTitle: string) => {
+    const { error } = await resubmitFailedSong(songId);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resubmit song",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: `"${songTitle}" has been resubmitted for generation`
+      });
+      // Reload stats to update the failed songs list
+      loadStats();
     }
   };
 
@@ -235,6 +253,7 @@ export default function AdminPage() {
                         <TableHead>Genre</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead>Prompt</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -247,6 +266,16 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell className="max-w-xs truncate" title={song.prompt}>
                             {song.prompt}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Resubmit
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
