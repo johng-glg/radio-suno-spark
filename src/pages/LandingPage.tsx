@@ -69,7 +69,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
     <div className="min-h-screen flex items-center justify-center p-4 radio-gradient">
       <div className="w-full max-w-2xl space-y-8 animate-fade-in-up">
         {/* Header with Auth */}
-        <div className="relative">
+        <div className="relative mb-20">
           {/* User Email - positioned absolutely on the left */}
           {user && (
             <div className="absolute top-0 left-0 flex items-center space-x-2 text-sm text-muted-foreground">
@@ -104,7 +104,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           </div>
           
           {/* Centered content */}
-          <div className="text-center mt-16">
+          <div className="text-center">
             <div className="flex items-center justify-center space-x-3 mb-6">
               <div className="p-3 rounded-full bg-primary/20 neon-glow">
                 <Radio className="h-8 w-8 text-primary" />
