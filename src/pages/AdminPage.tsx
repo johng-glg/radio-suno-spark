@@ -32,6 +32,8 @@ interface AdminStats {
     created_at: string;
     prompt: string;
     status?: string;
+    resubmitted_at?: string | null;
+    resubmission_succeeded_at?: string | null;
   }>;
 }
 
@@ -343,8 +345,8 @@ export default function AdminPage() {
                     </TableHeader>
                     <TableBody>
                       {stats.recent_failed_songs.map((song) => {
-                        const isResubmitted = song.status === 'resubmitted';
-                        const isResubmissionSucceeded = song.status === 'resubmission_succeeded';
+                        const isResubmitted = song.resubmitted_at && !song.resubmission_succeeded_at;
+                        const isResubmissionSucceeded = song.resubmission_succeeded_at;
                         const isResubmitting = resubmittingIds.has(song.id);
                         
                         return (

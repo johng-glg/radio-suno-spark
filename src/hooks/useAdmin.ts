@@ -105,11 +105,11 @@ export function useAdmin() {
         return { error: insertError };
       }
 
-      // Only mark original as resubmitted if new song creation succeeded
+      // Mark the original song as resubmitted (preserve failed status for statistics)
       const { error: updateError } = await supabase
         .from('songs')
         .update({ 
-          status: 'resubmitted',
+          resubmitted_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', songId);
