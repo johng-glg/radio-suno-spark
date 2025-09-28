@@ -19,39 +19,6 @@ Deno.serve(async (req) => {
 
     console.log('Checking for pending song generations...');
 
-    // Find songs that are still generating and have a suno_id (task_id)
-    const { data: pendingSongs, error: fetchError } = await supabaseClient
-      .from('songs')
-      .select('id, suno_id, title, genre, mood, created_at')
-      .eq('status', 'generating')
-      .not('suno_id', 'is', null);
-
-    if (fetchError) {
-      console.error('Error fetching pending songs:', fetchError);
-      return new Response(
-        JSON.stringify({ success: false, error: fetchError.message }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    if (!pendingSongs || pendingSongs.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'No pending generations found',
-          completed_count: 0
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    console.log(`Found ${pendingSongs.length} pending generations`);
-
     const sunoApiKey = Deno.env.get('SUNO_API_KEY');
     if (!sunoApiKey) {
       console.error('SUNO_API_KEY not found');
@@ -64,7 +31,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // First: attempt to create Suno tasks for songs missing suno_id (e.g., due to concurrency limits)
+    // 1) Attempt to create Suno tasks for songs missing suno_id first
     {
       const { data: toCreateSongs } = await supabaseClient
         .from('songs')
@@ -141,6 +108,39 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // 2) Now fetch songs that are generating and have a task id
+    const { data: pendingSongs, error: fetchError } = await supabaseClient
+      .from('songs')
+      .select('id, suno_id, title, genre, mood, created_at')
+      .eq('status', 'generating')
+      .not('suno_id', 'is', null);
+
+    if (fetchError) {
+      console.error('Error fetching pending songs:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: fetchError.message }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (!pendingSongs || pendingSongs.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No pending generations found after create attempt',
+          completed_count: 0
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log(`Found ${pendingSongs.length} pending generations`);
 
     let completedCount = 0;
 
