@@ -127,6 +127,7 @@ export type Database = {
           description: string | null
           genre: string
           id: string
+          image_url: string | null
           mood: string | null
           prompt: string
           status: string
@@ -139,6 +140,7 @@ export type Database = {
           description?: string | null
           genre: string
           id?: string
+          image_url?: string | null
           mood?: string | null
           prompt: string
           status?: string
@@ -151,6 +153,7 @@ export type Database = {
           description?: string | null
           genre?: string
           id?: string
+          image_url?: string | null
           mood?: string | null
           prompt?: string
           status?: string
