@@ -347,6 +347,52 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       if (!songs || songs.length === 0) return null;
       
+      // For the first song in a new session, prioritize unplayed songs if user is authenticated
+      if (librarySongsUsedInSession === 0 && user) {
+        // Check each song for play history with a separate query
+        const unplayedSongs = [];
+        
+        for (const song of songs) {
+          const { data: playData } = await supabase
+            .from('user_song_plays')
+            .select('play_count')
+            .eq('user_id', user.id)
+            .eq('song_id', song.id)
+            .maybeSingle();
+            
+          if (!playData || playData.play_count === 0) {
+            unplayedSongs.push(song);
+          }
+        }
+        
+        if (unplayedSongs.length > 0) {
+          console.log(`Found ${unplayedSongs.length} unplayed songs for first session song`);
+          // Randomly pick from unplayed songs
+          const randomUnplayed = unplayedSongs[Math.floor(Math.random() * unplayedSongs.length)];
+          
+          // Clean up the song object to match Song interface
+          const cleanSong: Song = {
+            id: randomUnplayed.id,
+            title: randomUnplayed.title,
+            description: randomUnplayed.description,
+            genre: randomUnplayed.genre,
+            mood: randomUnplayed.mood,
+            url: randomUnplayed.url,
+            image_url: (randomUnplayed as any).image_url,
+            status: randomUnplayed.status as 'generating' | 'ready' | 'failed',
+            prompt: randomUnplayed.prompt,
+            created_at: randomUnplayed.created_at,
+            updated_at: randomUnplayed.updated_at,
+            requested_by: (randomUnplayed as any).requested_by,
+            prompt_metadata: (randomUnplayed as any).prompt_metadata || undefined,
+            user_interaction: (randomUnplayed.user_song_interactions?.[0]?.interaction_type as 'like' | 'dislike') || null
+          };
+          
+          return cleanSong;
+        }
+      }
+      
+      // Fall back to existing logic for subsequent songs or if no unplayed songs available
       // Randomly shuffle the entire array first for better variety
       const shuffledSongs = [...songs].sort(() => Math.random() - 0.5);
       
