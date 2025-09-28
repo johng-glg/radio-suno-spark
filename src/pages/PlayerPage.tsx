@@ -233,7 +233,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         
         // Schedule a SINGLE generation after a delay (no concurrent generations)
         setTimeout(() => {
-          generateNextSong();
+          // Force generation of new songs when switching genres, don't just rely on alternating strategy
+          console.log('Forcing generation of new songs for genre change...');
+          generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
+            .catch(err => console.error('Background generation failed:', err));
         }, 2000);
         
         return true;
