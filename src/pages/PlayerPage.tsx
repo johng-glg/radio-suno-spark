@@ -838,17 +838,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               </div>
             )}
             
-            {/* Wild Card Mode Toggle */}
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="wild-card" className="text-sm hidden sm:inline">Wild Card</Label>
-              <Switch
-                id="wild-card"
-                checked={preferences.wild_card_mode}
-                onCheckedChange={toggleWildCardMode}
-              />
-              <Sparkles className={`h-4 w-4 ${preferences.wild_card_mode ? 'text-yellow-400' : 'text-muted-foreground'}`} />
-            </div>
-            
             <Button 
               variant="ghost" 
               size="icon"
