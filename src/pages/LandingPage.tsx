@@ -15,9 +15,8 @@ const GENRES = [
 ];
 
 const MOODS = [
-  "upbeat", "chill", "dark", "dreamy", "epic", "melancholic", 
-  "energetic", "peaceful", "aggressive", "romantic", "mysterious", 
-  "nostalgic", "powerful", "playful", "intense", "serene"
+  "upbeat", "chill", "dark", "dreamy", "epic", 
+  "melancholic", "aggressive", "romantic", "mysterious", "playful"
 ];
 
 interface LandingPageProps {
@@ -158,7 +157,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                   {selectedMood ? 'selected' : 'optional'}
                 </Badge>
               </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+              <div className="flex flex-wrap gap-3">
                 {MOODS.map((mood) => (
                   <button
                     key={mood}
