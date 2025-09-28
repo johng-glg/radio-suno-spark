@@ -272,10 +272,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
           console.log('Genre+Mood combination exhausted:', genreMoodKey);
           
-          // Check user preference: if generate_when_exhausted is true, trigger generation immediately
+          // If generate_when_exhausted is true, trigger background generation while we find something to play
           if (preferences.generate_when_exhausted) {
-            console.log('No unplayed songs for', genreMoodKey, 'generating fresh content...');
-            return null; // Trigger generation
+            console.log('No unplayed songs for', genreMoodKey, 'will generate fresh content while finding something to play...');
+            // Trigger background generation (don't await)
+            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+              .catch(error => console.error('Background generation failed:', error));
           }
         }
       }
