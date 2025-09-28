@@ -18,6 +18,7 @@ interface SunoGenerateRequest {
   mood?: string;
   make_instrumental?: boolean;
   wait_audio?: boolean;
+  as_library?: boolean;
 }
 
 interface SunoResponse {
@@ -56,7 +57,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { 
+const { 
       user_id, 
       use_build_prompt = true, 
       wild_card_mode = false,
@@ -65,7 +66,8 @@ serve(async (req) => {
       mood: legacyMood,
       title,
       make_instrumental = false, 
-      wait_audio = true 
+      wait_audio = true,
+      as_library = false
     } = await req.json() as SunoGenerateRequest;
 
     // Force instrumental for classical music
@@ -249,7 +251,7 @@ serve(async (req) => {
         title: title || `${genre} Track`,
         status: 'generating',
         description: songDescription,
-        requested_by: requesterId  // Track who requested this generation
+        requested_by: as_library ? null : requesterId // Library if as_library
       })
       .select()
       .single();

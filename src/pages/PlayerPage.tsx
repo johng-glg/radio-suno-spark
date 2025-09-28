@@ -577,7 +577,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('Starting generation task for Genre + Mood...');
     
     try {
-      await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
+      await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true);
     } catch (error) {
       console.error('Error in generation task:', error);
     } finally {
@@ -924,7 +924,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         wildcardMode,
         instrumentalMode,
         selectedGenres,
-        selectedMood
+        selectedMood,
+        true
       );
 
       if (result?.success) {
