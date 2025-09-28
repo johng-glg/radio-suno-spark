@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, Download
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +56,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [queueStrategy, setQueueStrategy] = useState<'existing' | 'generated'>('existing'); // Alternating strategy
+  const [isFetchingImages, setIsFetchingImages] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
@@ -609,6 +610,37 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleFetchMissingImages = async () => {
+    setIsFetchingImages(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-missing-images');
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch missing images",
+          variant: "destructive"
+        });
+        console.error('Error fetching images:', error);
+      } else {
+        toast({
+          title: "Success",
+          description: data.message,
+        });
+        console.log('Fetch images result:', data);
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetchingImages(false);
+    }
+  };
+
   const WaveformBars = () => (
     <div className="flex items-center justify-center space-x-1 h-16">
       {Array.from({ length: 12 }).map((_, i) => (
@@ -657,6 +689,18 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Sparkles className={`h-4 w-4 ${preferences.wild_card_mode ? 'text-yellow-400' : 'text-muted-foreground'}`} />
             </div>
             
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleFetchMissingImages}
+              disabled={isFetchingImages}
+              className="text-muted-foreground hover:text-foreground hidden sm:flex items-center space-x-1"
+              title="Fetch missing album artwork for past generations"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden md:inline">{isFetchingImages ? 'Fetching...' : 'Fetch Album Art'}</span>
+            </Button>
             
             <Button 
               variant="ghost" 
