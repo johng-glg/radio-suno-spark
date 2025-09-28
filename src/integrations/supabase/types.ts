@@ -296,6 +296,39 @@ export type Database = {
           },
         ]
       }
+      user_song_plays: {
+        Row: {
+          created_at: string
+          first_played_at: string
+          id: string
+          last_played_at: string
+          play_count: number
+          song_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_played_at?: string
+          id?: string
+          last_played_at?: string
+          play_count?: number
+          song_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_played_at?: string
+          id?: string
+          last_played_at?: string
+          play_count?: number
+          song_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       word_pools: {
         Row: {
           created_at: string
@@ -347,6 +380,10 @@ export type Database = {
       system_update_song: {
         Args: { song_id: string; update_data: Json }
         Returns: boolean
+      }
+      track_song_play: {
+        Args: { _song_id: string; _user_id?: string }
+        Returns: undefined
       }
     }
     Enums: {

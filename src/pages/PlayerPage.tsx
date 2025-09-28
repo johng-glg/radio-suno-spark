@@ -140,6 +140,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     if (currentSong?.url && audioRef.current) {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
+        // Track the play when song auto-plays successfully
+        trackSongPlay();
       }).catch((error) => {
         console.log('Auto-play prevented by browser:', error);
         // Don't show error toast for auto-play prevention, it's expected behavior
@@ -556,12 +558,32 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     return () => clearInterval(interval);
   }, [currentSong]);
 
+  const trackSongPlay = async () => {
+    if (!currentSong?.id) return;
+
+    try {
+      const { error } = await supabase.rpc('track_song_play', {
+        _song_id: currentSong.id,
+        _user_id: user?.id || null
+      });
+
+      if (error) {
+        console.error('Error tracking song play:', error);
+      }
+    } catch (error) {
+      console.error('Error tracking song play:', error);
+    }
+  };
+
   const handlePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        audioRef.current.play().catch(() => {
+        audioRef.current.play().then(() => {
+          // Track the play when song successfully starts playing
+          trackSongPlay();
+        }).catch(() => {
           toast({
             title: "Playback Error",
             description: "Unable to play audio. This is a demo - actual audio files would be loaded from Suno API.",
