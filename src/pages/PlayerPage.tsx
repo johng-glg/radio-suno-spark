@@ -853,7 +853,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               <Sparkles className={`h-4 w-4 ${preferences.wild_card_mode ? 'text-yellow-400' : 'text-muted-foreground'}`} />
             </div>
             
-            
             <Button 
               variant="ghost" 
               size="icon"
@@ -861,14 +860,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               title="Sign Out"
             >
               <LogOut className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setShowSettingsPopup(true)}
-              title="Music Settings"
-            >
-              <Settings className="h-4 w-4" />
             </Button>
           </div>
       </div>
@@ -963,6 +954,16 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
             {/* Controls */}
             <div className="flex items-center justify-center space-x-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="player-control"
+                onClick={() => setShowSettingsPopup(true)}
+                title="Music Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+              
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full neon-glow"
