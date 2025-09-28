@@ -688,7 +688,6 @@ export default function AdminPage() {
                           <TableHead>Song</TableHead>
                           <TableHead>Genre</TableHead>
                           <TableHead>Total Plays</TableHead>
-                          <TableHead>Unique Listeners</TableHead>
                           <TableHead>Created</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -727,12 +726,6 @@ export default function AdminPage() {
                               <div className="flex items-center gap-1">
                                 <Music className="h-4 w-4 text-green-500" />
                                 <span className="font-semibold">{song.total_plays}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Users className="h-4 w-4 text-blue-500" />
-                                <span className="font-medium">{song.unique_listeners}</span>
                               </div>
                             </TableCell>
                             <TableCell>
