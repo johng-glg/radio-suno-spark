@@ -457,16 +457,20 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
       if (queueData && queueData.length > 0) {
         const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
-        const readySongs = songs.filter(song => song.status === 'ready' && song.url);
         
-        if (readySongs.length > 0 && !currentSong) {
-          console.log('Setting first ready song as current:', readySongs[0]);
-          setCurrentSong(readySongs[0]);
-          setQueue(readySongs.slice(1));
-        } else if (readySongs.length > 0) {
-          console.log('Adding ready songs to queue:', readySongs.length);
-          setQueue(readySongs.slice(currentSong ? 1 : 0));
+        // If we don't have a current song yet, pick the first ready one
+        if (!currentSong) {
+          const firstReady = songs.find(song => song.status === 'ready' && song.url);
+          if (firstReady) {
+            console.log('Setting first ready song as current:', firstReady);
+            setCurrentSong(firstReady);
+          }
         }
+        
+        // Always show what's in the queue, including generating items
+        const currentId = currentSong?.id;
+        const displayQueue = songs.filter(s => s.id !== currentId);
+        setQueue(displayQueue);
       }
     } catch (error) {
       console.error('Error polling for songs:', error);
