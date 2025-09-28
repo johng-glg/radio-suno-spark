@@ -214,8 +214,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           table: 'queue'
         },
         () => {
-          console.log('Queue changed, reloading...');
-          loadQueueFromDatabase();
+          console.log('Queue changed, refreshing display...');
+          pollForNewSongs();
         }
       )
       .on(
@@ -227,7 +227,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         },
         (payload) => {
           console.log('Song updated:', payload);
-          loadQueueFromDatabase();
+          pollForNewSongs();
         }
       )
       .subscribe();
