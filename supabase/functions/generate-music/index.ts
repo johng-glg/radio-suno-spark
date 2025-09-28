@@ -44,7 +44,7 @@ serve(async (req) => {
       {
         global: {
           headers: { 
-            Authorization: req.headers.get('Authorization') ?? '',
+            Authorization: req.headers.get('Authorization') ?? `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
           },
         },
       }
@@ -67,6 +67,8 @@ serve(async (req) => {
       make_instrumental = false, 
       wait_audio = true 
     } = await req.json() as SunoGenerateRequest;
+
+    console.log('Generate music request:', { user_id, use_build_prompt, wild_card_mode, genre: legacyGenre, mood: legacyMood });
 
     let finalPrompt = legacyPrompt;
     let promptMetadata: any = {};
@@ -177,6 +179,8 @@ serve(async (req) => {
       `A ${mood} ${genre} track with unique musical elements` : 
       `A ${genre} track with unique musical elements`;
     
+    console.log('Attempting to insert song with user_id:', user_id, 'requested_by:', user_id || null);
+    
     const { data: song, error: insertError } = await userClient
       .from('songs')
       .insert({
@@ -191,8 +195,13 @@ serve(async (req) => {
       .select()
       .single();
 
-    if (insertError || !song) {
-      throw new Error(`Failed to create song record: ${insertError?.message}`);
+    if (insertError) {
+      console.error('Song insert error:', insertError);
+      throw new Error(`Failed to create song record: ${insertError.message}`);
+    }
+
+    if (!song) {
+      throw new Error('No song data returned from insert');
     }
 
     console.log('Created song record:', song.id);
