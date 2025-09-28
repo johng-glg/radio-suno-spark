@@ -138,6 +138,29 @@ serve(async (req) => {
       throw new Error('Suno API key not configured');
     }
 
+    // Check for existing generating songs to avoid concurrency issues
+    const { data: existingGenerating } = await supabaseClient
+      .from('songs')
+      .select('id')
+      .eq('status', 'generating')
+      .limit(1);
+
+    if (existingGenerating && existingGenerating.length > 0) {
+      console.log('Another song is already generating, applying backoff...');
+      // Wait a bit and retry once
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const { data: stillGenerating } = await supabaseClient
+        .from('songs')
+        .select('id')
+        .eq('status', 'generating')
+        .limit(1);
+        
+      if (stillGenerating && stillGenerating.length > 0) {
+        throw new Error('Concurrency limit: Another song is still generating');
+      }
+    }
+
     // Use no-custom mode since our prompt is a description, not full lyrics
     const createPayload: Record<string, unknown> = {
       custom_mode: false,
@@ -304,16 +327,24 @@ serve(async (req) => {
       }
     }
 
+    // Store task_id as suno_id for tracking
+    const { error: taskUpdateError } = await supabaseClient
+      .from('songs')
+      .update({ suno_id: taskId })
+      .eq('id', song.id);
+
+    if (taskUpdateError) {
+      console.error('Failed to store task ID:', taskUpdateError);
+    }
+
+    // Return immediately - completion will be handled by scheduled function
     return new Response(
       JSON.stringify({
         success: true,
         song_id: song.id,
-        suno_id: taskId,
-        status: finalResult?.audio_url ? 'ready' : 'generating',
-        audio_url: finalResult?.audio_url,
-        title: finalResult?.title || song.title,
-        prompt: finalPrompt,
-        prompt_metadata: promptMetadata,
+        task_id: taskId,
+        status: 'generating',
+        message: 'Generation started, will complete automatically'
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

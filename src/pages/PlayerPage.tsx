@@ -235,9 +235,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         setTimeout(() => {
           // Force generation of new songs when switching genres, don't just rely on alternating strategy
           console.log('Forcing generation of new songs for genre change...');
-          generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
-            .catch(err => console.error('Background generation failed:', err));
-        }, 2000);
+          // Add delay to prevent concurrent requests
+          if (!generationLockRef.current && !isGenerating) {
+            generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
+              .catch(err => console.error('Background generation failed:', err));
+          } else {
+            console.log('Skipping generation - already in progress');
+          }
+        }, 3000); // Increased delay to 3 seconds
         
         return true;
       }
@@ -653,6 +658,9 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const handleRefreshGeneration = async () => {
     setIsRefreshing(true);
     try {
+      // First clean up any stuck songs
+      await supabase.functions.invoke('check-stuck-songs');
+      
       await generateInitialSongs();
       toast({
         title: "Success",
@@ -661,7 +669,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     } catch (error) {
       console.error('Error starting generation:', error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to start music generation",
         variant: "destructive"
       });

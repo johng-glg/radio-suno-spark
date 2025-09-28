@@ -1,0 +1,223 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    console.log('Checking for pending song generations...');
+
+    // Find songs that are still generating and have a suno_id (task_id)
+    const { data: pendingSongs, error: fetchError } = await supabaseClient
+      .from('songs')
+      .select('id, suno_id, title, genre, mood, created_at')
+      .eq('status', 'generating')
+      .not('suno_id', 'is', null);
+
+    if (fetchError) {
+      console.error('Error fetching pending songs:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: fetchError.message }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    if (!pendingSongs || pendingSongs.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No pending generations found',
+          completed_count: 0
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log(`Found ${pendingSongs.length} pending generations`);
+
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY');
+    if (!sunoApiKey) {
+      console.error('SUNO_API_KEY not found');
+      return new Response(
+        JSON.stringify({ success: false, error: 'SUNO_API_KEY not configured' }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    let completedCount = 0;
+
+    // Process each pending song
+    for (const song of pendingSongs) {
+      try {
+        console.log(`Checking status of task: ${song.suno_id} for song: ${song.title}`);
+
+        // Check if song is too old (more than 10 minutes)
+        const songAge = Date.now() - new Date(song.created_at).getTime();
+        if (songAge > 10 * 60 * 1000) {
+          console.log(`Song ${song.id} is too old (${Math.round(songAge / 60000)} minutes), marking as failed`);
+          
+          await supabaseClient
+            .from('songs')
+            .update({ 
+              status: 'failed',
+              description: 'Generation timed out'
+            })
+            .eq('id', song.id);
+            
+          continue;
+        }
+
+        // Check task status with Suno API
+        const taskResp = await fetch(`https://api.sunoapi.com/api/v1/suno/task/${song.suno_id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!taskResp.ok) {
+          console.error(`Failed to check task ${song.suno_id}:`, taskResp.statusText);
+          continue;
+        }
+
+        const taskData = await taskResp.json();
+        
+        if (taskData.code === 200 && Array.isArray(taskData.data) && taskData.data.length > 0) {
+          // Look for completed clips
+          const succeededItem = taskData.data.find((item: any) => item.state === 'succeeded' && item.audio_url);
+          
+          if (succeededItem) {
+            console.log(`Task ${song.suno_id} completed successfully`);
+            
+            // Update song with results
+            const updateData: any = {
+              status: 'ready',
+              title: succeededItem.title || song.title,
+              url: succeededItem.audio_url,
+              updated_at: new Date().toISOString()
+            };
+
+            if (succeededItem.image_url) {
+              updateData.image_url = succeededItem.image_url;
+            }
+
+            // Generate description from tags
+            if (succeededItem.lyrics && succeededItem.tags) {
+              const moodText = succeededItem.tags.includes('peaceful') ? 'peaceful' :
+                            succeededItem.tags.includes('energetic') ? 'energetic' :
+                            succeededItem.tags.includes('dreamy') ? 'dreamy' :
+                            succeededItem.tags.includes('intense') ? 'intense' : 'atmospheric';
+              
+              const instruments = succeededItem.tags.match(/\b(piano|guitar|violin|flute|drums|bass|saxophone|synth|electronic)\b/gi)?.slice(0, 2) || [];
+              const instrumentText = instruments.length > 0 ? ` featuring ${instruments.join(' and ')}` : '';
+              
+              updateData.description = `A ${moodText} ${song.genre} composition${instrumentText} with unique musical elements`;
+            }
+
+            const { error: updateError } = await supabaseClient
+              .from('songs')
+              .update(updateData)
+              .eq('id', song.id);
+
+            if (updateError) {
+              console.error(`Failed to update song ${song.id}:`, updateError);
+            } else {
+              console.log(`Successfully completed song: ${song.title}`);
+              completedCount++;
+
+              // Add to queue if not already there
+              const { data: existingQueue } = await supabaseClient
+                .from('queue')
+                .select('id')
+                .eq('song_id', song.id)
+                .limit(1);
+
+              if (!existingQueue || existingQueue.length === 0) {
+                const { data: queueData } = await supabaseClient
+                  .from('queue')
+                  .select('position')
+                  .order('position', { ascending: false })
+                  .limit(1);
+
+                const nextPosition = (queueData?.[0]?.position || 0) + 1;
+                
+                await supabaseClient.from('queue').insert({
+                  song_id: song.id,
+                  position: nextPosition,
+                  status: 'queued'
+                });
+                
+                console.log(`Added completed song to queue at position: ${nextPosition}`);
+              }
+            }
+          } else {
+            // Check if any items failed
+            const failedItem = taskData.data.find((item: any) => item.state === 'failed');
+            if (failedItem) {
+              console.log(`Task ${song.suno_id} failed`);
+              
+              await supabaseClient
+                .from('songs')
+                .update({ 
+                  status: 'failed',
+                  description: 'Generation failed on Suno API'
+                })
+                .eq('id', song.id);
+            } else {
+              console.log(`Task ${song.suno_id} still in progress`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing song ${song.id}:`, error);
+      }
+
+      // Small delay between requests to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    console.log(`Completed processing. ${completedCount} songs finished successfully.`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: `Processed ${pendingSongs.length} pending generations, ${completedCount} completed`,
+        completed_count: completedCount
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+})
