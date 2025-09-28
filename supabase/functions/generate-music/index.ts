@@ -181,10 +181,43 @@ serve(async (req) => {
     }
 
 
-    // Create initial song record in database
-    const songDescription = mood && genre ? 
-      `A ${mood} ${genre} track with unique musical elements` : 
-      `A ${genre} track with unique musical elements`;
+    // Generate dynamic description based on genre and mood
+    const generateDescription = (genre: string, mood?: string) => {
+      const genreDescriptors: Record<string, string[]> = {
+        'electronic': ['pulsing beats', 'synthesized layers', 'digital soundscapes'],
+        'pop': ['catchy melodies', 'vibrant hooks', 'polished production'],
+        'rock': ['driving guitars', 'powerful rhythms', 'raw energy'],
+        'hip-hop': ['heavy beats', 'rhythmic flows', 'urban grooves'],
+        'jazz': ['smooth improvisations', 'complex harmonies', 'sophisticated arrangements'],
+        'classical': ['orchestral movements', 'refined compositions', 'timeless melodies'],
+        'indie': ['authentic sounds', 'creative arrangements', 'artistic expression'],
+        'ambient': ['atmospheric textures', 'ethereal soundscapes', 'immersive layers'],
+        'folk': ['organic instruments', 'storytelling melodies', 'acoustic warmth'],
+        'metal': ['intense riffs', 'powerful dynamics', 'aggressive energy']
+      };
+
+      const moodDescriptors: Record<string, string> = {
+        'aggressive': 'intense and bold',
+        'peaceful': 'serene and calming',
+        'energetic': 'vibrant and uplifting',
+        'dreamy': 'ethereal and floating',
+        'melancholic': 'deep and contemplative',
+        'playful': 'light and spirited',
+        'mysterious': 'enigmatic and captivating',
+        'romantic': 'passionate and tender'
+      };
+
+      const descriptors = genreDescriptors[genre.toLowerCase()] || ['distinctive sounds', 'creative elements', 'artistic flourishes'];
+      const randomDescriptor = descriptors[Math.floor(Math.random() * descriptors.length)];
+      
+      const moodText = mood && moodDescriptors[mood.toLowerCase()] 
+        ? `${moodDescriptors[mood.toLowerCase()]} ` 
+        : '';
+      
+      return `A ${moodText}${genre} composition featuring ${randomDescriptor}`;
+    };
+
+    const songDescription = generateDescription(genre, mood);
     
     console.log('Attempting to insert song with user_id:', user_id, 'resolved_user_id:', requesterId);
     
@@ -415,7 +448,8 @@ serve(async (req) => {
         finalResult.tags.match(/\b(piano|guitar|violin|flute|drums|bass|saxophone|synth|electronic)\b/gi)?.slice(0, 2) || [] : [];
       const instrumentText = instruments.length > 0 ? ` featuring ${instruments.join(' and ')}` : '';
       
-      updateData.description = `${moodText}${genreText}composition${instrumentText} with unique musical elements`;
+      // Use the same dynamic description generator
+      updateData.description = generateDescription(genre, mood);
     }
 
     const { error: updateError } = await serviceClient
