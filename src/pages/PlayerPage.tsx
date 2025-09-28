@@ -57,6 +57,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
   const [librarySongsUsedInSession, setLibrarySongsUsedInSession] = useState(0);
+  const [sessionMode, setSessionMode] = useState<'prefill' | 'generate_only'>('prefill');
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -160,6 +161,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('Genre/mood changed, clearing queue and loading new songs');
     setCurrentSong(null);
     setQueue([]);
+    setLibrarySongsUsedInSession(0);
+    setSessionMode('prefill');
     
     // Clear the database queue as well
     const clearDatabaseQueue = async () => {
@@ -242,8 +245,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     try {
       console.log('Loading optimized queue strategy - library songs for first 2 only...');
       
-      // Only use library songs for the first 2 songs in a session
-      if (librarySongsUsedInSession < 2) {
+      // Only use library songs during prefill phase and for the first 2 songs in a session
+      if (sessionMode === 'prefill' && librarySongsUsedInSession < 2) {
         // Strategy: Start with library song immediately for first 2 songs
         const currentLibrarySong = await getOptimalExistingSong();
         
@@ -277,6 +280,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             
             console.log('Starting generation for next position in queue...');
             generationLockRef.current = true;
+            setSessionMode('generate_only');
             
             generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood)
               .catch(err => console.error('Background generation failed:', err))
@@ -289,6 +293,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               });
           }, 3000);
           
+          // Switch to generate-only mode after initial library prefill
+          setSessionMode('generate_only');
           return true;
         }
       }
@@ -435,6 +441,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('No existing songs found, generating initial songs');
     
     try {
+      setSessionMode('generate_only');
       const result = await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
 
       if (result?.success && result.song_id) {
@@ -622,6 +629,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     try {
       // Always generate new songs (no more alternating strategy)
       console.log('Generating new song...');
+      setSessionMode('generate_only');
       await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood);
     } catch (error) {
       console.error('Error in generateNextSong:', error);
@@ -736,6 +744,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       // Clean up any stale "generating" rows first
       await supabase.functions.invoke('check-stuck-songs');
 
+      setSessionMode('generate_only');
       const result = await generateWithBuildPrompt(
         wildcardMode,
         instrumentalMode,
@@ -763,52 +772,23 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const handleEmptyQueueFallback = async () => {
     if (!currentSong) return;
     
-    console.log('Queue is empty, fetching random fallback song and generating more...');
+    console.log('Queue is empty, handling fallback according to session mode...');
     
     try {
-      // Fetch a random existing song of the same genre as fallback
-      const { data: fallbackSongs, error: fallbackError } = await supabase
-        .from('songs')
-        .select('*')
-        .eq('status', 'ready')
-        .eq('genre', currentSong.genre)
-        .not('url', 'is', null)
-        .neq('id', currentSong.id) // Don't repeat current song
-        .limit(10);
-
-      if (fallbackError) {
-        console.error('Error fetching fallback songs:', fallbackError);
-      } else if (fallbackSongs && fallbackSongs.length > 0) {
-        // Pick a random song from the results
-        const randomSong = fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
-        
-        // Add to queue
-        const { data: queueData, error: queueError } = await supabase
-          .from('queue')
-          .select('position')
-          .order('position', { ascending: false })
-          .limit(1);
-
-        if (!queueError) {
-          const nextPosition = (queueData?.[0]?.position || 0) + 1;
-          
-          await supabase.from('queue').insert({
-            song_id: randomSong.id,
-            position: nextPosition,
-            status: 'queued'
-          });
-          
-          console.log(`Added fallback song "${randomSong.title}" to queue`);
+      if (sessionMode === 'prefill' && librarySongsUsedInSession < 2) {
+        // Try to add one more library song if still in prefill phase
+        const nextLibrarySong = await getOptimalExistingSong(currentSong.id);
+        if (nextLibrarySong) {
+          await addSongToQueue(nextLibrarySong);
+          console.log(`Added library fallback song "${nextLibrarySong.title}" to queue`);
+          return; // Do not generate immediately; queue will update
         }
       }
 
-      // Also trigger generation for more songs
-      generateInitialSongs().catch(err => 
-        console.error('Background generation failed:', err)
-      );
-      
+      // Otherwise, or if no library song found, generate a new one
+      await generateNextSong();
     } catch (error) {
-      console.error('Fallback handling failed:', error);
+      console.error('Error in handleEmptyQueueFallback:', error);
     }
   };
 
