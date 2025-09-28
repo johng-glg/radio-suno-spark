@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface AdminStats {
   total_users: number;
@@ -56,6 +57,7 @@ export default function AdminPage() {
   const [promotingUserIds, setPromotingUserIds] = useState<Set<string>>(new Set());
   const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
   const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(true);
+  const [topSongsGenreFilter, setTopSongsGenreFilter] = useState<string>('all');
 
   useEffect(() => {
     if (isAdmin) {
@@ -541,16 +543,43 @@ export default function AdminPage() {
            <TabsContent value="top-songs" className="space-y-6">
              <Card>
                <CardHeader>
-                 <CardTitle className="flex items-center gap-2">
-                   <Heart className="h-5 w-5 text-primary" />
-                   Top 10 Songs by Likes
-                 </CardTitle>
-                 <CardDescription>
-                   Most liked songs in the platform
-                 </CardDescription>
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <CardTitle className="flex items-center gap-2">
+                       <Heart className="h-5 w-5 text-primary" />
+                       Top 10 Songs by Likes
+                     </CardTitle>
+                     <CardDescription>
+                       Most liked songs in the platform
+                     </CardDescription>
+                   </div>
+                   <div className="flex items-center gap-2">
+                     <Label htmlFor="genre-filter" className="text-sm text-muted-foreground">
+                       Filter by genre:
+                     </Label>
+                     <Select value={topSongsGenreFilter} onValueChange={setTopSongsGenreFilter}>
+                       <SelectTrigger className="w-[180px]">
+                         <SelectValue placeholder="Select genre" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="all">All Genres</SelectItem>
+                         {stats?.songs_by_genre && Object.keys(stats.songs_by_genre).map((genre) => (
+                           <SelectItem key={genre} value={genre} className="capitalize">
+                             {genre}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
+                 </div>
                </CardHeader>
                <CardContent>
-                 {stats?.top_songs_by_likes && stats.top_songs_by_likes.length > 0 ? (
+                 {(() => {
+                   const filteredSongs = stats?.top_songs_by_likes?.filter(song => 
+                     topSongsGenreFilter === 'all' || song.genre === topSongsGenreFilter
+                   ) || [];
+                   
+                   return filteredSongs.length > 0 ? (
                    <Table>
                      <TableHeader>
                        <TableRow>
@@ -562,7 +591,7 @@ export default function AdminPage() {
                        </TableRow>
                      </TableHeader>
                      <TableBody>
-                       {stats.top_songs_by_likes.map((song, index) => (
+                       {filteredSongs.map((song, index) => (
                          <TableRow key={song.id}>
                            <TableCell>
                              <div className="flex items-center gap-2">
@@ -605,11 +634,15 @@ export default function AdminPage() {
                        ))}
                      </TableBody>
                    </Table>
-                 ) : (
-                   <p className="text-center text-muted-foreground py-8">
-                     No songs with likes found
-                   </p>
-                 )}
+                   ) : (
+                     <p className="text-center text-muted-foreground py-8">
+                       {topSongsGenreFilter === 'all' 
+                         ? 'No songs with likes found' 
+                         : `No liked songs found for ${topSongsGenreFilter} genre`
+                       }
+                     </p>
+                   );
+                 })()}
                </CardContent>
              </Card>
            </TabsContent>
