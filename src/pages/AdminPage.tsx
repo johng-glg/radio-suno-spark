@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 interface AdminStats {
   total_users: number;
   total_profiles: number;
+  total_successful_songs: number;
   songs_by_genre: Record<string, number>;
   songs_by_status: Record<string, number>;
   failed_generations: number;
@@ -110,8 +111,10 @@ export default function AdminPage() {
     return <Navigate to="/" replace />;
   }
 
-  const totalSongs = stats?.songs_by_status ? Object.values(stats.songs_by_status).reduce((a, b) => a + b, 0) : 0;
-  const failureRate = totalSongs > 0 ? ((stats?.failed_generations || 0) / totalSongs * 100).toFixed(1) : '0';
+  const totalSongs = stats?.total_successful_songs || 0;
+  const failureRate = (stats?.total_successful_songs || 0) + (stats?.failed_generations || 0) > 0 
+    ? ((stats?.failed_generations || 0) / ((stats?.total_successful_songs || 0) + (stats?.failed_generations || 0)) * 100).toFixed(1) 
+    : '0';
 
   return (
     <div className="min-h-screen bg-background p-6">
