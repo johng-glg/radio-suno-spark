@@ -39,20 +39,13 @@ interface AdminStats {
     resubmitted_at?: string | null;
     resubmission_succeeded_at?: string | null;
   }>;
-  top_songs_by_likes: Array<{
+  top_songs: Array<{
     id: string;
     title: string;
     genre: string;
     created_at: string;
     likes_count: number;
-  }>;
-  top_songs_by_plays?: Array<{
-    id: string;
-    title: string;
-    genre: string;
-    created_at: string;
     total_plays: number;
-    unique_listeners: number;
   }>;
 }
 
@@ -67,6 +60,7 @@ export default function AdminPage() {
   const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
   const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(true);
   const [topSongsGenreFilter, setTopSongsGenreFilter] = useState<string>('all');
+  const [topSongsSortBy, setTopSongsSortBy] = useState<'likes' | 'plays'>('likes');
 
   useEffect(() => {
     if (isAdmin) {
@@ -562,137 +556,84 @@ export default function AdminPage() {
              </Card>
            </TabsContent>
 
-           <TabsContent value="top-songs" className="space-y-6">
-             <Card>
-               <CardHeader>
-                 <div className="flex items-center justify-between">
-                   <div>
-                     <CardTitle className="flex items-center gap-2">
-                       <Heart className="h-5 w-5 text-primary" />
-                       Top 10 Songs by Likes
-                     </CardTitle>
-                     <CardDescription>
-                       Most liked songs in the platform
-                     </CardDescription>
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <Label htmlFor="genre-filter" className="text-sm text-muted-foreground">
-                       Filter by genre:
-                     </Label>
-                     <Select value={topSongsGenreFilter} onValueChange={setTopSongsGenreFilter}>
-                       <SelectTrigger className="w-[180px]">
-                         <SelectValue placeholder="Select genre" />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="all">All Genres</SelectItem>
-                         {stats?.songs_by_genre && Object.keys(stats.songs_by_genre).map((genre) => (
-                           <SelectItem key={genre} value={genre} className="capitalize">
-                             {genre}
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                     </Select>
-                   </div>
-                 </div>
-               </CardHeader>
-               <CardContent>
-                 {(() => {
-                   const filteredSongs = stats?.top_songs_by_likes?.filter(song => 
-                     topSongsGenreFilter === 'all' || song.genre === topSongsGenreFilter
-                   ) || [];
-                   
-                   return filteredSongs.length > 0 ? (
-                   <Table>
-                     <TableHeader>
-                       <TableRow>
-                         <TableHead>Rank</TableHead>
-                         <TableHead>Song</TableHead>
-                         <TableHead>Genre</TableHead>
-                         <TableHead>Likes</TableHead>
-                         <TableHead>Created</TableHead>
-                       </TableRow>
-                     </TableHeader>
-                     <TableBody>
-                       {filteredSongs.map((song, index) => (
-                         <TableRow key={song.id}>
-                           <TableCell>
-                             <div className="flex items-center gap-2">
-                               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                 index === 0 ? 'bg-yellow-100 text-yellow-800' :
-                                 index === 1 ? 'bg-gray-100 text-gray-800' :
-                                 index === 2 ? 'bg-orange-100 text-orange-800' :
-                                 'bg-muted text-muted-foreground'
-                               }`}>
-                                 {index + 1}
-                               </div>
-                               {index < 3 && (
-                                 <div className="text-lg">
-                                   {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                                 </div>
-                               )}
-                             </div>
-                           </TableCell>
-                           <TableCell>
-                             <div>
-                               <p className="font-medium">{song.title || 'Untitled'}</p>
-                               <p className="text-xs text-muted-foreground">{song.id.slice(0, 8)}...</p>
-                             </div>
-                           </TableCell>
-                           <TableCell>
-                             <Badge variant="secondary" className="capitalize">
-                               {song.genre}
-                             </Badge>
-                           </TableCell>
-                           <TableCell>
-                             <div className="flex items-center gap-1">
-                               <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-                               <span className="font-semibold">{song.likes_count}</span>
-                             </div>
-                           </TableCell>
-                           <TableCell>
-                             {new Date(song.created_at).toLocaleDateString()}
-                           </TableCell>
-                         </TableRow>
-                       ))}
-                     </TableBody>
-                   </Table>
-                   ) : (
-                     <p className="text-center text-muted-foreground py-8">
-                       {topSongsGenreFilter === 'all' 
-                         ? 'No songs with likes found' 
-                         : `No liked songs found for ${topSongsGenreFilter} genre`
-                       }
-                     </p>
-                   );
-                 })()}
-               </CardContent>
-              </Card>
-
-              {/* Top Songs by Plays */}
+            <TabsContent value="top-songs" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Music className="h-5 w-5" />
-                    Top Songs by Plays
-                  </CardTitle>
-                  <CardDescription>
-                    Most played songs with total plays and unique listeners
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Heart className="h-5 w-5 text-primary" />
+                        Top 10 Songs
+                      </CardTitle>
+                      <CardDescription>
+                        Most popular songs by likes and plays
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="sort-filter" className="text-sm text-muted-foreground">
+                          Sort by:
+                        </Label>
+                        <Select value={topSongsSortBy} onValueChange={(value: 'likes' | 'plays') => setTopSongsSortBy(value)}>
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="likes">Likes</SelectItem>
+                            <SelectItem value="plays">Plays</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="genre-filter" className="text-sm text-muted-foreground">
+                          Filter by genre:
+                        </Label>
+                        <Select value={topSongsGenreFilter} onValueChange={setTopSongsGenreFilter}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select genre" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Genres</SelectItem>
+                            {stats?.songs_by_genre && Object.keys(stats.songs_by_genre).map((genre) => (
+                              <SelectItem key={genre} value={genre} className="capitalize">
+                                {genre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {stats?.top_songs_by_plays && stats.top_songs_by_plays.length > 0 ? (
+                  {(() => {
+                    let filteredSongs = stats?.top_songs?.filter(song => 
+                      topSongsGenreFilter === 'all' || song.genre === topSongsGenreFilter
+                    ) || [];
+                    
+                    // Sort by the selected metric
+                    filteredSongs = filteredSongs
+                      .sort((a, b) => {
+                        const valueA = topSongsSortBy === 'likes' ? a.likes_count : a.total_plays;
+                        const valueB = topSongsSortBy === 'likes' ? b.likes_count : b.total_plays;
+                        return valueB - valueA;
+                      })
+                      .slice(0, 10); // Limit to top 10
+                    
+                    return filteredSongs.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Rank</TableHead>
                           <TableHead>Song</TableHead>
                           <TableHead>Genre</TableHead>
-                          <TableHead>Total Plays</TableHead>
+                          <TableHead>Likes</TableHead>
+                          <TableHead>Plays</TableHead>
                           <TableHead>Created</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {stats.top_songs_by_plays.map((song, index) => (
+                        {filteredSongs.map((song, index) => (
                           <TableRow key={song.id}>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -724,6 +665,12 @@ export default function AdminPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
+                                <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                                <span className="font-semibold">{song.likes_count}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
                                 <Music className="h-4 w-4 text-green-500" />
                                 <span className="font-semibold">{song.total_plays}</span>
                               </div>
@@ -735,14 +682,18 @@ export default function AdminPage() {
                         ))}
                       </TableBody>
                     </Table>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-8">
-                      No play data available
-                    </p>
-                  )}
+                    ) : (
+                      <p className="text-center text-muted-foreground py-8">
+                        {topSongsGenreFilter === 'all' 
+                          ? 'No songs found' 
+                          : `No songs found for ${topSongsGenreFilter} genre`
+                        }
+                      </p>
+                    );
+                  })()}
                 </CardContent>
-              </Card>
-            </TabsContent>
+               </Card>
+             </TabsContent>
          </Tabs>
        </div>
      </div>
