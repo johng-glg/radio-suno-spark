@@ -101,12 +101,12 @@ const Index = () => {
         />
         {isAdmin && (
           <div className="fixed top-4 right-4 z-50">
-            <Link to="/admin">
-              <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin">
                 <Shield className="h-4 w-4 mr-2" />
                 Admin
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
         )}
       </>
@@ -122,12 +122,12 @@ const Index = () => {
       />
       {isAdmin && (
         <div className="fixed top-4 right-4 z-50">
-          <Link to="/admin">
-            <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/admin">
               <Shield className="h-4 w-4 mr-2" />
               Admin
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       )}
     </>
