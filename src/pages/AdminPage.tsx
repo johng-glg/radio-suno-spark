@@ -17,6 +17,14 @@ interface AdminStats {
   songs_by_genre: Record<string, number>;
   songs_by_status: Record<string, number>;
   failed_generations: number;
+  user_list: Array<{
+    id: string;
+    email: string;
+    display_name: string;
+    created_at: string;
+    last_sign_in_at: string | null;
+    role: string;
+  }>;
   recent_failed_songs: Array<{
     id: string;
     title: string;
@@ -32,8 +40,8 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [newAdminEmail, setNewAdminEmail] = useState('');
   const [resubmittingIds, setResubmittingIds] = useState<Set<string>>(new Set());
+  const [promotingUserIds, setPromotingUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isAdmin) {
@@ -48,22 +56,31 @@ export default function AdminPage() {
     setStatsLoading(false);
   };
 
-  const handleMakeAdmin = async () => {
-    if (!newAdminEmail.trim()) return;
+  const handleMakeAdmin = async (userId: string, userName: string) => {
+    setPromotingUserIds(prev => new Set([...prev, userId]));
 
-    const { error } = await makeUserAdmin(newAdminEmail);
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to make user admin",
-        variant: "destructive"
+    try {
+      const { error } = await makeUserAdmin(userId);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to make user admin",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `${userName} has been made admin successfully`
+        });
+        // Reload stats to update the user list
+        loadStats();
+      }
+    } finally {
+      setPromotingUserIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
       });
-    } else {
-      toast({
-        title: "Success",
-        description: "User has been made admin successfully"
-      });
-      setNewAdminEmail('');
     }
   };
 
@@ -231,23 +248,75 @@ export default function AdminPage() {
           <TabsContent value="users" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Make User Admin</CardTitle>
+                <CardTitle>User Management</CardTitle>
                 <CardDescription>
-                  Add admin privileges to a user by their email address
+                  View all users and manage admin privileges
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex space-x-2">
-                  <Input
-                    placeholder="Enter user email"
-                    value={newAdminEmail}
-                    onChange={(e) => setNewAdminEmail(e.target.value)}
-                  />
-                  <Button onClick={handleMakeAdmin}>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Make Admin
-                  </Button>
-                </div>
+                {stats?.user_list && stats.user_list.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Last Login</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stats.user_list.map((user) => {
+                        const isPromoting = promotingUserIds.has(user.id);
+                        const isCurrentAdmin = user.role === 'admin';
+                        
+                        return (
+                          <TableRow key={user.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{user.display_name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={isCurrentAdmin ? "default" : "secondary"}>
+                                {user.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {user.last_sign_in_at 
+                                ? new Date(user.last_sign_in_at).toLocaleDateString()
+                                : 'Never'
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {new Date(user.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {isCurrentAdmin ? (
+                                <Badge variant="outline">Already Admin</Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleMakeAdmin(user.id, user.display_name)}
+                                  disabled={isPromoting}
+                                >
+                                  <Settings className={`h-4 w-4 mr-2 ${isPromoting ? 'animate-spin' : ''}`} />
+                                  {isPromoting ? 'Promoting...' : 'Make Admin'}
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No users found
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

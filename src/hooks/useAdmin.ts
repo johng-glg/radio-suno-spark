@@ -56,24 +56,13 @@ export function useAdmin() {
     }
   };
 
-  const makeUserAdmin = async (email: string) => {
+  const makeUserAdmin = async (userId: string) => {
     if (!isAdmin) return { error: { message: 'Access denied' } };
 
     try {
-      // First get the user ID from email
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('id')
-        .ilike('display_name', `%${email}%`)
-        .maybeSingle();
-
-      if (userError || !userData) {
-        return { error: { message: 'User not found' } };
-      }
-
       const { error } = await supabase
         .from('user_roles')
-        .insert({ user_id: userData.id, role: 'admin' });
+        .insert({ user_id: userId, role: 'admin' });
 
       return { error };
     } catch (error) {
