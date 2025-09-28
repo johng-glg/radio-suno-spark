@@ -66,6 +66,18 @@ const Index = () => {
     }
   };
 
+  const handleSettingsUpdate = (settings: {
+    genres: string[];
+    mood?: string;
+    instrumentalMode: boolean;
+    wildcardMode: boolean;
+  }) => {
+    setSelectedGenres(settings.genres);
+    setSelectedMood(settings.mood);
+    setInstrumentalMode(settings.instrumentalMode);
+    setWildcardMode(settings.wildcardMode);
+  };
+
   // Show auth page by default for unauthenticated users
   if (!loading && !user) {
     return <AuthPage onBack={handleBackFromAuth} />;
@@ -79,6 +91,7 @@ const Index = () => {
         instrumentalMode={instrumentalMode}
         wildcardMode={wildcardMode}
         onBack={handleBackToLanding}
+        onSettingsUpdate={handleSettingsUpdate}
       />
     );
   }

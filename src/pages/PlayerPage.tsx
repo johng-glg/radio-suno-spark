@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMusicGeneration } from "@/hooks/useMusicGeneration";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
+import SettingsPopup from "@/components/SettingsPopup";
 
 interface Song {
   id: string;
@@ -43,9 +44,15 @@ interface PlayerPageProps {
   instrumentalMode?: boolean;
   wildcardMode?: boolean;
   onBack: () => void;
+  onSettingsUpdate?: (settings: {
+    genres: string[];
+    mood?: string;
+    instrumentalMode: boolean;
+    wildcardMode: boolean;
+  }) => void;
 }
 
-export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, onBack }: PlayerPageProps) {
+export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, onBack, onSettingsUpdate }: PlayerPageProps) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -56,6 +63,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [showPromptInfo, setShowPromptInfo] = useState(false);
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
@@ -773,6 +781,30 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
+  const handleSettingsSave = (newSettings: {
+    genres: string[];
+    mood?: string;
+    instrumentalMode: boolean;
+    wildcardMode: boolean;
+  }) => {
+    // Clear current song and queue to force regeneration with new settings
+    setCurrentSong(null);
+    setQueue([]);
+    
+    // Update user preferences for wildcardMode
+    if (newSettings.wildcardMode !== preferences.wild_card_mode) {
+      toggleWildCardMode();
+    }
+    
+    // Call the parent component to update settings
+    onSettingsUpdate?.(newSettings);
+    
+    toast({
+      title: "Settings Updated",
+      description: "Music will be generated with your new preferences",
+    });
+  };
+
   const WaveformBars = () => (
     <div className="flex items-center justify-center space-x-1 h-16">
       {Array.from({ length: 12 }).map((_, i) => (
@@ -830,7 +862,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             >
               <LogOut className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setShowSettingsPopup(true)}
+              title="Music Settings"
+            >
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -1067,6 +1104,17 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           </CardContent>
         </Card>
       </div>
+
+      {/* Settings Popup */}
+      <SettingsPopup
+        isOpen={showSettingsPopup}
+        onClose={() => setShowSettingsPopup(false)}
+        currentGenres={selectedGenres}
+        currentMood={selectedMood}
+        instrumentalMode={instrumentalMode}
+        wildcardMode={wildcardMode}
+        onSaveSettings={handleSettingsSave}
+      />
     </div>
   );
 }

@@ -1,0 +1,204 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Volume2 } from "lucide-react";
+
+interface SettingsPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  currentGenres: string[];
+  currentMood?: string;
+  instrumentalMode: boolean;
+  wildcardMode: boolean;
+  onSaveSettings: (settings: {
+    genres: string[];
+    mood?: string;
+    instrumentalMode: boolean;
+    wildcardMode: boolean;
+  }) => void;
+}
+
+const AVAILABLE_GENRES = [
+  "Electronic", "Pop", "Rock", "Jazz", "Classical", "Hip-Hop", 
+  "Indie", "Ambient", "Folk", "Metal", "R&B", "Country"
+];
+
+const AVAILABLE_MOODS = [
+  "Energetic", "Chill", "Happy", "Melancholic", "Dreamy", 
+  "Intense", "Peaceful", "Mysterious", "Uplifting", "Dark"
+];
+
+export default function SettingsPopup({
+  isOpen,
+  onClose,
+  currentGenres,
+  currentMood,
+  instrumentalMode,
+  wildcardMode,
+  onSaveSettings,
+}: SettingsPopupProps) {
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(currentGenres);
+  const [selectedMood, setSelectedMood] = useState<string | undefined>(currentMood);
+  const [tempInstrumentalMode, setTempInstrumentalMode] = useState(instrumentalMode);
+  const [tempWildcardMode, setTempWildcardMode] = useState(wildcardMode);
+
+  const handleGenreToggle = (genre: string) => {
+    setSelectedGenres(prev => 
+      prev.includes(genre) 
+        ? prev.filter(g => g !== genre)
+        : [...prev, genre]
+    );
+  };
+
+  const handleSave = () => {
+    // Ensure at least one genre is selected
+    if (selectedGenres.length === 0) {
+      return;
+    }
+    
+    onSaveSettings({
+      genres: selectedGenres,
+      mood: selectedMood,
+      instrumentalMode: tempInstrumentalMode,
+      wildcardMode: tempWildcardMode,
+    });
+    onClose();
+  };
+
+  const handleCancel = () => {
+    // Reset to current values
+    setSelectedGenres(currentGenres);
+    setSelectedMood(currentMood);
+    setTempInstrumentalMode(instrumentalMode);
+    setTempWildcardMode(wildcardMode);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md bg-popover border-border">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">Music Settings</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6 py-4">
+          {/* Genre Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-foreground">Genres</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {AVAILABLE_GENRES.map((genre) => (
+                <div key={genre} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`genre-${genre}`}
+                    checked={selectedGenres.includes(genre)}
+                    onCheckedChange={() => handleGenreToggle(genre)}
+                  />
+                  <Label 
+                    htmlFor={`genre-${genre}`}
+                    className="text-sm text-foreground cursor-pointer"
+                  >
+                    {genre}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {selectedGenres.length === 0 && (
+              <p className="text-xs text-destructive">Please select at least one genre</p>
+            )}
+          </div>
+
+          {/* Mood Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-foreground">Mood</Label>
+            <Select value={selectedMood || ""} onValueChange={(value) => setSelectedMood(value || undefined)}>
+              <SelectTrigger className="bg-input border-border text-foreground">
+                <SelectValue placeholder="Select mood (optional)" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="">Any Mood</SelectItem>
+                {AVAILABLE_MOODS.map((mood) => (
+                  <SelectItem key={mood} value={mood}>
+                    {mood}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Options */}
+          <div className="space-y-4">
+            {/* Instrumental Mode */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium text-foreground">Instrumental Mode</Label>
+              </div>
+              <Switch
+                checked={tempInstrumentalMode}
+                onCheckedChange={setTempInstrumentalMode}
+              />
+            </div>
+
+            {/* Wild Card Mode */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-sm font-medium text-foreground">Wild Card Mode</Label>
+              </div>
+              <Switch
+                checked={tempWildcardMode}
+                onCheckedChange={setTempWildcardMode}
+              />
+            </div>
+          </div>
+
+          {/* Current Selection Preview */}
+          <div className="space-y-2 p-3 bg-muted/20 rounded-lg">
+            <Label className="text-xs text-muted-foreground">Current Selection:</Label>
+            <div className="flex flex-wrap gap-1">
+              {selectedGenres.map(genre => (
+                <Badge key={genre} variant="secondary" className="text-xs">
+                  {genre}
+                </Badge>
+              ))}
+              {selectedMood && (
+                <Badge variant="outline" className="text-xs">
+                  {selectedMood}
+                </Badge>
+              )}
+              {tempInstrumentalMode && (
+                <Badge variant="outline" className="text-xs text-blue-400 border-blue-400/50">
+                  <Volume2 className="h-3 w-3 mr-1" />
+                  Instrumental
+                </Badge>
+              )}
+              {tempWildcardMode && (
+                <Badge variant="outline" className="text-xs text-yellow-400 border-yellow-400/50">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Wild Card
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSave}
+            disabled={selectedGenres.length === 0}
+          >
+            Apply Settings
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
