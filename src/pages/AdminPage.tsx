@@ -127,8 +127,10 @@ export default function AdminPage() {
           description: `"${songTitle}" has been resubmitted for generation${newSongId ? ` (New ID: ${newSongId.slice(0, 8)}...)` : ''}`,
           variant: "default"
         });
-        // Reload stats to update the failed songs list
-        loadStats();
+        
+        console.log('Resubmit successful, reloading stats...');
+        // Force reload stats to update the failed songs list
+        await loadStats();
       }
     } finally {
       setResubmittingIds(prev => {
