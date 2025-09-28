@@ -101,10 +101,23 @@ serve(async (req) => {
         continue;
       }
       
-      // If no genre is specified and this is a genre placeholder, use "multi-genre"
+      // If no genre is specified and this is a genre placeholder, select a random genre
       if (placeholder === 'genre' && !genre) {
-        selectedWords[placeholder] = 'multi-genre';
-        builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), 'multi-genre');
+        // Get available genres from word_pools
+        const { data: genreWords } = await supabaseClient
+          .from('word_pools')
+          .select('*')
+          .eq('type', 'genre');
+
+        if (genreWords && genreWords.length > 0) {
+          const randomGenre = genreWords[Math.floor(Math.random() * genreWords.length)];
+          selectedWords[placeholder] = randomGenre.value;
+          builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), randomGenre.value);
+        } else {
+          // Fallback to a default genre if no genre words are available
+          selectedWords[placeholder] = 'electronic';
+          builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), 'electronic');
+        }
         continue;
       }
       
