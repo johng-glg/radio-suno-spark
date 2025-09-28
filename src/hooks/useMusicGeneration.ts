@@ -108,7 +108,7 @@ export function useMusicGeneration() {
     makeInstrumental = false, 
     genres?: string[], 
     mood?: string,
-    asLibrary: boolean = false
+    asLibrary: boolean = true
   ) => {
     return generateMusic({
       use_build_prompt: true,

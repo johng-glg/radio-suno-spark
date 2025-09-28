@@ -67,7 +67,7 @@ const {
       title,
       make_instrumental = false, 
       wait_audio = true,
-      as_library = false
+      as_library = true
     } = await req.json() as SunoGenerateRequest;
 
     // Force instrumental for classical music
