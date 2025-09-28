@@ -320,7 +320,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       const { data: songs, error } = await query.limit(50);
       
-      if (error || !songs || songs.length === 0) return null;
+      if (error || !songs || songs.length === 0) {
+        console.log('Priority 1: No unplayed Genre+Mood songs found');
+        return null;
+      }
+      
+      console.log(`Priority 1: Found ${songs.length} Genre+Mood songs, checking play status`);
       
       // Filter to only unplayed songs
       const unplayedSongs = [];
@@ -337,10 +342,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         }
       }
       
-      if (unplayedSongs.length === 0) return null;
+      if (unplayedSongs.length === 0) {
+        console.log('Priority 1: All Genre+Mood songs have been played');
+        return null;
+      }
       
+      console.log(`Priority 1: Found ${unplayedSongs.length} unplayed Genre+Mood songs`);
       // Return random unplayed song
       const randomSong = unplayedSongs[Math.floor(Math.random() * unplayedSongs.length)];
+      console.log(`Priority 1: Selected unplayed song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
       return cleanSongObject(randomSong);
       
     } catch (error) {
@@ -349,12 +359,13 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Priority 2: Get liked song matching Genre
+  // Priority 2: Get liked song matching Genre + Mood
   const getLikedGenreSong = async (excludeSongId?: string): Promise<Song | null> => {
     if (!user) return null;
     
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      console.log(`Priority 2: Looking for liked songs - Genre: ${genresLowerCase.join(',')}, Mood: ${selectedMood || 'any'}`);
       
       let query = supabase
         .from('songs')
@@ -372,16 +383,26 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.in('genre', genresLowerCase);
       }
       
+      // Add mood filtering - this was missing!
+      if (selectedMood) {
+        query = query.eq('mood', selectedMood.toLowerCase());
+      }
+      
       if (excludeSongId) {
         query = query.neq('id', excludeSongId);
       }
       
       const { data: songs, error } = await query.limit(20);
       
-      if (error || !songs || songs.length === 0) return null;
+      if (error || !songs || songs.length === 0) {
+        console.log('Priority 2: No liked Genre+Mood songs found');
+        return null;
+      }
       
+      console.log(`Priority 2: Found ${songs.length} liked Genre+Mood songs`);
       // Return random liked song
       const randomSong = songs[Math.floor(Math.random() * songs.length)];
+      console.log(`Priority 2: Selected liked song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
       return cleanSongObject(randomSong);
       
     } catch (error) {
@@ -390,10 +411,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Priority 3: Get any random song from Genre
+  // Priority 3: Get any random song from Genre + Mood
   const getRandomGenreSong = async (excludeSongId?: string): Promise<Song | null> => {
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+      console.log(`Priority 3: Looking for random songs - Genre: ${genresLowerCase.join(',')}, Mood: ${selectedMood || 'any'}`);
       
       let query = supabase
         .from('songs')
@@ -406,16 +428,26 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.in('genre', genresLowerCase);
       }
       
+      // Add mood filtering - this was missing!
+      if (selectedMood) {
+        query = query.eq('mood', selectedMood.toLowerCase());
+      }
+      
       if (excludeSongId) {
         query = query.neq('id', excludeSongId);
       }
       
       const { data: songs, error } = await query.limit(30);
       
-      if (error || !songs || songs.length === 0) return null;
+      if (error || !songs || songs.length === 0) {
+        console.log('Priority 3: No random Genre+Mood songs found');
+        return null;
+      }
       
+      console.log(`Priority 3: Found ${songs.length} random Genre+Mood songs`);
       // Return random song
       const randomSong = songs[Math.floor(Math.random() * songs.length)];
+      console.log(`Priority 3: Selected random song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
       return cleanSongObject(randomSong);
       
     } catch (error) {
