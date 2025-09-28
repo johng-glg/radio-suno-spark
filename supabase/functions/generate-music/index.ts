@@ -124,7 +124,7 @@ serve(async (req) => {
     }
 
     // Extract genre from selected words or use legacy genre
-    const genre = promptMetadata.selected_words?.genre || legacyGenre || 'electronic';
+    const genre = promptMetadata.selected_words?.genre || legacyGenre || 'multi-genre';
     const mood = promptMetadata.selected_words?.mood || legacyMood;
 
     console.log('Generating music with Suno API:', { 
@@ -347,15 +347,20 @@ serve(async (req) => {
       if (errMessage.toLowerCase().includes('concurrency')) {
         console.log('Concurrency limit reached, searching for existing song in genre:', genre);
         
-        // Find an existing ready song in the same genre
-        const { data: existingSong, error: existingError } = await serviceClient
+        // Find an existing ready song (in same genre if specified, or any genre if multi-genre)
+        let fallbackQuery = serviceClient
           .from('songs')
           .select('*')
           .eq('status', 'ready')
-          .eq('genre', genre)
           .not('requested_by', 'eq', requesterId) // Avoid user's own songs
-          .limit(1)
-          .single();
+          .limit(1);
+        
+        // Only filter by genre if it's not multi-genre
+        if (genre !== 'multi-genre') {
+          fallbackQuery = fallbackQuery.eq('genre', genre);
+        }
+        
+        const { data: existingSong, error: existingError } = await fallbackQuery.single();
         
         if (existingSong && !existingError) {
           console.log('Found existing song to use as fallback:', existingSong.id);

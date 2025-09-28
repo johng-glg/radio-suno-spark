@@ -101,6 +101,13 @@ serve(async (req) => {
         continue;
       }
       
+      // If no genre is specified and this is a genre placeholder, use "multi-genre"
+      if (placeholder === 'genre' && !genre) {
+        selectedWords[placeholder] = 'multi-genre';
+        builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), 'multi-genre');
+        continue;
+      }
+      
       if (placeholder === 'mood' && mood) {
         selectedWords[placeholder] = mood.toLowerCase();
         builtPrompt = builtPrompt.replace(new RegExp(`\\{${placeholder}\\}`, 'g'), mood.toLowerCase());
