@@ -22,6 +22,7 @@ interface AdminStats {
     genre: string;
     created_at: string;
     prompt: string;
+    status?: string;
   }>;
 }
 
@@ -269,30 +270,46 @@ export default function AdminPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {stats.recent_failed_songs.map((song) => (
-                        <TableRow key={song.id}>
-                          <TableCell>{song.title || 'Untitled'}</TableCell>
-                          <TableCell className="capitalize">{song.genre}</TableCell>
-                          <TableCell>
-                            {new Date(song.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate" title={song.prompt}>
-                            {song.prompt}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              variant={resubmittingIds.has(song.id) ? "default" : "outline"}
-                              onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
-                              disabled={resubmittingIds.has(song.id)}
-                              className={resubmittingIds.has(song.id) ? "bg-green-600 hover:bg-green-700" : ""}
-                            >
-                              <RefreshCw className={`h-4 w-4 mr-2 ${resubmittingIds.has(song.id) ? 'animate-spin' : ''}`} />
-                              {resubmittingIds.has(song.id) ? 'Resubmitting...' : 'Resubmit'}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {stats.recent_failed_songs.map((song) => {
+                        const isResubmitted = song.status === 'resubmitted';
+                        const isResubmissionSucceeded = song.status === 'resubmission_succeeded';
+                        const isResubmitting = resubmittingIds.has(song.id);
+                        
+                        return (
+                          <TableRow key={song.id}>
+                            <TableCell>{song.title || 'Untitled'}</TableCell>
+                            <TableCell className="capitalize">{song.genre}</TableCell>
+                            <TableCell>
+                              {new Date(song.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate" title={song.prompt}>
+                              {song.prompt}
+                            </TableCell>
+                            <TableCell>
+                              {isResubmissionSucceeded ? (
+                                <Badge variant="default" className="bg-green-600">
+                                  ✓ Succeeded
+                                </Badge>
+                              ) : isResubmitted ? (
+                                <Badge variant="secondary">
+                                  Resubmitted
+                                </Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant={isResubmitting ? "default" : "outline"}
+                                  onClick={() => handleResubmitSong(song.id, song.title || 'Untitled')}
+                                  disabled={isResubmitting}
+                                  className={isResubmitting ? "bg-green-600 hover:bg-green-700" : ""}
+                                >
+                                  <RefreshCw className={`h-4 w-4 mr-2 ${isResubmitting ? 'animate-spin' : ''}`} />
+                                  {isResubmitting ? 'Resubmitting...' : 'Resubmit'}
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 ) : (

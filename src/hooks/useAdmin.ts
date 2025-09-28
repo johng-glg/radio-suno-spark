@@ -111,6 +111,7 @@ export function useAdmin() {
       }
 
       // Create a new song record for the resubmission
+      // Use the current admin user as requester to avoid RLS issues
       const { data: newSong, error: insertError } = await supabase
         .from('songs')
         .insert({
@@ -118,7 +119,7 @@ export function useAdmin() {
           prompt: originalSong.prompt,
           genre: originalSong.genre,
           mood: originalSong.mood,
-          requested_by: originalSong.requested_by,
+          requested_by: user?.id || null, // Use admin's ID to satisfy RLS
           status: 'generating',
           original_song_id: songId  // Link back to original failed song
         })
