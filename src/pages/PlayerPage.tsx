@@ -439,6 +439,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       const { data: queueData, error } = await supabase
         .from('queue')
         .select(`
+          id,
           songs (
             id,
             title,
@@ -462,19 +463,27 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       if (queueData && queueData.length > 0) {
         const songs = queueData.map(item => item.songs).filter(Boolean) as Song[];
         
-        // If we don't have a current song yet, pick the first ready one
+        // If we don't have a current song yet, pick the first ready one and remove it from queue
         if (!currentSong) {
           const firstReady = songs.find(song => song.status === 'ready' && song.url);
           if (firstReady) {
             console.log('Setting first ready song as current:', firstReady);
             setCurrentSong(firstReady);
+            
+            // Remove the song from queue since it's now playing
+            const queueItem = queueData.find(item => item.songs?.id === firstReady.id);
+            if (queueItem) {
+              await supabase.from('queue').delete().eq('id', queueItem.id);
+            }
           }
         }
         
-        // Always show what's in the queue, including generating items
-        const currentId = currentSong?.id;
-        const displayQueue = songs.filter(s => s.id !== currentId);
-        setQueue(displayQueue);
+        // Show remaining songs in queue (since current song is removed from DB queue)
+        const remainingSongs = songs.filter(song => song.id !== currentSong?.id);
+        setQueue(remainingSongs);
+      } else {
+        // No songs in queue
+        setQueue([]);
       }
     } catch (error) {
       console.error('Error polling for songs:', error);
@@ -504,20 +513,55 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  const handleSkip = () => {
-    if (queue.length > 0) {
-      const nextSong = queue[0];
-      setCurrentSong(nextSong);
-      setQueue(prev => prev.slice(1));
-      setProgress(0);
-      
-      // Generate next song in background
-      generateNextSong();
-      
-      toast({
-        title: "Next Track",
-        description: nextSong.title,
-      });
+  const handleSkip = async () => {
+    try {
+      // Get the next song from database queue to ensure consistency
+      const { data: queueData, error } = await supabase
+        .from('queue')
+        .select(`
+          id,
+          songs (
+            id,
+            title,
+            description,
+            genre,
+            mood,
+            url,
+            image_url,
+            status
+          )
+        `)
+        .order('position', { ascending: true })
+        .limit(1);
+
+      if (error) {
+        console.error('Error getting next song from queue:', error);
+        return;
+      }
+
+      if (queueData && queueData.length > 0 && queueData[0].songs) {
+        const nextSong = queueData[0].songs as Song;
+        const queueItemId = queueData[0].id;
+        
+        // Remove the queue item from database since we're about to play it
+        await supabase.from('queue').delete().eq('id', queueItemId);
+        
+        setCurrentSong(nextSong);
+        setProgress(0);
+        
+        // Generate next song in background
+        generateNextSong();
+        
+        toast({
+          title: "Next Track",
+          description: nextSong.title,
+        });
+      } else {
+        console.log('No songs in queue, generating fallback...');
+        await handleEmptyQueueFallback();
+      }
+    } catch (error) {
+      console.error('Error in handleSkip:', error);
     }
   };
 
