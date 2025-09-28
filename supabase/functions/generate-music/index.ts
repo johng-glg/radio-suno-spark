@@ -112,6 +112,37 @@ serve(async (req) => {
       make_instrumental 
     });
 
+    // Cleanup stale generating songs before concurrency check
+    const staleCutoff = new Date(Date.now() - 8 * 60 * 1000).toISOString();
+    await supabaseClient
+      .from('songs')
+      .update({ status: 'failed', description: 'Auto-clean: stale generation' })
+      .eq('status', 'generating')
+      .lt('updated_at', staleCutoff);
+
+    // Concurrency guard BEFORE creating a new record
+    const recentCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data: activeGenerating, error: activeErr } = await supabaseClient
+      .from('songs')
+      .select('id, updated_at')
+      .eq('status', 'generating')
+      .gt('updated_at', recentCutoff)
+      .limit(1);
+
+    if (activeErr) {
+      console.error('Error checking active generations:', activeErr);
+    }
+
+    if (activeGenerating && activeGenerating.length > 0) {
+      console.log('Concurrency guard: active generation detected, skipping new request');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Concurrency limit: Another song is still generating'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Create initial song record in database
     const { data: song, error: insertError } = await supabaseClient
       .from('songs')
@@ -138,28 +169,8 @@ serve(async (req) => {
       throw new Error('Suno API key not configured');
     }
 
-    // Check for existing generating songs to avoid concurrency issues
-    const { data: existingGenerating } = await supabaseClient
-      .from('songs')
-      .select('id')
-      .eq('status', 'generating')
-      .limit(1);
+    // Passed concurrency guard; safe to proceed with create
 
-    if (existingGenerating && existingGenerating.length > 0) {
-      console.log('Another song is already generating, applying backoff...');
-      // Wait a bit and retry once
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const { data: stillGenerating } = await supabaseClient
-        .from('songs')
-        .select('id')
-        .eq('status', 'generating')
-        .limit(1);
-        
-      if (stillGenerating && stillGenerating.length > 0) {
-        throw new Error('Concurrency limit: Another song is still generating');
-      }
-    }
 
     // Use no-custom mode since our prompt is a description, not full lyrics
     const createPayload: Record<string, unknown> = {
