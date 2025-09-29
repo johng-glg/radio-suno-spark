@@ -250,9 +250,64 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     
     const initializeQueue = async () => {
       try {
-        // Clear the database queue
-        await supabase.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('🗂️ Database queue cleared');
+        // Check for existing ready songs in the queue first
+        const { data: existingReadyQueue } = await supabase
+          .from('queue')
+          .select('*, songs(*)')
+          .eq('songs.status', 'ready')
+          .not('songs.url', 'is', null)
+          .order('position');
+        
+        const existingReadySongs = existingReadyQueue
+          ?.filter(item => item.songs)
+          .map(item => item.songs as Song) || [];
+        
+        if (existingReadySongs.length > 0) {
+          // We have completed songs in the queue - use them!
+          console.log(`✅ Found ${existingReadySongs.length} ready songs in queue - using those`);
+          
+          const firstSong = existingReadySongs[0];
+          console.log(`✅ Playing: "${firstSong.title}" (${firstSong.genre}-${firstSong.mood})`);
+          setCurrentSong(firstSong);
+          
+          // Remove the first song from queue since we're playing it
+          const queueItemToRemove = existingReadyQueue?.find(item => item.songs?.id === firstSong.id);
+          if (queueItemToRemove) {
+            await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
+          }
+          
+          toast({
+            title: "Music Ready!",
+            description: `Playing ${firstSong.title}`,
+          });
+          
+          // If queue has only 1 song left, generate another one
+          if (existingReadySongs.length <= 2) {
+            console.log('🎵 Queue running low, generating new song...');
+            setTimeout(() => generateNewSong(), 1000);
+          }
+          
+          return; // Early return - we're done!
+        }
+        
+        // No ready songs in queue - start fresh
+        console.log('📋 No ready songs in queue - initializing fresh');
+        
+        // Only clear stuck/invalid queue items
+        const { data: allQueueItems } = await supabase
+          .from('queue')
+          .select('*, songs(*)');
+        
+        // Remove queue items for songs that are stuck or failed
+        for (const item of allQueueItems || []) {
+          const song = item.songs as any;
+          if (!song || song.status === 'failed' || 
+              (song.status === 'generating' && 
+               new Date(song.updated_at).getTime() < Date.now() - 10 * 60 * 1000)) {
+            await supabase.from('queue').delete().eq('id', item.id);
+            console.log(`🗑️ Removed stuck/failed queue item for song: ${song?.title || 'unknown'}`);
+          }
+        }
         
         // Step 1: Get random genre+mood song to play immediately
         const currentSong = await getRandomGenreMoodSong([]);
