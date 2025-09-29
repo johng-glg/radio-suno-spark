@@ -803,6 +803,21 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       if (readySongs.length < 2) {
         console.log('🎵 Queue needs more songs');
         
+        // Check if there are songs generating for current genre+mood combo
+        const currentGenresLower = selectedGenres.map(g => g.toLowerCase());
+        const currentMoodLower = selectedMood?.toLowerCase();
+        
+        const generatingForCurrentCombo = generatingSongs.some(song => {
+          const songGenreMatches = currentGenresLower.length === 0 || currentGenresLower.includes((song.genre || '').toLowerCase());
+          const songMoodMatches = !currentMoodLower || (song.mood || '').toLowerCase() === currentMoodLower;
+          return songGenreMatches && songMoodMatches;
+        });
+        
+        if (generatingForCurrentCombo) {
+          console.log('🎯 Song already generating for current genre+mood combo, waiting instead of adding library songs');
+          return; // Don't add library songs, wait for the generating song
+        }
+        
         // Step 1: Try to find ONE unplayed genre+mood match
         const unplayedGenreMood = await getGenreMoodUnplayed(currentSong?.id);
         if (unplayedGenreMood) {
@@ -811,7 +826,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           return; // Found what we need, exit early
         }
         
-        // Step 2: If no unplayed genre+mood, find ONE genre match
+        // Step 2: If no unplayed genre+mood, find ONE genre match (but only if no generation in progress for combo)
         const anyGenreMatch = await getRandomGenreAnyMood(currentSong?.id);
         if (anyGenreMatch) {
           console.log(`⚠️ No unplayed genre+mood found, using genre fallback: "${anyGenreMatch.title}"`);
