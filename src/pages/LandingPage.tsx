@@ -18,12 +18,12 @@ const MOODS = [
 ];
 
 const HOLIDAYS = [
-  { name: "Christmas", icon: Snowflake },
-  { name: "Halloween", icon: Ghost },
-  { name: "Hanukkah", icon: Star },
-  { name: "Thanksgiving", icon: Leaf },
-  { name: "St. Patty's Day", icon: Clover },
-  { name: "4th of July", icon: Flag },
+  { name: "Christmas", icon: Snowflake, emoji: null },
+  { name: "Halloween", icon: Ghost, emoji: null },
+  { name: "Hanukkah", icon: null, emoji: "🕎" },
+  { name: "Thanksgiving", icon: null, emoji: "🍗" },
+  { name: "St. Patty's Day", icon: Clover, emoji: null },
+  { name: "4th of July", icon: Flag, emoji: null },
 ];
 
 interface LandingPageProps {
@@ -224,21 +224,25 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                       <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {HOLIDAYS.map((holiday) => {
                       const Icon = holiday.icon;
                       return (
                         <button
                           key={holiday.name}
                           onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
-                          className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                          className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
                             selectedHoliday === holiday.name
                               ? 'border-primary bg-primary/10 text-primary'
                               : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
                           }`}
                         >
-                          <Icon className="h-6 w-6 mb-2" />
-                          <span className="text-xs font-medium text-center">{holiday.name}</span>
+                          {Icon ? (
+                            <Icon className="h-5 w-5 mb-1" />
+                          ) : (
+                            <span className="text-2xl mb-1">{holiday.emoji}</span>
+                          )}
+                          <span className="text-[10px] font-medium text-center leading-tight">{holiday.name}</span>
                         </button>
                       );
                     })}
