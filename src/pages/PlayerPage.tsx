@@ -122,6 +122,16 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               title: 'Next Track',
               description: nextSong.title,
             });
+            
+            // If queue is running low, generate a new song
+            if (readySongs.length <= 2) {
+              console.log('🎵 Queue running low after song end - generating new song...');
+              setTimeout(() => {
+                if (generateNewSongRef.current) {
+                  generateNewSongRef.current();
+                }
+              }, 500);
+            }
           } else {
             // No ready songs in queue - get one from library
             console.log('⚠️ No ready songs in queue - getting from library');
