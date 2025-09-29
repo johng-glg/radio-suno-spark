@@ -91,7 +91,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       };
       
       const handleEnded = async () => {
-        handleSkip();
+        console.log('Song ended - auto-advancing to next track');
+        try {
+          await handleSkip();
+          console.log('Auto-advance completed successfully');
+        } catch (error) {
+          console.error('Auto-advance failed:', error);
+          // Reset isSkipping if auto-advance fails
+          setIsSkipping(false);
+        }
       };
       
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -820,11 +828,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const handleSkip = async () => {
     if (isSkipping) {
-      console.log('Skip already in progress, ignoring click');
+      console.log('Skip already in progress, ignoring request');
       return;
     }
     
     setIsSkipping(true);
+    console.log('Starting skip operation...');
     
     try {
       console.log('Skip button clicked - checking queue state...');
@@ -905,9 +914,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         variant: "destructive"
       });
     } finally {
+      // Reduce timeout to allow faster manual control after auto-advance
       setTimeout(() => {
         setIsSkipping(false);
-      }, 1000); // Prevent rapid clicking
+      }, 300); // Allow quicker manual control
     }
   };
 
