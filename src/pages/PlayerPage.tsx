@@ -342,6 +342,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         .select('*')
         .eq('status', 'ready')
         .is('requested_by', null) // Library songs only
+        .eq('is_public', true) // Only public library songs
         .not('url', 'is', null);
       
       if (genresLowerCase.length > 0) {
@@ -413,6 +414,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         `)
         .eq('status', 'ready')
         .is('requested_by', null) // Library songs only
+        .eq('is_public', true) // Only public library songs
         .not('url', 'is', null)
         .eq('user_song_interactions.user_id', user.id)
         .eq('user_song_interactions.interaction_type', 'like');
@@ -460,6 +462,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         .select('*')
         .eq('status', 'ready')
         .is('requested_by', null) // Library songs only
+        .eq('is_public', true) // Only public library songs
         .not('url', 'is', null);
       
       if (genresLowerCase.length > 0) {
@@ -505,6 +508,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         .select('*')
         .eq('status', 'ready')
         .is('requested_by', null)
+        .eq('is_public', true) // Only public library songs
         .not('url', 'is', null);
       
       if (genresLowerCase.length > 0) {
@@ -585,6 +589,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         .select('id')
         .eq('status', 'ready')
         .is('requested_by', null) // Library songs only
+        .eq('is_public', true) // Only public library songs
         .not('url', 'is', null);
       
       if (genresLowerCase.length > 0) {
@@ -696,14 +701,28 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             await addSongToQueue(nextSong);
             console.log(`Added song ${i + 1}/${songsNeeded} to queue:`, nextSong.title);
           } else {
-            // Check if we should generate
-            const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
-            if (!hasLibrarySongs && generatingSongs.length === 0) {
-              console.log('No library songs available, starting generation...');
-              startGenerationTask();
-              break; // Only start one generation at a time
-            } else if (hasLibrarySongs) {
-              console.log('Library songs available but not returned by priority function - might be filtered by mood');
+            // Try genre-only fallback before generating
+            const genreOnlyFallback = await getRandomGenreAnyMood(currentSong?.id);
+            if (genreOnlyFallback) {
+              console.log('Adding genre-only fallback while generating mood-specific songs...');
+              await addSongToQueue(genreOnlyFallback);
+              
+              // Start background generation for mood-specific songs
+              if (generatingSongs.length === 0 && preferences.generate_when_exhausted) {
+                console.log('Starting background generation for mood-specific songs...');
+                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+                  .catch(error => console.error('Background generation failed:', error));
+              }
+            } else {
+              // Check if we should generate
+              const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
+              if (!hasLibrarySongs && generatingSongs.length === 0) {
+                console.log('No library songs available, starting generation...');
+                startGenerationTask();
+                break; // Only start one generation at a time
+              } else if (hasLibrarySongs) {
+                console.log('Library songs available but not returned by priority function - might be filtered by mood');
+              }
             }
             break; // Stop trying if no songs available
           }
