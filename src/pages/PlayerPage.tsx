@@ -152,7 +152,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   }, [currentSong?.url]);
 
-  // Initialize queue with new priority-based system
+  // Initialize queue with ALWAYS PLAY logic
   useEffect(() => {
     // Prevent duplicate initializations
     if (initializationRef.current) {
@@ -163,7 +163,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     initializationRef.current = true;
     
     // Clear existing songs when genre selection changes
-    console.log('Genre/mood changed, initializing new queue...');
+    console.log('🎵 INITIALIZATION: Genre/mood changed, clearing queue and finding songs...');
     setCurrentSong(null);
     setQueue([]);
     setExhaustedGenreMoods(new Set());
@@ -172,45 +172,76 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       try {
         // Clear the database queue
         await supabase.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('Database queue cleared');
+        console.log('🗂️ Database queue cleared');
         
-        // Load 1 current song + 1 next (library-first)
-        const song1 = await getNextSongByPriority();
+        // ALWAYS get a current song with robust fallback
+        console.log('🔍 Looking for CURRENT song with fallback chain...');
+        let currentSong = await getNextSongByPriority();
+        let usedGenreFallback = false;
         
-        if (song1) {
-          console.log('Setting first priority song as current:', song1.title);
-          setCurrentSong(song1);
+        // If no genre+mood match, try genre-only for current
+        if (!currentSong) {
+          console.log('⚠️ No genre+mood songs found, trying genre-only for current...');
+          currentSong = await getRandomGenreAnyMood();
+          usedGenreFallback = true;
+        }
+        
+        if (currentSong) {
+          console.log(`✅ CURRENT song selected: "${currentSong.title}" (${currentSong.genre}-${currentSong.mood}) - ${usedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
+          setCurrentSong(currentSong);
           toast({
             title: "Music Ready!",
-            description: `Playing ${song1.title} instantly`,
+            description: `Playing ${currentSong.title} instantly`,
           });
           
-          // Check if we can get a second library song as next
-          const song2 = await getNextSongByPriority(song1.id);
-          if (song2) {
-            console.log('Adding second priority song to queue:', song2.title);
-            await addSongToQueue(song2);
-          } else {
-            // Try genre-only fallback before generating
-            const genreOnly = await getRandomGenreAnyMood(song1.id);
-            if (genreOnly) {
-              console.log('Adding genre-only fallback song to queue:', genreOnly.title);
-              await addSongToQueue(genreOnly);
-            } else {
-              // Only generate if no library songs available in genre (excluding current)
-              const hasLibrarySongs = await checkLibrarySongsAvailable(song1.id, true);
-              if (!hasLibrarySongs) {
-                console.log('No library songs available in genre (excluding current), starting generation...');
-                setTimeout(() => {
-                  startGenerationTask();
-                }, 1000);
-              }
-            }
+          // If we used genre-only fallback for current, trigger background generation
+          if (usedGenreFallback && selectedMood) {
+            console.log('🎯 Triggering background generation for mood-accurate replacement...');
+            setTimeout(() => startGenerationTask(), 500);
           }
+          
+          // ALWAYS get a next song
+          console.log('🔍 Looking for NEXT song with fallback chain...');
+          let nextSong = await getNextSongByPriority(currentSong.id);
+          let nextUsedGenreFallback = false;
+          
+          // If no genre+mood match for next, try genre-only
+          if (!nextSong) {
+            console.log('⚠️ No genre+mood songs found for next, trying genre-only...');
+            nextSong = await getRandomGenreAnyMood(currentSong.id);
+            nextUsedGenreFallback = true;
+          }
+          
+          if (nextSong) {
+            console.log(`✅ NEXT song queued: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood}) - ${nextUsedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
+            await addSongToQueue(nextSong);
+            
+            // If we used genre-only fallback for next, trigger background generation
+            if (nextUsedGenreFallback && selectedMood) {
+              console.log('🎯 Triggering background generation for mood-accurate next song...');
+              setTimeout(() => startGenerationTask(), 1000);
+            }
+          } else {
+            console.log('⚠️ No next song available in library, will generate...');
+            setTimeout(() => startGenerationTask(), 1000);
+          }
+          
+          // Call maintainQueue to top up
+          console.log('🔄 Calling maintainQueue to ensure queue is full...');
+          setTimeout(() => maintainQueue(), 2000);
+          
+        } else {
+          // Absolutely no songs in library - this should never happen with 100+ songs
+          console.error('❌ CRITICAL: No songs found in library at all! This should not happen.');
+          toast({
+            title: "Error",
+            description: "No songs available in library. Please check your music collection.",
+            variant: "destructive"
+          });
         }
         
       } catch (error) {
-        console.error('Error initializing queue:', error);
+        console.error('❌ Error initializing queue:', error);
         toast({
           title: "Error",
           description: "Failed to initialize music queue. Please try again.",
@@ -744,44 +775,74 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Simplified queue system with clear priority order
+  // Enhanced queue system with database-first ready checking
   const maintainQueue = async () => {
     try {
-      const readySongs = queue.filter(song => song.status === 'ready' && song.url);
-      const generatingSongs = queue.filter(song => song.status === 'generating');
+      // Query database for actual ready songs, not local state
+      const { data: queueItems } = await supabase
+        .from('queue')
+        .select('*, songs(*)')
+        .not('songs.url', 'is', null)
+        .eq('songs.status', 'ready')
+        .order('position');
       
-      console.log(`Maintaining queue - current status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
+      const readySongs = queueItems?.filter(item => item.songs).map(item => item.songs) || [];
       
-      // Only add songs if we have less than 2 ready songs
+      const { data: generatingItems } = await supabase
+        .from('queue')
+        .select('*, songs(*)')
+        .eq('songs.status', 'generating');
+      
+      const generatingSongs = generatingItems?.filter(item => item.songs).map(item => item.songs) || [];
+      
+      console.log(`🔄 MAINTAIN QUEUE: ${readySongs.length} ready, ${generatingSongs.length} generating in database`);
+      
+      // Only add songs if we have less than 2 ready songs in database
       if (readySongs.length < 2) {
-        console.log('Queue needs more songs');
+        console.log('🎵 Queue needs more songs');
         
         // Step 1: Try to find ONE unplayed genre+mood match
         const unplayedGenreMood = await getGenreMoodUnplayed(currentSong?.id);
         if (unplayedGenreMood) {
-          console.log('Found unplayed genre+mood match:', unplayedGenreMood.title);
+          console.log(`✅ Found unplayed genre+mood match: "${unplayedGenreMood.title}"`);
           await addSongToQueue(unplayedGenreMood);
           return; // Found what we need, exit early
         }
         
-        // Step 2: If no unplayed genre+mood, find ONE genre match and generate ONE song
+        // Step 2: If no unplayed genre+mood, find ONE genre match
         const anyGenreMatch = await getRandomGenreAnyMood(currentSong?.id);
         if (anyGenreMatch) {
-          console.log('No unplayed genre+mood found, using genre fallback:', anyGenreMatch.title);
+          console.log(`⚠️ No unplayed genre+mood found, using genre fallback: "${anyGenreMatch.title}"`);
           await addSongToQueue(anyGenreMatch);
+          
+          // Trigger generation for mood-accurate song if we used genre fallback
+          if (selectedMood && preferences.generate_when_exhausted && generatingSongs.length === 0) {
+            console.log('🎯 Triggering generation for mood-accurate replacement...');
+            setTimeout(() => {
+              if (!generationLockRef.current) {
+                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+                  .catch(error => console.error('Generation failed:', error));
+              }
+            }, 500);
+          }
+          return;
         }
         
-        // Generate ONE song if no generating songs and generation enabled
+        // Step 3: Generate if no library songs and generation enabled
         if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
-          console.log('Starting single song generation...');
-          generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-            .catch(error => console.error('Generation failed:', error));
+          console.log('🎯 No library matches found, starting generation...');
+          setTimeout(() => {
+            if (!generationLockRef.current) {
+              generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+                .catch(error => console.error('Generation failed:', error));
+            }
+          }, 500);
         }
       }
       
-      console.log('Queue maintenance complete');
+      console.log('✅ Queue maintenance complete');
     } catch (error) {
-      console.error('Error maintaining queue:', error);
+      console.error('❌ Error maintaining queue:', error);
     }
   };
 
@@ -903,40 +964,36 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
   const handleSkip = async () => {
     if (isSkipping) {
-      console.log('Skip already in progress, ignoring request');
+      console.log('⏭️ Skip already in progress, ignoring request');
       return;
     }
     
     setIsSkipping(true);
-    console.log('Starting skip operation...');
+    console.log('⏭️ Starting skip operation...');
     
     try {
-      console.log('Skip button clicked - checking queue state...');
-      // Get next ready song from database queue (not local state to avoid stale data)
+      console.log('🔍 Skip button clicked - querying database for ready songs...');
+      
+      // FIXED: Query database queue properly - join with songs and filter by songs.status
       const { data: readyQueueItems } = await supabase
         .from('queue')
         .select('*, songs(*)')
-        .eq('status', 'ready')
-        .not('songs.url', 'is', null)
+        .eq('songs.status', 'ready')  // Filter by songs.status, not queue.status
+        .not('songs.url', 'is', null)  // Ensure song has URL
         .order('position');
       
-      const readySongs = readyQueueItems?.map(item => item.songs as Song).filter(Boolean) || [];
-      console.log(`Database queue state: ${readySongs.length} ready songs available`);
+      const readySongs = readyQueueItems?.filter(item => item.songs).map(item => item.songs as Song) || [];
+      console.log(`📊 Database queue state: ${readySongs.length} ready songs available`);
       
       if (readySongs.length > 0) {
         const nextSong = readySongs[0];
-        console.log('Moving to next song:', nextSong.title);
+        console.log(`✅ Moving to queued song: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood})`);
         
         // Remove from database queue
-        const { data: queueItem } = await supabase
-          .from('queue')
-          .select('id')
-          .eq('song_id', nextSong.id)
-          .maybeSingle();
-          
-        if (queueItem) {
-          await supabase.from('queue').delete().eq('id', queueItem.id);
-          console.log('Removed song from database queue');
+        const queueItemToRemove = readyQueueItems?.find(item => item.songs?.id === nextSong.id);
+        if (queueItemToRemove) {
+          await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
+          console.log('🗑️ Removed song from database queue');
         }
         
         setCurrentSong(nextSong);
@@ -948,18 +1005,27 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         });
         
         // Always maintain queue after skipping to ensure we have next songs
-        console.log('Maintaining queue after skip...');
+        console.log('🔄 Maintaining queue after skip...');
         setTimeout(() => {
           maintainQueue();
         }, 500);
         
       } else {
-        console.log('No ready songs in queue - trying to find/generate next song...');
+        console.log('⚠️ No ready songs in queue - trying to find immediate replacement...');
         
-        // Try to find a song immediately
-        const nextSong = await getNextSongByPriority(currentSong?.id);
+        // Try to find a song immediately using priority system
+        let nextSong = await getNextSongByPriority(currentSong?.id);
+        let usedGenreFallback = false;
+        
+        // If no genre+mood match, try genre-only
+        if (!nextSong) {
+          console.log('🔄 No genre+mood match, trying genre-only fallback...');
+          nextSong = await getRandomGenreAnyMood(currentSong?.id);
+          usedGenreFallback = true;
+        }
+        
         if (nextSong) {
-          console.log('Found priority song for immediate play:', nextSong.title);
+          console.log(`✅ Found immediate song: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood}) - ${usedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
           setCurrentSong(nextSong);
           setProgress(0);
           
@@ -968,28 +1034,32 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             description: nextSong.title,
           });
           
-          // Add to queue for UI display
-          await addSongToQueue(nextSong);
+          // If we used genre-only fallback, trigger background generation for mood-accurate replacement
+          if (usedGenreFallback && selectedMood) {
+            console.log('🎯 Triggering background generation for mood-accurate replacement...');
+            setTimeout(() => startGenerationTask(), 500);
+          }
           
           // Maintain queue to ensure we have more songs
           setTimeout(() => {
             maintainQueue();
           }, 500);
         } else {
-          // No songs available
-          console.log('No songs available - checking library and generation status');
+          // Absolutely no songs available - this should never happen
+          console.error('❌ CRITICAL: No songs available at all for skip! This should not happen with 100+ songs.');
           toast({
             title: "No Next Song",
-            description: "Looking for more music that matches your preferences...",
-            variant: "default"
+            description: "No songs available in your library. Please check your music collection.",
+            variant: "destructive"
           });
           
-          await maintainQueue();
+          // Try to generate as last resort
+          setTimeout(() => startGenerationTask(), 500);
         }
       }
       
     } catch (error) {
-      console.error('Error in handleSkip:', error);
+      console.error('❌ Error in handleSkip:', error);
       toast({
         title: "Skip Error",
         description: "Unable to skip to next song. Please try again.",
