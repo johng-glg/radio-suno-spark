@@ -752,47 +752,30 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       console.log(`Maintaining queue - current status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
       
-      // Keep it simple: aim for 2 songs ready
-      const songsNeeded = Math.max(0, 2 - readySongs.length);
-      
-      if (songsNeeded > 0) {
-        console.log(`Need ${songsNeeded} more songs in queue`);
+      // Only add songs if we have less than 2 ready songs
+      if (readySongs.length < 2) {
+        console.log('Queue needs more songs');
         
-        // Step 1: Try to find genre+mood match with 0 plays for current user
+        // Step 1: Try to find ONE unplayed genre+mood match
         const unplayedGenreMood = await getGenreMoodUnplayed(currentSong?.id);
         if (unplayedGenreMood) {
           console.log('Found unplayed genre+mood match:', unplayedGenreMood.title);
           await addSongToQueue(unplayedGenreMood);
-          
-          // If we need another song, try to get another genre+mood match
-          if (songsNeeded > 1) {
-            const anotherGenreMood = await getGenreMoodUnplayed(currentSong?.id, unplayedGenreMood.id);
-            if (anotherGenreMood) {
-              console.log('Found second genre+mood match:', anotherGenreMood.title);
-              await addSongToQueue(anotherGenreMood);
-            }
-          }
-          return;
+          return; // Found what we need, exit early
         }
         
-        // Step 2: If no unplayed genre+mood, try any genre match and generate
+        // Step 2: If no unplayed genre+mood, find ONE genre match and generate ONE song
         const anyGenreMatch = await getRandomGenreAnyMood(currentSong?.id);
         if (anyGenreMatch) {
           console.log('No unplayed genre+mood found, using genre fallback:', anyGenreMatch.title);
           await addSongToQueue(anyGenreMatch);
-          
-          // Start generation immediately if enabled
-          if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
-            console.log('Starting generation for genre+mood match...');
-            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-              .catch(error => console.error('Generation failed:', error));
-          }
-        } else {
-          console.log('No songs available in library, starting generation...');
-          if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
-            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-              .catch(error => console.error('Generation failed:', error));
-          }
+        }
+        
+        // Generate ONE song if no generating songs and generation enabled
+        if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
+          console.log('Starting single song generation...');
+          generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+            .catch(error => console.error('Generation failed:', error));
         }
       }
       
