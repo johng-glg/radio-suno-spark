@@ -912,9 +912,16 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     
     try {
       console.log('Skip button clicked - checking queue state...');
-      // Get next ready song from queue
-      const readySongs = queue.filter(song => song.status === 'ready' && song.url);
-      console.log(`Queue state: ${readySongs.length} ready songs, ${queue.length} total songs`);
+      // Get next ready song from database queue (not local state to avoid stale data)
+      const { data: readyQueueItems } = await supabase
+        .from('queue')
+        .select('*, songs(*)')
+        .eq('status', 'ready')
+        .not('songs.url', 'is', null)
+        .order('position');
+      
+      const readySongs = readyQueueItems?.map(item => item.songs as Song).filter(Boolean) || [];
+      console.log(`Database queue state: ${readySongs.length} ready songs available`);
       
       if (readySongs.length > 0) {
         const nextSong = readySongs[0];
