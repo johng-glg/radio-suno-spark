@@ -729,7 +729,7 @@ export default function AdminPage() {
                           const range = max - min;
                           const position = range > 0 ? (count - min) / range : 0.5;
                           
-                          // Map position to gradient colors
+                          // Map position to gradient colors (orange low -> green high)
                           if (position < 0.25) {
                             return {
                               bg: 'bg-orange-500/10',
@@ -748,17 +748,17 @@ export default function AdminPage() {
                           }
                           if (position < 0.75) {
                             return {
-                              bg: 'bg-accent/10',
-                              border: 'border-accent/30',
-                              text: 'text-accent',
-                              glow: 'drop-shadow-[0_0_8px_hsl(var(--accent)/0.4)]'
+                              bg: 'bg-cyan-500/10',
+                              border: 'border-cyan-500/30',
+                              text: 'text-cyan-400',
+                              glow: 'drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]'
                             };
                           }
                           return {
-                            bg: 'bg-primary/10',
-                            border: 'border-primary/30',
-                            text: 'text-primary',
-                            glow: 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.4)]'
+                            bg: 'bg-green-500/10',
+                            border: 'border-green-500/30',
+                            text: 'text-green-400',
+                            glow: 'drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]'
                           };
                         };
 
