@@ -68,6 +68,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false);
   const initializationRef = useRef(false);
+  const generateNewSongRef = useRef<(() => Promise<void>) | null>(null);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
@@ -159,14 +160,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               });
               
               // Generate a new song after auto-advance
-              console.log('🎵 Generating new song after auto-advance...');
+              console.log('🎵 Triggering generation after auto-advance...');
               setTimeout(() => {
-                if (!generationLockRef.current && !isGenerating) {
-                  generationLockRef.current = true;
-                  generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true)
-                    .finally(() => {
-                      generationLockRef.current = false;
-                    });
+                if (generateNewSongRef.current) {
+                  generateNewSongRef.current();
                 }
               }, 500);
             } else {
@@ -416,6 +413,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       generationLockRef.current = false;
     }
   };
+
+  // Update ref whenever generateNewSong dependencies change
+  useEffect(() => {
+    generateNewSongRef.current = generateNewSong;
+  }, [wildcardMode, instrumentalMode, selectedGenres, selectedMood, isGenerating, generateWithBuildPrompt]);
 
   const addSongToQueue = async (song: Song) => {
     try {
