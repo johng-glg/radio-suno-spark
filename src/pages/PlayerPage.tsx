@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,27 +86,118 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         setProgress((audio.currentTime / audio.duration) * 100);
       };
       
-      const handleEnded = async () => {
+      const handleSongEnded = async () => {
         console.log('Song ended - auto-advancing to next track');
         try {
-          await handleSkip();
+          setIsSkipping(true);
+          
+          // Check if there's a ready song in queue
+          const { data: readyQueueItems } = await supabase
+            .from('queue')
+            .select('*, songs(*)')
+            .eq('songs.status', 'ready')
+            .not('songs.url', 'is', null)
+            .order('position');
+          
+          const readySongs = readyQueueItems?.filter(item => item.songs).map(item => item.songs as Song) || [];
+          
+          if (readySongs.length > 0) {
+            const nextSong = readySongs[0];
+            console.log(`✅ Auto-advancing to: "${nextSong.title}"`);
+            
+            // Remove from queue
+            const queueItemToRemove = readyQueueItems?.find(item => item.songs?.id === nextSong.id);
+            if (queueItemToRemove) {
+              await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
+            }
+            
+            setCurrentSong(nextSong);
+            setProgress(0);
+            
+            toast({
+              title: 'Next Track',
+              description: nextSong.title,
+            });
+          } else {
+            // No ready songs in queue - get one from library
+            console.log('⚠️ No ready songs in queue - getting from library');
+            
+            // Need to get current values for query
+            const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
+            
+            let query = supabase
+              .from('songs')
+              .select('*')
+              .eq('status', 'ready')
+              .is('requested_by', null)
+              .eq('is_public', true)
+              .not('url', 'is', null);
+            
+            if (genresLowerCase.length > 0) {
+              query = query.in('genre', genresLowerCase);
+            }
+            
+            if (selectedMood) {
+              query = query.eq('mood', selectedMood.toLowerCase());
+            }
+            
+            if (currentSong?.id) {
+              query = query.neq('id', currentSong.id);
+            }
+            
+            const { data: songs } = await query.limit(50);
+            
+            if (songs && songs.length > 0) {
+              const nextSong = songs[Math.floor(Math.random() * songs.length)];
+              console.log(`✅ Auto-playing from library: "${nextSong.title}"`);
+              setCurrentSong(nextSong as Song);
+              setProgress(0);
+              
+              toast({
+                title: 'Next Track',
+                description: nextSong.title,
+              });
+              
+              // Generate a new song after auto-advance
+              console.log('🎵 Generating new song after auto-advance...');
+              setTimeout(() => {
+                if (!generationLockRef.current && !isGenerating) {
+                  generationLockRef.current = true;
+                  generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true)
+                    .finally(() => {
+                      generationLockRef.current = false;
+                    });
+                }
+              }, 500);
+            } else {
+              toast({
+                title: "No Next Song",
+                description: "No songs available.",
+                variant: "destructive"
+              });
+            }
+          }
+          
         } catch (error) {
           console.error('Auto-advance failed:', error);
-          setIsSkipping(false);
+        } finally {
+          setTimeout(() => {
+            setIsSkipping(false);
+          }, 300);
         }
       };
       
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
       audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('ended', handleSongEnded);
       
       return () => {
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
         audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('ended', handleSongEnded);
       };
     }
-  }, [currentSong]);
+  }, [currentSong, selectedGenres, selectedMood, wildcardMode, instrumentalMode, isGenerating, generateWithBuildPrompt, toast]);
 
   // Volume control
   useEffect(() => {
