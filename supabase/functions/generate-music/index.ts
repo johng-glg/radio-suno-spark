@@ -276,12 +276,15 @@ const {
 
     const nextPosition = queueCount && queueCount.length > 0 ? queueCount[0].position + 1 : 1;
 
+    // Use upsert to handle duplicates gracefully
     const { error: queueError } = await serviceClient
       .from('queue')
-      .insert({
+      .upsert({
         song_id: song.id,
         position: nextPosition,
         status: 'queued',
+      }, {
+        onConflict: 'song_id'
       });
 
     if (queueError) {
@@ -414,10 +417,12 @@ const {
           // Add the existing song to queue instead
           const { error: fallbackQueueError } = await serviceClient
             .from('queue')
-            .insert({
+            .upsert({
               song_id: existingSong.id,
               position: nextPosition,
               status: 'ready',
+            }, {
+              onConflict: 'song_id'
             });
 
           if (fallbackQueueError) {

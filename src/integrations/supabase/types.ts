@@ -139,7 +139,7 @@ export type Database = {
           {
             foreignKeyName: "queue_song_id_fkey"
             columns: ["song_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "songs"
             referencedColumns: ["id"]
           },
