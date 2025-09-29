@@ -242,7 +242,10 @@ const {
     
     console.log('Attempting to insert song with user_id:', user_id, 'resolved_user_id:', requesterId);
     
-    const { data: song, error: insertError } = await userClient
+    // Use appropriate client based on song type
+    const insertClient = as_library ? serviceClient : userClient;
+    
+    const { data: song, error: insertError } = await insertClient
       .from('songs')
       .insert({
         prompt: finalPrompt,
