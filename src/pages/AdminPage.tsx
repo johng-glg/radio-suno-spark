@@ -88,8 +88,14 @@ export default function AdminPage() {
   const [bulkGenre, setBulkGenre] = useState<string>('');
   const [bulkMood, setBulkMood] = useState<string>('');
   const [bulkCount, setBulkCount] = useState<number>(1);
-  const [generatingCount, setGeneratingCount] = useState<number>(0);
-  const [totalToGenerate, setTotalToGenerate] = useState<number>(0);
+  
+  // Track multiple concurrent generation batches
+  const [generationBatches, setGenerationBatches] = useState<Map<string, {
+    genre: string;
+    mood: string;
+    total: number;
+    completed: number;
+  }>>(new Map());
 
   useEffect(() => {
     if (isAdmin) {
@@ -245,55 +251,85 @@ export default function AdminPage() {
       return;
     }
 
-    setTotalToGenerate(bulkCount);
-    setGeneratingCount(0);
+    // Create a unique batch ID
+    const batchId = `${bulkGenre}-${bulkMood}-${Date.now()}`;
+    
+    // Add this batch to tracking
+    setGenerationBatches(prev => {
+      const newBatches = new Map(prev);
+      newBatches.set(batchId, {
+        genre: bulkGenre,
+        mood: bulkMood,
+        total: bulkCount,
+        completed: 0
+      });
+      return newBatches;
+    });
 
     toast({
       title: "Bulk Generation Started",
       description: `Generating ${bulkCount} ${bulkGenre} songs with ${bulkMood} mood...`,
     });
 
-    for (let i = 0; i < bulkCount; i++) {
-      try {
-        await generateWithBuildPrompt(
-          false, // wildCardMode
-          false, // makeInstrumental
-          [bulkGenre], // genres
-          bulkMood, // mood
-          true // asLibrary
-        );
+    // Run generation in background without blocking
+    (async () => {
+      for (let i = 0; i < bulkCount; i++) {
+        try {
+          await generateWithBuildPrompt(
+            false, // wildCardMode
+            false, // makeInstrumental
+            [bulkGenre], // genres
+            bulkMood, // mood
+            true // asLibrary
+          );
 
-        setGeneratingCount(prev => prev + 1);
-        
-        toast({
-          title: "Song Generated",
-          description: `Generated ${i + 1} of ${bulkCount} songs`,
-        });
+          // Update batch progress
+          setGenerationBatches(prev => {
+            const newBatches = new Map(prev);
+            const batch = newBatches.get(batchId);
+            if (batch) {
+              batch.completed = i + 1;
+              newBatches.set(batchId, batch);
+            }
+            return newBatches;
+          });
+          
+          toast({
+            title: "Song Generated",
+            description: `Generated ${i + 1} of ${bulkCount} songs`,
+          });
 
-        // Small delay between generations to avoid overwhelming the API
-        if (i < bulkCount - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Small delay between generations to avoid overwhelming the API
+          if (i < bulkCount - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (error) {
+          console.error('Error in bulk generation:', error);
+          toast({
+            title: "Generation Error",
+            description: `Failed to generate song ${i + 1}`,
+            variant: "destructive"
+          });
         }
-      } catch (error) {
-        console.error('Bulk generation error:', error);
-        toast({
-          title: "Generation Error",
-          description: `Failed to generate song ${i + 1}. Continuing with next...`,
-          variant: "destructive"
-        });
       }
-    }
 
-    toast({
-      title: "Bulk Generation Complete",
-      description: `Successfully generated ${bulkCount} songs for ${bulkGenre} - ${bulkMood}`,
-    });
+      toast({
+        title: "Bulk Generation Complete",
+        description: `Successfully generated ${bulkCount} songs for ${bulkGenre} - ${bulkMood}`,
+      });
 
-    setTotalToGenerate(0);
-    setGeneratingCount(0);
-    
-    // Reload stats to show updated library counts
-    await loadStats();
+      // Remove this batch from tracking after a delay
+      setTimeout(() => {
+        setGenerationBatches(prev => {
+          const newBatches = new Map(prev);
+          newBatches.delete(batchId);
+          return newBatches;
+        });
+      }, 3000);
+      
+      // Reload stats to show updated library counts
+      await loadStats();
+    })();
   };
 
   if (loading) {
@@ -588,39 +624,38 @@ export default function AdminPage() {
                     />
                   </div>
 
-                  {totalToGenerate > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Progress:</span>
-                        <span className="font-medium">
-                          {generatingCount} / {totalToGenerate}
-                        </span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all"
-                          style={{ width: `${(generatingCount / totalToGenerate) * 100}%` }}
-                        />
-                      </div>
+                  {/* Show all active generation batches */}
+                  {generationBatches.size > 0 && (
+                    <div className="space-y-3">
+                      <Label>Active Generations:</Label>
+                      {Array.from(generationBatches.entries()).map(([batchId, batch]) => (
+                        <div key={batchId} className="space-y-2 p-3 bg-muted/30 rounded-lg">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium">
+                              {batch.genre} - {batch.mood}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {batch.completed} / {batch.total}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full transition-all"
+                              style={{ width: `${(batch.completed / batch.total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   <Button
                     onClick={handleBulkGenerate}
-                    disabled={isGenerating || !bulkGenre || !bulkMood || totalToGenerate > 0}
+                    disabled={!bulkGenre || !bulkMood}
                     className="w-full"
                   >
-                    {isGenerating || totalToGenerate > 0 ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Generate Songs
-                      </>
-                    )}
+                    <Plus className="mr-2 h-4 w-4" />
+                    Start New Generation
                   </Button>
                 </CardContent>
               </Card>
