@@ -150,6 +150,7 @@ export type Database = {
           created_at: string
           description: string | null
           genre: string
+          holiday: string | null
           id: string
           image_url: string | null
           is_public: boolean | null
@@ -169,6 +170,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           genre: string
+          holiday?: string | null
           id?: string
           image_url?: string | null
           is_public?: boolean | null
@@ -188,6 +190,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           genre?: string
+          holiday?: string | null
           id?: string
           image_url?: string | null
           is_public?: boolean | null

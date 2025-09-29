@@ -29,6 +29,7 @@ interface Song {
   created_at?: string;
   updated_at?: string;
   requested_by?: string | null;
+  holiday?: string | null;
   prompt_metadata?: {
     template_used?: string;
     selected_words?: Record<string, string>;

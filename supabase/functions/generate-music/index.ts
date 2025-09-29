@@ -258,7 +258,8 @@ const {
         status: 'generating',
         description: songDescription,
         requested_by: as_library ? null : requesterId, // Library if as_library
-        is_public: as_library ? true : false // Make library songs public
+        is_public: as_library ? true : false, // Make library songs public
+        holiday: holiday || null
       })
       .select()
       .single();
