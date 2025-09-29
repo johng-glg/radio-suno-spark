@@ -41,7 +41,7 @@ const Index = () => {
     setCurrentPage('auth');
   }
 
-  const handleStartRadio = (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean) => {
+  const handleStartRadio = (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean, holiday?: string) => {
     if (!user) {
       setCurrentPage('auth');
       return;
@@ -50,6 +50,7 @@ const Index = () => {
     setSelectedMood(mood);
     setInstrumentalMode(instrumental || false);
     setWildcardMode(wildcard || false);
+    setHoliday(holiday);
     setCurrentPage('player');
   };
 

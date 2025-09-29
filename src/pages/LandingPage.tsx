@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2 } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
@@ -17,8 +18,12 @@ const MOODS = [
   "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
 ];
 
+const HOLIDAYS = [
+  "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"
+];
+
 interface LandingPageProps {
-  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean) => void;
+  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean, holiday?: string) => void;
   onAuthNavigate: () => void;
   user: AuthUser | null;
 }
@@ -28,6 +33,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [isInstrumental, setIsInstrumental] = useState(false);
   const [isWildcard, setIsWildcard] = useState(false);
+  const [selectedHoliday, setSelectedHoliday] = useState<string | undefined>(undefined);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -40,7 +46,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   };
 
   const handleStartRadio = () => {
-    onStartRadio(selectedGenres, selectedMood || undefined, isInstrumental, isWildcard);
+    onStartRadio(selectedGenres, selectedMood || undefined, isInstrumental, isWildcard, selectedHoliday);
   };
 
   const handleSignOut = async () => {
@@ -203,6 +209,30 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                     checked={isWildcard}
                     onCheckedChange={setIsWildcard}
                   />
+                </div>
+
+                {/* Holiday Theme */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Holiday Theme</p>
+                      <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
+                    </div>
+                  </div>
+                  <Select value={selectedHoliday || "none"} onValueChange={(value) => setSelectedHoliday(value === "none" ? undefined : value)}>
+                    <SelectTrigger className="border-border">
+                      <SelectValue placeholder="No holiday (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="border-border bg-background">
+                      <SelectItem value="none">No Holiday</SelectItem>
+                      {HOLIDAYS.map((holiday) => (
+                        <SelectItem key={holiday} value={holiday}>
+                          {holiday}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
