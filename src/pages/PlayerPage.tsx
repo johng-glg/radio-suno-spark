@@ -194,11 +194,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             description: `Playing ${currentSong.title} instantly`,
           });
           
-          // If we used genre-only fallback for current, trigger background generation
-          if (usedGenreFallback && selectedMood) {
-            console.log('🎯 Triggering background generation for mood-accurate replacement...');
-            setTimeout(() => startGenerationTask(), 500);
-          }
+          // Note: Not generating proactively for genre fallback to avoid multiple generations
           
           // ALWAYS get a next song
           console.log('🔍 Looking for NEXT song with fallback chain...');
@@ -216,11 +212,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             console.log(`✅ NEXT song queued: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood}) - ${nextUsedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
             await addSongToQueue(nextSong);
             
-            // If we used genre-only fallback for next, trigger background generation
-            if (nextUsedGenreFallback && selectedMood) {
-              console.log('🎯 Triggering background generation for mood-accurate next song...');
-              setTimeout(() => startGenerationTask(), 1000);
-            }
+            // Note: Not generating proactively for next song fallback to avoid multiple generations
           } else {
             console.log('⚠️ No next song available in library, will generate...');
             setTimeout(() => startGenerationTask(), 1000);
@@ -311,13 +303,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
           console.log('Genre+Mood combination exhausted:', genreMoodKey);
           
-          // If generate_when_exhausted is true, trigger background generation while we find something to play
-          if (preferences.generate_when_exhausted) {
-            console.log('No unplayed songs for', genreMoodKey, 'will generate fresh content while finding something to play...');
-            // Trigger background generation (don't await)
-            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-              .catch(error => console.error('Background generation failed:', error));
-          }
+          // Note: Not generating proactively when genre+mood exhausted to avoid multiple generations
         }
       }
       
@@ -815,16 +801,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           console.log(`⚠️ No unplayed genre+mood found, using genre fallback: "${anyGenreMatch.title}"`);
           await addSongToQueue(anyGenreMatch);
           
-          // Trigger generation for mood-accurate song if we used genre fallback
-          if (selectedMood && preferences.generate_when_exhausted && generatingSongs.length === 0) {
-            console.log('🎯 Triggering generation for mood-accurate replacement...');
-            setTimeout(() => {
-              if (!generationLockRef.current) {
-                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-                  .catch(error => console.error('Generation failed:', error));
-              }
-            }, 500);
-          }
+          // Note: Not generating when using genre fallback to avoid multiple generations
           return;
         }
         
