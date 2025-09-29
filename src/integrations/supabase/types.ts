@@ -152,6 +152,7 @@ export type Database = {
           genre: string
           id: string
           image_url: string | null
+          is_public: boolean | null
           mood: string | null
           original_song_id: string | null
           prompt: string
@@ -170,6 +171,7 @@ export type Database = {
           genre: string
           id?: string
           image_url?: string | null
+          is_public?: boolean | null
           mood?: string | null
           original_song_id?: string | null
           prompt: string
@@ -188,6 +190,7 @@ export type Database = {
           genre?: string
           id?: string
           image_url?: string | null
+          is_public?: boolean | null
           mood?: string | null
           original_song_id?: string | null
           prompt?: string
