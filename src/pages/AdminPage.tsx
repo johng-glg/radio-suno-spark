@@ -39,6 +39,16 @@ interface AdminStats {
     resubmitted_at?: string | null;
     resubmission_succeeded_at?: string | null;
   }>;
+  recent_songs: Array<{
+    id: string;
+    title: string;
+    genre: string;
+    mood: string;
+    created_at: string;
+    status: string;
+    url: string | null;
+    image_url: string | null;
+  }>;
   top_songs: Array<{
     id: string;
     title: string;
@@ -254,6 +264,7 @@ export default function AdminPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="failed-songs">Failed Generations</TabsTrigger>
+            <TabsTrigger value="recent-songs">Recent Songs</TabsTrigger>
             <TabsTrigger value="top-songs">Top Songs</TabsTrigger>
           </TabsList>
 
@@ -556,9 +567,78 @@ export default function AdminPage() {
                  })()}
                </CardContent>
              </Card>
-           </TabsContent>
+            </TabsContent>
 
-            <TabsContent value="top-songs" className="space-y-6">
+            <TabsContent value="recent-songs" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Songs</CardTitle>
+                  <CardDescription>
+                    10 most recently generated songs
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {stats?.recent_songs && stats.recent_songs.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Genre</TableHead>
+                          <TableHead>Mood</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Created</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stats.recent_songs.map((song) => (
+                          <TableRow key={song.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                {song.image_url && (
+                                  <img 
+                                    src={song.image_url} 
+                                    alt={song.title || 'Song cover'} 
+                                    className="w-10 h-10 rounded object-cover"
+                                  />
+                                )}
+                                <div>
+                                  <p className="font-medium">{song.title || 'Untitled'}</p>
+                                  <p className="text-xs text-muted-foreground">{song.id.slice(0, 8)}...</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="capitalize">
+                                {song.genre}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {song.mood || 'N/A'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={song.status === 'completed' ? 'default' : song.status === 'generating' ? 'secondary' : 'destructive'}>
+                                {song.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(song.created_at).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">
+                      No recent songs found
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+             <TabsContent value="top-songs" className="space-y-6">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
