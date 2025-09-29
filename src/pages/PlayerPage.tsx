@@ -306,10 +306,17 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         return randomGenreSong;
       }
       
-      // Priority 4: Any random song from the Genre (ignore mood)
+  // Priority 4: Only use other moods if user preference allows it
+      // If mood is specified and we've exhausted Genre+Mood, generate new songs instead of falling back
+      if (selectedMood) {
+        console.log('Priority 4: Mood specified and Genre+Mood exhausted, generating new songs for:', selectedMood);
+        return null; // Trigger generation for the specific mood
+      }
+      
+      // Priority 4.5: Any random song from the Genre (ignore mood) - only if no mood specified
       const randomAnyMood = await getRandomGenreAnyMood(excludeSongId);
       if (randomAnyMood) {
-        console.log('Priority 4: Found random Genre (any mood) song:', randomAnyMood.title);
+        console.log('Priority 4.5: Found random Genre (any mood) song:', randomAnyMood.title);
         return randomAnyMood;
       }
       
