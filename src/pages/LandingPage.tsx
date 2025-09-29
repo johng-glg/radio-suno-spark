@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2 } from "lucide-react";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2, Snowflake, Ghost, Star, Leaf, Clover, Flag } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +18,12 @@ const MOODS = [
 ];
 
 const HOLIDAYS = [
-  "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"
+  { name: "Christmas", icon: Snowflake },
+  { name: "Halloween", icon: Ghost },
+  { name: "Hanukkah", icon: Star },
+  { name: "Thanksgiving", icon: Leaf },
+  { name: "St. Patty's Day", icon: Clover },
+  { name: "4th of July", icon: Flag },
 ];
 
 interface LandingPageProps {
@@ -212,7 +216,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                 </div>
 
                 {/* Holiday Theme */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Sparkles className="h-5 w-5 text-muted-foreground" />
                     <div>
@@ -220,19 +224,30 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                       <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
                     </div>
                   </div>
-                  <Select value={selectedHoliday || "none"} onValueChange={(value) => setSelectedHoliday(value === "none" ? undefined : value)}>
-                    <SelectTrigger className="border-border">
-                      <SelectValue placeholder="No holiday (optional)" />
-                    </SelectTrigger>
-                    <SelectContent className="border-border bg-background">
-                      <SelectItem value="none">No Holiday</SelectItem>
-                      {HOLIDAYS.map((holiday) => (
-                        <SelectItem key={holiday} value={holiday}>
-                          {holiday}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-3 gap-3">
+                    {HOLIDAYS.map((holiday) => {
+                      const Icon = holiday.icon;
+                      return (
+                        <button
+                          key={holiday.name}
+                          onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
+                          className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                            selectedHoliday === holiday.name
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
+                          }`}
+                        >
+                          <Icon className="h-6 w-6 mb-2" />
+                          <span className="text-xs font-medium text-center">{holiday.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selectedHoliday && (
+                    <p className="text-xs text-muted-foreground">
+                      🎉 {selectedHoliday} theme will be applied to generated songs
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
