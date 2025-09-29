@@ -66,17 +66,18 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [exhaustedGenreMoods, setExhaustedGenreMoods] = useState<Set<string>>(new Set());
-  const [genreMoodGenerationLocks, setGenreMoodGenerationLocks] = useState<Set<string>>(new Set());
+  
   const [isSkipping, setIsSkipping] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false); // prevent concurrent generations
   const initializationRef = useRef(false); // prevent multiple initializations
+  const genreMoodGenLocksRef = useRef<Set<string>>(new Set()); // per-combo generation locks
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
   const { preferences, toggleWildCardMode, addExclusion, updatePreferences } = useUserPreferences();
-  
+
 
   // Audio element setup
   useEffect(() => {
@@ -168,7 +169,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     setCurrentSong(null);
     setQueue([]);
     setExhaustedGenreMoods(new Set());
-    setGenreMoodGenerationLocks(new Set()); // Clear generation locks on genre/mood change
+    genreMoodGenLocksRef.current = new Set(); // Clear per-combo generation locks
     
     const initializeQueue = async () => {
       try {
@@ -216,8 +217,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             
             // Note: Not generating proactively for next song fallback to avoid multiple generations
           } else {
-            console.log('⚠️ No next song available in library, will generate...');
-            setTimeout(() => startGenerationTask(), 1000);
+            console.log('⚠️ No next song available in library, will generate via maintainQueue...');
           }
           
           // Call maintainQueue to top up
@@ -305,23 +305,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
           console.log('Genre+Mood combination exhausted:', genreMoodKey);
           
-          // If generate_when_exhausted is true and no generation is in progress for this combo, trigger generation
-          if (preferences.generate_when_exhausted && !genreMoodGenerationLocks.has(genreMoodKey)) {
-            console.log('🎯 Triggering generation for exhausted combo:', genreMoodKey);
-            setGenreMoodGenerationLocks(prev => new Set([...prev, genreMoodKey]));
-            
-            // Generate in background (don't await)
-            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-              .finally(() => {
-                // Remove lock when generation completes (success or failure)
-                setGenreMoodGenerationLocks(prev => {
-                  const newSet = new Set(prev);
-                  newSet.delete(genreMoodKey);
-                  return newSet;
-                });
-              })
-              .catch(error => console.error('Background generation failed:', error));
-          }
         }
       }
       
@@ -654,10 +637,26 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
+  // Per-combo generation lock helpers
+  const getComboKey = () => {
+    const genres = [...selectedGenres].map(g => g.toLowerCase()).sort();
+    const mood = (selectedMood || 'any').toLowerCase();
+    return `${genres.join('|')}::${mood}`;
+  };
+  const acquireComboLock = (key: string) => {
+    if (genreMoodGenLocksRef.current.has(key)) return false;
+    genreMoodGenLocksRef.current.add(key);
+    return true;
+  };
+  const releaseComboLock = (key: string) => {
+    genreMoodGenLocksRef.current.delete(key);
+  };
+
   // Start a generation task for selected Genre + Mood
-  const startGenerationTask = async () => {
+  const startGenerationTask = async (comboKey?: string) => {
     if (generationLockRef.current || isGenerating) {
       console.log('Generation already in progress, skipping...');
+      if (comboKey) releaseComboLock(comboKey);
       return;
     }
     
@@ -669,9 +668,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     } catch (error) {
       console.error('Error in generation task:', error);
     } finally {
-      setTimeout(() => {
-        generationLockRef.current = false;
-      }, 5000);
+      generationLockRef.current = false;
+      if (comboKey) releaseComboLock(comboKey);
     }
   };
 
@@ -821,22 +819,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           
           // If we used genre fallback and mood is specified, trigger generation for the specific mood
           if (selectedMood && preferences.generate_when_exhausted) {
-            const genreMoodKey = `${selectedGenres.map(g => g.toLowerCase()).join(',')}-${selectedMood}`;
-            if (!genreMoodGenerationLocks.has(genreMoodKey)) {
+            const comboKey = getComboKey();
+            if (acquireComboLock(comboKey)) {
               console.log('🎯 Triggering generation for mood-accurate replacement...');
-              setGenreMoodGenerationLocks(prev => new Set([...prev, genreMoodKey]));
-              
-              setTimeout(() => {
-                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-                  .catch(error => console.error('Generation failed:', error))
-                  .finally(() => {
-                    setGenreMoodGenerationLocks(prev => {
-                      const newSet = new Set(prev);
-                      newSet.delete(genreMoodKey);
-                      return newSet;
-                    });
-                  });
-              }, 500);
+              startGenerationTask(comboKey);
+            } else {
+              console.log('Generation already locked for combo:', comboKey);
             }
           }
           return;
@@ -844,13 +832,13 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         
         // Step 3: Generate if no library songs and generation enabled
         if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
-          console.log('🎯 No library matches found, starting generation...');
-          setTimeout(() => {
-            if (!generationLockRef.current) {
-              generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-                .catch(error => console.error('Generation failed:', error));
-            }
-          }, 500);
+          const comboKey = getComboKey();
+          if (acquireComboLock(comboKey)) {
+            console.log('🎯 No library matches found, starting generation...');
+            startGenerationTask(comboKey);
+          } else {
+            console.log('Generation already locked for combo:', comboKey);
+          }
         }
       }
       
@@ -1048,11 +1036,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             description: nextSong.title,
           });
           
-          // If we used genre-only fallback, trigger background generation for mood-accurate replacement
-          if (usedGenreFallback && selectedMood) {
-            console.log('🎯 Triggering background generation for mood-accurate replacement...');
-            setTimeout(() => startGenerationTask(), 500);
-          }
+          // Generation will be handled by maintainQueue
           
           // Maintain queue to ensure we have more songs
           setTimeout(() => {
@@ -1067,8 +1051,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             variant: "destructive"
           });
           
-          // Try to generate as last resort
-          setTimeout(() => startGenerationTask(), 500);
+          // Try to maintain queue as last resort
+          setTimeout(() => maintainQueue(), 500);
         }
       }
       
