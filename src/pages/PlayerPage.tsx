@@ -479,11 +479,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Fallback: Get any random song from Genre (ignore mood)
+  // Priority 4: Get unplayed song from Genre (ignore mood), fallback to any genre song
   const getRandomGenreAnyMood = async (excludeSongId?: string): Promise<Song | null> => {
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      console.log(`Fallback: Looking for random songs by Genre only: ${genresLowerCase.join(',')}`);
+      console.log(`Priority 4: Looking for unplayed songs by Genre: ${genresLowerCase.join(',')}`);
       
       let query = supabase
         .from('songs')
@@ -500,18 +500,42 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         query = query.neq('id', excludeSongId);
       }
       
-      const { data: songs, error } = await query.limit(30);
+      const { data: songs, error } = await query.limit(50);
       
       if (error || !songs || songs.length === 0) {
-        console.log('Fallback: No random songs found by Genre only');
+        console.log('Priority 4: No songs found by Genre');
         return null;
       }
+
+      // If user is authenticated, try to find unplayed songs first
+      if (user) {
+        // Get user's played songs for this genre
+        const { data: playedSongs, error: playsError } = await supabase
+          .from('user_song_plays')
+          .select('song_id')
+          .eq('user_id', user.id)
+          .in('song_id', songs.map(s => s.id));
+
+        if (!playsError) {
+          const playedSongIds = new Set(playedSongs?.map(p => p.song_id) || []);
+          const unplayedSongs = songs.filter(song => !playedSongIds.has(song.id));
+          
+          if (unplayedSongs.length > 0) {
+            const randomUnplayedSong = unplayedSongs[Math.floor(Math.random() * unplayedSongs.length)];
+            console.log(`Priority 4: Selected unplayed song: ${randomUnplayedSong.title} (${randomUnplayedSong.genre} - ${randomUnplayedSong.mood})`);
+            return cleanSongObject(randomUnplayedSong);
+          }
+          
+          console.log('Priority 4: All genre songs have been played, falling back to any genre song');
+        }
+      }
       
+      // Fallback: return any random song from the genre
       const randomSong = songs[Math.floor(Math.random() * songs.length)];
-      console.log(`Fallback: Selected Genre-only song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
+      console.log(`Priority 4: Selected random genre song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
       return cleanSongObject(randomSong);
     } catch (error) {
-      console.error('Error getting random Genre-only song:', error);
+      console.error('Error getting random Genre song:', error);
       return null;
     }
   };
