@@ -66,6 +66,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [exhaustedGenreMoods, setExhaustedGenreMoods] = useState<Set<string>>(new Set());
+  const [genreMoodGenerationLocks, setGenreMoodGenerationLocks] = useState<Set<string>>(new Set());
   const [isSkipping, setIsSkipping] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -167,6 +168,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     setCurrentSong(null);
     setQueue([]);
     setExhaustedGenreMoods(new Set());
+    setGenreMoodGenerationLocks(new Set()); // Clear generation locks on genre/mood change
     
     const initializeQueue = async () => {
       try {
@@ -303,7 +305,23 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
           console.log('Genre+Mood combination exhausted:', genreMoodKey);
           
-          // Note: Not generating proactively when genre+mood exhausted to avoid multiple generations
+          // If generate_when_exhausted is true and no generation is in progress for this combo, trigger generation
+          if (preferences.generate_when_exhausted && !genreMoodGenerationLocks.has(genreMoodKey)) {
+            console.log('🎯 Triggering generation for exhausted combo:', genreMoodKey);
+            setGenreMoodGenerationLocks(prev => new Set([...prev, genreMoodKey]));
+            
+            // Generate in background (don't await)
+            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+              .finally(() => {
+                // Remove lock when generation completes (success or failure)
+                setGenreMoodGenerationLocks(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(genreMoodKey);
+                  return newSet;
+                });
+              })
+              .catch(error => console.error('Background generation failed:', error));
+          }
         }
       }
       
@@ -801,7 +819,26 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           console.log(`⚠️ No unplayed genre+mood found, using genre fallback: "${anyGenreMatch.title}"`);
           await addSongToQueue(anyGenreMatch);
           
-          // Note: Not generating when using genre fallback to avoid multiple generations
+          // If we used genre fallback and mood is specified, trigger generation for the specific mood
+          if (selectedMood && preferences.generate_when_exhausted) {
+            const genreMoodKey = `${selectedGenres.map(g => g.toLowerCase()).join(',')}-${selectedMood}`;
+            if (!genreMoodGenerationLocks.has(genreMoodKey)) {
+              console.log('🎯 Triggering generation for mood-accurate replacement...');
+              setGenreMoodGenerationLocks(prev => new Set([...prev, genreMoodKey]));
+              
+              setTimeout(() => {
+                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+                  .catch(error => console.error('Generation failed:', error))
+                  .finally(() => {
+                    setGenreMoodGenerationLocks(prev => {
+                      const newSet = new Set(prev);
+                      newSet.delete(genreMoodKey);
+                      return newSet;
+                    });
+                  });
+              }, 500);
+            }
+          }
           return;
         }
         
