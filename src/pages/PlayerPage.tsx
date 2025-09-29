@@ -29,13 +29,11 @@ interface Song {
   created_at?: string;
   updated_at?: string;
   requested_by?: string | null;
-  // New fields for Build Prompt metadata
   prompt_metadata?: {
     template_used?: string;
     selected_words?: Record<string, string>;
     wild_card_applied?: boolean;
   };
-  // User interaction
   user_interaction?: 'like' | 'dislike' | null;
 }
 
@@ -65,19 +63,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [lastDislikedElements, setLastDislikedElements] = useState<{mood?: string, instrument?: string}>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
-  const [exhaustedGenreMoods, setExhaustedGenreMoods] = useState<Set<string>>(new Set());
-  
   const [isSkipping, setIsSkipping] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
-  const generationLockRef = useRef(false); // prevent concurrent generations
-  const initializationRef = useRef(false); // prevent multiple initializations
-  const genreMoodGenLocksRef = useRef<Set<string>>(new Set()); // per-combo generation locks
+  const generationLockRef = useRef(false);
+  const initializationRef = useRef(false);
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
   const { preferences, toggleWildCardMode, addExclusion, updatePreferences } = useUserPreferences();
-
 
   // Audio element setup
   useEffect(() => {
@@ -96,10 +90,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         console.log('Song ended - auto-advancing to next track');
         try {
           await handleSkip();
-          console.log('Auto-advance completed successfully');
         } catch (error) {
           console.error('Auto-advance failed:', error);
-          // Reset isSkipping if auto-advance fails
           setIsSkipping(false);
         }
       };
@@ -145,18 +137,15 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     if (currentSong?.url && audioRef.current) {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
-        // Track the play when song auto-plays successfully
         trackSongPlay();
       }).catch((error) => {
         console.log('Auto-play prevented by browser:', error);
-        // Don't show error toast for auto-play prevention, it's expected behavior
       });
     }
   }, [currentSong?.url]);
 
-  // Initialize queue with ALWAYS PLAY logic
+  // Initialize queue with simplified logic
   useEffect(() => {
-    // Prevent duplicate initializations
     if (initializationRef.current) {
       console.log('Initialization already in progress, skipping...');
       return;
@@ -164,12 +153,9 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     
     initializationRef.current = true;
     
-    // Clear existing songs when genre selection changes
-    console.log('🎵 INITIALIZATION: Genre/mood changed, clearing queue and finding songs...');
+    console.log('🎵 INITIALIZATION: Setting up player...');
     setCurrentSong(null);
     setQueue([]);
-    setExhaustedGenreMoods(new Set());
-    genreMoodGenLocksRef.current = new Set(); // Clear per-combo generation locks
     
     const initializeQueue = async () => {
       try {
@@ -177,59 +163,33 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         await supabase.from('queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         console.log('🗂️ Database queue cleared');
         
-        // ALWAYS get a current song with robust fallback
-        console.log('🔍 Looking for CURRENT song with fallback chain...');
-        let currentSong = await getNextSongByPriority();
-        let usedGenreFallback = false;
-        
-        // If no genre+mood match, try genre-only for current
-        if (!currentSong) {
-          console.log('⚠️ No genre+mood songs found, trying genre-only for current...');
-          currentSong = await getRandomGenreAnyMood();
-          usedGenreFallback = true;
-        }
+        // Step 1: Get random genre+mood song to play immediately
+        const currentSong = await getRandomGenreMoodSong([]);
         
         if (currentSong) {
-          console.log(`✅ CURRENT song selected: "${currentSong.title}" (${currentSong.genre}-${currentSong.mood}) - ${usedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
+          console.log(`✅ Playing: "${currentSong.title}" (${currentSong.genre}-${currentSong.mood})`);
           setCurrentSong(currentSong);
           toast({
             title: "Music Ready!",
-            description: `Playing ${currentSong.title} instantly`,
+            description: `Playing ${currentSong.title}`,
           });
           
-          // Note: Not generating proactively for genre fallback to avoid multiple generations
-          
-          // ALWAYS get a next song
-          console.log('🔍 Looking for NEXT song with fallback chain...');
-          let nextSong = await getNextSongByPriority(currentSong.id);
-          let nextUsedGenreFallback = false;
-          
-          // If no genre+mood match for next, try genre-only
-          if (!nextSong) {
-            console.log('⚠️ No genre+mood songs found for next, trying genre-only...');
-            nextSong = await getRandomGenreAnyMood(currentSong.id);
-            nextUsedGenreFallback = true;
-          }
-          
+          // Step 2: Get a different random genre+mood song for queue
+          const nextSong = await getRandomGenreMoodSong([currentSong.id]);
           if (nextSong) {
-            console.log(`✅ NEXT song queued: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood}) - ${nextUsedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
+            console.log(`✅ Queued: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood})`);
             await addSongToQueue(nextSong);
-            
-            // Note: Not generating proactively for next song fallback to avoid multiple generations
-          } else {
-            console.log('⚠️ No next song available in library, will generate via maintainQueue...');
           }
           
-          // Call maintainQueue to top up
-          console.log('🔄 Calling maintainQueue to ensure queue is full...');
-          setTimeout(() => maintainQueue(), 2000);
+          // Step 3: Generate a new song
+          console.log('🎵 Generating new song for queue...');
+          setTimeout(() => generateNewSong(), 1000);
           
         } else {
-          // Absolutely no songs in library - this should never happen with 100+ songs
-          console.error('❌ CRITICAL: No songs found in library at all! This should not happen.');
+          console.error('❌ No songs found in library');
           toast({
             title: "Error",
-            description: "No songs available in library. Please check your music collection.",
+            description: "No songs available. Please check your music collection.",
             variant: "destructive"
           });
         }
@@ -238,11 +198,10 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         console.error('❌ Error initializing queue:', error);
         toast({
           title: "Error",
-          description: "Failed to initialize music queue. Please try again.",
+          description: "Failed to initialize music queue.",
           variant: "destructive"
         });
       } finally {
-        // Reset initialization flag after a delay
         setTimeout(() => {
           initializationRef.current = false;
         }, 2000);
@@ -286,293 +245,44 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     };
   }, [selectedGenres, selectedMood]);
 
-  // New priority-based song selection system
-  const getNextSongByPriority = async (excludeSongId?: string): Promise<Song | null> => {
+  // Simple: Get random song matching genre + mood
+  const getRandomGenreMoodSong = async (excludeIds: string[]): Promise<Song | null> => {
     try {
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      const genreMoodKey = `${genresLowerCase.join(',')}-${selectedMood || 'any'}`;
-      
-      console.log('Getting next song by priority for:', genreMoodKey);
-      
-      // Priority 1: Random unplayed song matching both Genre + Mood
-      if (!exhaustedGenreMoods.has(genreMoodKey)) {
-        const unplayedSong = await getUnplayedGenreMoodSong(excludeSongId);
-        if (unplayedSong) {
-          console.log('Priority 1: Found unplayed Genre+Mood song:', unplayedSong.title);
-          return unplayedSong;
-        } else {
-          // Mark this Genre+Mood as exhausted
-          setExhaustedGenreMoods(prev => new Set([...prev, genreMoodKey]));
-          console.log('Genre+Mood combination exhausted:', genreMoodKey);
-          
-        }
-      }
-      
-      // Priority 2: Random song matching Genre that has been Liked by user
-      if (user) {
-        const likedSong = await getLikedGenreSong(excludeSongId);
-        if (likedSong) {
-          console.log('Priority 2: Found liked Genre song:', likedSong.title);
-          return likedSong;
-        }
-      }
-      
-      // Priority 3: Any random song from the Genre + Mood
-      const randomGenreSong = await getRandomGenreSong(excludeSongId);
-      if (randomGenreSong) {
-        console.log('Priority 3: Found random Genre+Mood song:', randomGenreSong.title);
-        return randomGenreSong;
-      }
-      
-  // Priority 4: Only use other moods if user preference allows it
-      // If mood is specified and we've exhausted Genre+Mood, generate new songs instead of falling back
-      if (selectedMood) {
-        console.log('Priority 4: Mood specified and Genre+Mood exhausted, generating new songs for:', selectedMood);
-        return null; // Trigger generation for the specific mood
-      }
-      
-      // Priority 4.5: Any random song from the Genre (ignore mood) - only if no mood specified
-      const randomAnyMood = await getRandomGenreAnyMood(excludeSongId);
-      if (randomAnyMood) {
-        console.log('Priority 4.5: Found random Genre (any mood) song:', randomAnyMood.title);
-        return randomAnyMood;
-      }
-      
-      // Priority 5: Generate new song (return null to trigger generation)
-      console.log('Priority 5: No library songs available in genre, need generation');
-      return null;
-      
-    } catch (error) {
-      console.error('Error in getNextSongByPriority:', error);
-      return null;
-    }
-  };
-
-  // Priority 1: Get unplayed song matching Genre + Mood
-  const getUnplayedGenreMoodSong = async (excludeSongId?: string): Promise<Song | null> => {
-    if (!user) return null;
-    
-    try {
-      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      
-      let query = supabase
-        .from('songs')
-        .select('*')
-        .eq('status', 'ready')
-        .is('requested_by', null) // Library songs only
-        .eq('is_public', true) // Only public library songs
-        .not('url', 'is', null);
-      
-      if (genresLowerCase.length > 0) {
-        query = query.in('genre', genresLowerCase);
-      }
-      
-      if (selectedMood) {
-        query = query.eq('mood', selectedMood.toLowerCase());
-      }
-      
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
-      }
-      
-      const { data: songs, error } = await query.limit(50);
-      
-      if (error || !songs || songs.length === 0) {
-        console.log('Priority 1: No unplayed Genre+Mood songs found');
-        return null;
-      }
-      
-      console.log(`Priority 1: Found ${songs.length} Genre+Mood songs, checking play status`);
-      
-      // Filter to only unplayed songs
-      const unplayedSongs = [];
-      for (const song of songs) {
-        const { data: playData } = await supabase
-          .from('user_song_plays')
-          .select('play_count')
-          .eq('user_id', user.id)
-          .eq('song_id', song.id)
-          .maybeSingle();
-          
-        if (!playData || playData.play_count === 0) {
-          unplayedSongs.push(song);
-        }
-      }
-      
-      if (unplayedSongs.length === 0) {
-        console.log('Priority 1: All Genre+Mood songs have been played');
-        return null;
-      }
-      
-      console.log(`Priority 1: Found ${unplayedSongs.length} unplayed Genre+Mood songs`);
-      // Return random unplayed song
-      const randomSong = unplayedSongs[Math.floor(Math.random() * unplayedSongs.length)];
-      console.log(`Priority 1: Selected unplayed song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
-      return cleanSongObject(randomSong);
-      
-    } catch (error) {
-      console.error('Error getting unplayed Genre+Mood song:', error);
-      return null;
-    }
-  };
-
-  // Priority 2: Get liked song matching Genre + Mood
-  const getLikedGenreSong = async (excludeSongId?: string): Promise<Song | null> => {
-    if (!user) return null;
-    
-    try {
-      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      console.log(`Priority 2: Looking for liked songs - Genre: ${genresLowerCase.join(',')}, Mood: ${selectedMood || 'any'}`);
-      
-      let query = supabase
-        .from('songs')
-        .select(`
-          *,
-          user_song_interactions!inner(interaction_type)
-        `)
-        .eq('status', 'ready')
-        .is('requested_by', null) // Library songs only
-        .eq('is_public', true) // Only public library songs
-        .not('url', 'is', null)
-        .eq('user_song_interactions.user_id', user.id)
-        .eq('user_song_interactions.interaction_type', 'like');
-      
-      if (genresLowerCase.length > 0) {
-        query = query.in('genre', genresLowerCase);
-      }
-      
-      // Add mood filtering - this was missing!
-      if (selectedMood) {
-        query = query.eq('mood', selectedMood.toLowerCase());
-      }
-      
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
-      }
-      
-      const { data: songs, error } = await query.limit(20);
-      
-      if (error || !songs || songs.length === 0) {
-        console.log('Priority 2: No liked Genre+Mood songs found');
-        return null;
-      }
-      
-      console.log(`Priority 2: Found ${songs.length} liked Genre+Mood songs`);
-      // Return random liked song
-      const randomSong = songs[Math.floor(Math.random() * songs.length)];
-      console.log(`Priority 2: Selected liked song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
-      return cleanSongObject(randomSong);
-      
-    } catch (error) {
-      console.error('Error getting liked Genre song:', error);
-      return null;
-    }
-  };
-
-  // Priority 3: Get any random song from Genre + Mood
-  const getRandomGenreSong = async (excludeSongId?: string): Promise<Song | null> => {
-    try {
-      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      console.log(`Priority 3: Looking for random songs - Genre: ${genresLowerCase.join(',')}, Mood: ${selectedMood || 'any'}`);
-      
-      let query = supabase
-        .from('songs')
-        .select('*')
-        .eq('status', 'ready')
-        .is('requested_by', null) // Library songs only
-        .eq('is_public', true) // Only public library songs
-        .not('url', 'is', null);
-      
-      if (genresLowerCase.length > 0) {
-        query = query.in('genre', genresLowerCase);
-      }
-      
-      // Mood-specific random
-      if (selectedMood) {
-        query = query.eq('mood', selectedMood.toLowerCase());
-      }
-      
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
-      }
-      
-      const { data: songs, error } = await query.limit(30);
-      
-      if (error || !songs || songs.length === 0) {
-        console.log('Priority 3: No random Genre+Mood songs found');
-        return null;
-      }
-      
-      console.log(`Priority 3: Found ${songs.length} random Genre+Mood songs`);
-      // Return random song
-      const randomSong = songs[Math.floor(Math.random() * songs.length)];
-      console.log(`Priority 3: Selected random song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
-      return cleanSongObject(randomSong);
-      
-    } catch (error) {
-      console.error('Error getting random Genre song:', error);
-      return null;
-    }
-  };
-
-  // Priority 4: Get unplayed song from Genre (ignore mood), fallback to any genre song
-  const getRandomGenreAnyMood = async (excludeSongId?: string): Promise<Song | null> => {
-    try {
-      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      console.log(`Priority 4: Looking for unplayed songs by Genre: ${genresLowerCase.join(',')}`);
       
       let query = supabase
         .from('songs')
         .select('*')
         .eq('status', 'ready')
         .is('requested_by', null)
-        .eq('is_public', true) // Only public library songs
+        .eq('is_public', true)
         .not('url', 'is', null);
       
       if (genresLowerCase.length > 0) {
         query = query.in('genre', genresLowerCase);
       }
       
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
+      if (selectedMood) {
+        query = query.eq('mood', selectedMood.toLowerCase());
+      }
+      
+      if (excludeIds.length > 0) {
+        query = query.not('id', 'in', `(${excludeIds.join(',')})`);
       }
       
       const { data: songs, error } = await query.limit(50);
       
       if (error || !songs || songs.length === 0) {
-        console.log('Priority 4: No songs found by Genre');
+        console.log('No genre+mood songs found');
         return null;
       }
-
-      // If user is authenticated, try to find unplayed songs first
-      if (user) {
-        // Get user's played songs for this genre
-        const { data: playedSongs, error: playsError } = await supabase
-          .from('user_song_plays')
-          .select('song_id')
-          .eq('user_id', user.id)
-          .in('song_id', songs.map(s => s.id));
-
-        if (!playsError) {
-          const playedSongIds = new Set(playedSongs?.map(p => p.song_id) || []);
-          const unplayedSongs = songs.filter(song => !playedSongIds.has(song.id));
-          
-          if (unplayedSongs.length > 0) {
-            const randomUnplayedSong = unplayedSongs[Math.floor(Math.random() * unplayedSongs.length)];
-            console.log(`Priority 4: Selected unplayed song: ${randomUnplayedSong.title} (${randomUnplayedSong.genre} - ${randomUnplayedSong.mood})`);
-            return cleanSongObject(randomUnplayedSong);
-          }
-          
-          console.log('Priority 4: All genre songs have been played, falling back to any genre song');
-        }
-      }
       
-      // Fallback: return any random song from the genre
       const randomSong = songs[Math.floor(Math.random() * songs.length)];
-      console.log(`Priority 4: Selected random genre song: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
+      console.log(`Selected: ${randomSong.title} (${randomSong.genre} - ${randomSong.mood})`);
       return cleanSongObject(randomSong);
+      
     } catch (error) {
-      console.error('Error getting random Genre song:', error);
+      console.error('Error getting random song:', error);
       return null;
     }
   };
@@ -597,85 +307,27 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     };
   };
 
-  // Check if there are any library songs available for current selection
-  const checkLibrarySongsAvailable = async (excludeSongId?: string, ignoreMood: boolean = false): Promise<boolean> => {
-    try {
-      const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
-      
-      let query = supabase
-        .from('songs')
-        .select('id')
-        .eq('status', 'ready')
-        .is('requested_by', null) // Library songs only
-        .eq('is_public', true) // Only public library songs
-        .not('url', 'is', null);
-      
-      if (genresLowerCase.length > 0) {
-        query = query.in('genre', genresLowerCase);
-      }
-      
-      if (!ignoreMood && selectedMood) {
-        query = query.eq('mood', selectedMood.toLowerCase());
-      }
-      
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
-      }
-      
-      const { data: songs, error } = await query.limit(1);
-      
-      if (error) {
-        console.error('Error checking library songs:', error);
-        return false;
-      }
-      
-      return (songs && songs.length > 0);
-      
-    } catch (error) {
-      console.error('Error checking library songs availability:', error);
-      return false;
-    }
-  };
-
-  // Per-combo generation lock helpers
-  const getComboKey = () => {
-    const genres = [...selectedGenres].map(g => g.toLowerCase()).sort();
-    const mood = (selectedMood || 'any').toLowerCase();
-    return `${genres.join('|')}::${mood}`;
-  };
-  const acquireComboLock = (key: string) => {
-    if (genreMoodGenLocksRef.current.has(key)) return false;
-    genreMoodGenLocksRef.current.add(key);
-    return true;
-  };
-  const releaseComboLock = (key: string) => {
-    genreMoodGenLocksRef.current.delete(key);
-  };
-
-  // Start a generation task for selected Genre + Mood
-  const startGenerationTask = async (comboKey?: string) => {
+  // Simple: Generate new song for current genre + mood
+  const generateNewSong = async () => {
     if (generationLockRef.current || isGenerating) {
       console.log('Generation already in progress, skipping...');
-      if (comboKey) releaseComboLock(comboKey);
       return;
     }
     
     generationLockRef.current = true;
-    console.log('Starting generation task for Genre + Mood...');
+    console.log('🎵 Generating new song for genre + mood...');
     
     try {
       await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true);
     } catch (error) {
-      console.error('Error in generation task:', error);
+      console.error('Error generating song:', error);
     } finally {
       generationLockRef.current = false;
-      if (comboKey) releaseComboLock(comboKey);
     }
   };
 
   const addSongToQueue = async (song: Song) => {
     try {
-      // Guard: only add songs matching current selected genres
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
       if (genresLowerCase.length > 0 && !genresLowerCase.includes((song.genre || '').toLowerCase())) {
         console.log('Skipping addSongToQueue: song genre does not match selection', song.genre, selectedGenres);
@@ -689,7 +341,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         .eq('song_id', song.id)
         .maybeSingle();
         
-      if (existingQueue) return; // Already in queue
+      if (existingQueue) return;
       
       // Get next position
       const { data: queueCount } = await supabase
@@ -710,156 +362,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       console.log('Added song to queue at position:', nextPosition);
     } catch (error) {
       console.error('Error adding song to queue:', error);
-    }
-  };
-
-  // Get unplayed genre+mood songs for current user
-  const getGenreMoodUnplayed = async (excludeSongId?: string, excludeSecondId?: string) => {
-    if (!user) return null;
-    
-    const genresLowerCase = selectedGenres?.map(g => g.toLowerCase()) || [];
-    const moodLowerCase = selectedMood?.toLowerCase();
-    
-    if (genresLowerCase.length === 0 || !moodLowerCase) return null;
-    
-    try {
-      let query = supabase
-        .from('songs')
-        .select('*')
-        .eq('status', 'ready')
-        .is('requested_by', null)
-        .eq('is_public', true)
-        .not('url', 'is', null);
-      
-      if (genresLowerCase.length > 0) {
-        query = query.in('genre', genresLowerCase);
-      }
-      if (moodLowerCase) {
-        query = query.eq('mood', moodLowerCase);
-      }
-      if (excludeSongId) {
-        query = query.neq('id', excludeSongId);
-      }
-      if (excludeSecondId) {
-        query = query.neq('id', excludeSecondId);
-      }
-      
-      const { data: songs, error } = await query;
-      
-      if (error || !songs || songs.length === 0) {
-        return null;
-      }
-      
-      // Filter to only unplayed songs for this user
-      const unplayedSongs = [];
-      for (const song of songs) {
-        const { data: playData } = await supabase
-          .from('user_song_plays')
-          .select('play_count')
-          .eq('user_id', user.id)
-          .eq('song_id', song.id)
-          .maybeSingle();
-          
-        if (!playData || playData.play_count === 0) {
-          unplayedSongs.push(song);
-        }
-      }
-      
-      if (unplayedSongs.length === 0) return null;
-      
-      // Return random unplayed song
-      const randomIndex = Math.floor(Math.random() * unplayedSongs.length);
-      return unplayedSongs[randomIndex];
-      
-    } catch (error) {
-      console.error('Error in getGenreMoodUnplayed:', error);
-      return null;
-    }
-  };
-
-  // Enhanced queue system with database-first ready checking
-  const maintainQueue = async () => {
-    try {
-      // Query database for actual ready songs, not local state
-      const { data: queueItems } = await supabase
-        .from('queue')
-        .select('*, songs(*)')
-        .not('songs.url', 'is', null)
-        .eq('songs.status', 'ready')
-        .order('position');
-      
-      const readySongs = queueItems?.filter(item => item.songs).map(item => item.songs) || [];
-      
-      const { data: generatingItems } = await supabase
-        .from('queue')
-        .select('*, songs(*)')
-        .eq('songs.status', 'generating');
-      
-      const generatingSongs = generatingItems?.filter(item => item.songs).map(item => item.songs) || [];
-      
-      console.log(`🔄 MAINTAIN QUEUE: ${readySongs.length} ready, ${generatingSongs.length} generating in database`);
-      
-      // Only add songs if we have less than 2 ready songs in database
-      if (readySongs.length < 2) {
-        console.log('🎵 Queue needs more songs');
-        
-        // Check if there are songs generating for current genre+mood combo
-        const currentGenresLower = selectedGenres.map(g => g.toLowerCase());
-        const currentMoodLower = selectedMood?.toLowerCase();
-        
-        const generatingForCurrentCombo = generatingSongs.some(song => {
-          const songGenreMatches = currentGenresLower.length === 0 || currentGenresLower.includes((song.genre || '').toLowerCase());
-          const songMoodMatches = !currentMoodLower || (song.mood || '').toLowerCase() === currentMoodLower;
-          return songGenreMatches && songMoodMatches;
-        });
-        
-        if (generatingForCurrentCombo) {
-          console.log('🎯 Song already generating for current genre+mood combo, waiting instead of adding library songs');
-          return; // Don't add library songs, wait for the generating song
-        }
-        
-        // Step 1: Try to find ONE unplayed genre+mood match
-        const unplayedGenreMood = await getGenreMoodUnplayed(currentSong?.id);
-        if (unplayedGenreMood) {
-          console.log(`✅ Found unplayed genre+mood match: "${unplayedGenreMood.title}"`);
-          await addSongToQueue(unplayedGenreMood);
-          return; // Found what we need, exit early
-        }
-        
-        // Step 2: If no unplayed genre+mood, find ONE genre match (but only if no generation in progress for combo)
-        const anyGenreMatch = await getRandomGenreAnyMood(currentSong?.id);
-        if (anyGenreMatch) {
-          console.log(`⚠️ No unplayed genre+mood found, using genre fallback: "${anyGenreMatch.title}"`);
-          await addSongToQueue(anyGenreMatch);
-          
-          // If we used genre fallback and mood is specified, trigger generation for the specific mood
-          if (selectedMood && preferences.generate_when_exhausted) {
-            const comboKey = getComboKey();
-            if (acquireComboLock(comboKey)) {
-              console.log('🎯 Triggering generation for mood-accurate replacement...');
-              startGenerationTask(comboKey);
-            } else {
-              console.log('Generation already locked for combo:', comboKey);
-            }
-          }
-          return;
-        }
-        
-        // Step 3: Generate if no library songs and generation enabled
-        if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
-          const comboKey = getComboKey();
-          if (acquireComboLock(comboKey)) {
-            console.log('🎯 No library matches found, starting generation...');
-            startGenerationTask(comboKey);
-          } else {
-            console.log('Generation already locked for combo:', comboKey);
-          }
-        }
-      }
-      
-      console.log('✅ Queue maintenance complete');
-    } catch (error) {
-      console.error('❌ Error maintaining queue:', error);
     }
   };
 
@@ -893,7 +395,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       const genresLowerCase = selectedGenres.map(g => g.toLowerCase());
 
       if (queueData && queueData.length > 0) {
-        // Map to include queue id for targeted deletes, then filter by user and genre
         const items = queueData
           .map(item => ({ song: item.songs as Song | null, queueId: item.id }))
           .filter(item => !!item.song)
@@ -904,10 +405,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             return genreOk && ownerOk;
           });
 
-        // Extract just the songs for UI
         const filteredSongs = items.map(i => i.song!) as Song[];
 
-        // If we don't have a current song yet, pick the first ready one matching filters and remove it from queue
         if (!currentSong) {
           const firstReady = filteredSongs.find(song => song.status === 'ready' && !!song.url);
           if (firstReady) {
@@ -919,16 +418,13 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               await supabase.from('queue').delete().eq('id', queueItem.id);
             }
 
-            // Remove it from our local array too
             const idx = filteredSongs.findIndex(s => s.id === firstReady.id);
             if (idx >= 0) filteredSongs.splice(idx, 1);
           }
         }
 
-        // Show remaining songs in queue (filtered)
         setQueue(filteredSongs);
       } else {
-        // No songs in queue
         setQueue([]);
       }
     } catch (error) {
@@ -965,12 +461,11 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         audioRef.current.pause();
       } else {
         audioRef.current.play().then(() => {
-          // Track the play when song successfully starts playing
           trackSongPlay();
         }).catch(() => {
           toast({
             title: "Playback Error",
-            description: "Unable to play audio. This is a demo - actual audio files would be loaded from Suno API.",
+            description: "Unable to play audio.",
             variant: "destructive"
           });
         });
@@ -986,31 +481,27 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
     
     setIsSkipping(true);
-    console.log('⏭️ Starting skip operation...');
+    console.log('⏭️ Skip operation started');
     
     try {
-      console.log('🔍 Skip button clicked - querying database for ready songs...');
-      
-      // FIXED: Query database queue properly - join with songs and filter by songs.status
+      // Check if there's a ready song in queue
       const { data: readyQueueItems } = await supabase
         .from('queue')
         .select('*, songs(*)')
-        .eq('songs.status', 'ready')  // Filter by songs.status, not queue.status
-        .not('songs.url', 'is', null)  // Ensure song has URL
+        .eq('songs.status', 'ready')
+        .not('songs.url', 'is', null)
         .order('position');
       
       const readySongs = readyQueueItems?.filter(item => item.songs).map(item => item.songs as Song) || [];
-      console.log(`📊 Database queue state: ${readySongs.length} ready songs available`);
       
       if (readySongs.length > 0) {
         const nextSong = readySongs[0];
-        console.log(`✅ Moving to queued song: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood})`);
+        console.log(`✅ Moving to: "${nextSong.title}"`);
         
-        // Remove from database queue
+        // Remove from queue
         const queueItemToRemove = readyQueueItems?.find(item => item.songs?.id === nextSong.id);
         if (queueItemToRemove) {
           await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
-          console.log('🗑️ Removed song from database queue');
         }
         
         setCurrentSong(nextSong);
@@ -1020,29 +511,13 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           title: 'Next Track',
           description: nextSong.title,
         });
-        
-        // Always maintain queue after skipping to ensure we have next songs
-        console.log('🔄 Maintaining queue after skip...');
-        setTimeout(() => {
-          maintainQueue();
-        }, 500);
-        
       } else {
-        console.log('⚠️ No ready songs in queue - trying to find immediate replacement...');
-        
-        // Try to find a song immediately using priority system
-        let nextSong = await getNextSongByPriority(currentSong?.id);
-        let usedGenreFallback = false;
-        
-        // If no genre+mood match, try genre-only
-        if (!nextSong) {
-          console.log('🔄 No genre+mood match, trying genre-only fallback...');
-          nextSong = await getRandomGenreAnyMood(currentSong?.id);
-          usedGenreFallback = true;
-        }
+        // No ready songs in queue - get one from library
+        console.log('⚠️ No ready songs in queue - getting from library');
+        const nextSong = await getRandomGenreMoodSong(currentSong ? [currentSong.id] : []);
         
         if (nextSong) {
-          console.log(`✅ Found immediate song: "${nextSong.title}" (${nextSong.genre}-${nextSong.mood}) - ${usedGenreFallback ? 'GENRE-ONLY FALLBACK' : 'EXACT MATCH'}`);
+          console.log(`✅ Playing from library: "${nextSong.title}"`);
           setCurrentSong(nextSong);
           setProgress(0);
           
@@ -1050,42 +525,32 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
             title: 'Next Track',
             description: nextSong.title,
           });
-          
-          // Generation will be handled by maintainQueue
-          
-          // Maintain queue to ensure we have more songs
-          setTimeout(() => {
-            maintainQueue();
-          }, 500);
         } else {
-          // Absolutely no songs available - this should never happen
-          console.error('❌ CRITICAL: No songs available at all for skip! This should not happen with 100+ songs.');
           toast({
             title: "No Next Song",
-            description: "No songs available in your library. Please check your music collection.",
+            description: "No songs available.",
             variant: "destructive"
           });
-          
-          // Try to maintain queue as last resort
-          setTimeout(() => maintainQueue(), 500);
         }
       }
+      
+      // Generate a new song after skip
+      console.log('🎵 Generating new song after skip...');
+      setTimeout(() => generateNewSong(), 500);
       
     } catch (error) {
       console.error('❌ Error in handleSkip:', error);
       toast({
         title: "Skip Error",
-        description: "Unable to skip to next song. Please try again.",
+        description: "Unable to skip to next song.",
         variant: "destructive"
       });
     } finally {
-      // Reduce timeout to allow faster manual control after auto-advance
       setTimeout(() => {
         setIsSkipping(false);
-      }, 300); // Allow quicker manual control
+      }, 300);
     }
   };
-
 
   const handleLike = async (isLike: boolean) => {
     if (!currentSong || !user) return;
@@ -1093,7 +558,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     try {
       const interactionType = isLike ? 'like' : 'dislike';
       
-      // Save to database
       const { error } = await supabase
         .from('user_song_interactions')
         .upsert({
@@ -1108,13 +572,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         console.error('Error saving interaction:', error);
         toast({
           title: "Error",
-          description: "Failed to save your reaction. Please try again.",
+          description: "Failed to save your reaction.",
           variant: "destructive"
         });
         return;
       }
 
-      // Update local state
       setCurrentInteraction(interactionType);
 
       if (isLike) {
@@ -1123,7 +586,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           description: "We'll play more tracks like this",
         });
       } else {
-        // Handle thumbs down - exclude last used mood and instrument
         if (currentSong?.prompt_metadata?.selected_words) {
           const { mood, instrument } = currentSong.prompt_metadata.selected_words;
           
@@ -1151,7 +613,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       console.error('Error handling like/dislike:', error);
       toast({
         title: "Error",
-        description: "Failed to save your reaction. Please try again.",
+        description: "Failed to save your reaction.",
         variant: "destructive"
       });
     }
@@ -1162,18 +624,17 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     if (error) {
       toast({
         title: "Error",
-        description: "Failed to sign out. Please try again.",
+        description: "Failed to sign out.",
         variant: "destructive"
       });
     } else {
-      onBack(); // Navigate back to landing page
+      onBack();
       toast({
         title: "Signed out",
         description: "You have been successfully signed out.",
       });
     }
   };
-
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1189,7 +650,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     generationLockRef.current = true;
     setIsRefreshing(true);
     try {
-      // Clean up any stale "generating" rows first
       await supabase.functions.invoke('check-stuck-songs');
 
       const result = await generateWithBuildPrompt(
@@ -1202,7 +662,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
       if (result?.success) {
         toast({ title: 'Generating…', description: 'Started a new track' });
-        // Kick an immediate poll so the UI updates quickly
         await pollForNewSongs();
       } else if (result && result.error?.toLowerCase().includes('concurrency')) {
         toast({ title: 'Please wait', description: 'A track is already generating' });
@@ -1212,11 +671,9 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       toast({ title: 'Error', description: 'Failed to start music generation', variant: 'destructive' });
     } finally {
       setIsRefreshing(false);
-      // Release lock after a brief delay to avoid double-presses
       setTimeout(() => { generationLockRef.current = false; }, 3000);
     }
   };
-
 
   const handleSettingsSave = (newSettings: {
     genres: string[];
@@ -1225,17 +682,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     wildcardMode: boolean;
     generateWhenExhausted: boolean;
   }) => {
-    // Update user preferences for wildcardMode
     if (newSettings.wildcardMode !== preferences.wild_card_mode) {
       toggleWildCardMode();
     }
     
-    // Update user preferences for generateWhenExhausted
     if (newSettings.generateWhenExhausted !== preferences.generate_when_exhausted) {
       updatePreferences({ generate_when_exhausted: newSettings.generateWhenExhausted });
     }
     
-    // Call the parent component to update settings (excluding the new preference as it's internal)
     onSettingsUpdate?.({
       genres: newSettings.genres,
       mood: newSettings.mood,
@@ -1317,7 +771,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               </div>
               <p className="text-muted-foreground">{currentSong?.description}</p>
               
-              {/* Show prompt information when toggled */}
               {showPromptInfo && currentSong?.prompt_metadata && (
                 <div className="bg-muted/20 rounded p-3 text-sm space-y-2">
                   <p><strong>Generated from:</strong> {currentSong.prompt_metadata.template_used}</p>
@@ -1528,7 +981,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               )}
             </div>
             
-            {/* Excluded preferences indicator */}
             {(preferences.excluded_moods.length > 0 || preferences.excluded_instruments.length > 0) && (
               <div className="mt-4 p-3 bg-muted/10 rounded border">
                 <p className="text-xs text-muted-foreground mb-2">Currently avoiding:</p>
@@ -1550,7 +1002,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         </Card>
       </div>
 
-      {/* Settings Popup */}
       <SettingsPopup
         isOpen={showSettingsPopup}
         onClose={() => setShowSettingsPopup(false)}
