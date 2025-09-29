@@ -43,6 +43,7 @@ interface AdminStats {
     id: string;
     title: string;
     genre: string;
+    mood: string;
     created_at: string;
     likes_count: number;
     total_plays: number;
@@ -60,6 +61,7 @@ export default function AdminPage() {
   const [checkingStatusIds, setCheckingStatusIds] = useState<Set<string>>(new Set());
   const [hideSuccessfulResubmissions, setHideSuccessfulResubmissions] = useState(true);
   const [topSongsGenreFilter, setTopSongsGenreFilter] = useState<string>('all');
+  const [topSongsMoodFilter, setTopSongsMoodFilter] = useState<string>('all');
   const [topSongsSortBy, setTopSongsSortBy] = useState<'likes' | 'plays'>('likes');
 
   useEffect(() => {
@@ -602,14 +604,33 @@ export default function AdminPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="mood-filter" className="text-sm text-muted-foreground">
+                          Filter by mood:
+                        </Label>
+                        <Select value={topSongsMoodFilter} onValueChange={setTopSongsMoodFilter}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select mood" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Moods</SelectItem>
+                            {stats?.top_songs && [...new Set(stats.top_songs.map(song => song.mood).filter(Boolean))].map((mood) => (
+                              <SelectItem key={mood} value={mood} className="capitalize">
+                                {mood}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {(() => {
-                    let filteredSongs = stats?.top_songs?.filter(song => 
-                      topSongsGenreFilter === 'all' || song.genre === topSongsGenreFilter
-                    ) || [];
+                     let filteredSongs = stats?.top_songs?.filter(song => 
+                       (topSongsGenreFilter === 'all' || song.genre === topSongsGenreFilter) &&
+                       (topSongsMoodFilter === 'all' || song.mood === topSongsMoodFilter)
+                     ) || [];
                     
                     // Sort by the selected metric
                     filteredSongs = filteredSongs
@@ -622,16 +643,17 @@ export default function AdminPage() {
                     
                     return filteredSongs.length > 0 ? (
                     <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Rank</TableHead>
-                          <TableHead>Song</TableHead>
-                          <TableHead>Genre</TableHead>
-                          <TableHead>Likes</TableHead>
-                          <TableHead>Plays</TableHead>
-                          <TableHead>Created</TableHead>
-                        </TableRow>
-                      </TableHeader>
+                       <TableHeader>
+                         <TableRow>
+                           <TableHead>Rank</TableHead>
+                           <TableHead>Song</TableHead>
+                           <TableHead>Genre</TableHead>
+                           <TableHead>Mood</TableHead>
+                           <TableHead>Likes</TableHead>
+                           <TableHead>Plays</TableHead>
+                           <TableHead>Created</TableHead>
+                         </TableRow>
+                       </TableHeader>
                       <TableBody>
                         {filteredSongs.map((song, index) => (
                           <TableRow key={song.id}>
@@ -658,11 +680,16 @@ export default function AdminPage() {
                                 <p className="text-xs text-muted-foreground">{song.id.slice(0, 8)}...</p>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="capitalize">
-                                {song.genre}
-                              </Badge>
-                            </TableCell>
+                             <TableCell>
+                               <Badge variant="secondary" className="capitalize">
+                                 {song.genre}
+                               </Badge>
+                             </TableCell>
+                             <TableCell>
+                               <Badge variant="outline" className="capitalize">
+                                 {song.mood || 'N/A'}
+                               </Badge>
+                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Heart className="h-4 w-4 text-red-500 fill-red-500" />
@@ -683,12 +710,22 @@ export default function AdminPage() {
                       </TableBody>
                     </Table>
                     ) : (
-                      <p className="text-center text-muted-foreground py-8">
-                        {topSongsGenreFilter === 'all' 
-                          ? 'No songs found' 
-                          : `No songs found for ${topSongsGenreFilter} genre`
-                        }
-                      </p>
+                       <p className="text-center text-muted-foreground py-8">
+                         {(() => {
+                           const genreFilter = topSongsGenreFilter === 'all' ? null : topSongsGenreFilter;
+                           const moodFilter = topSongsMoodFilter === 'all' ? null : topSongsMoodFilter;
+                           
+                           if (!genreFilter && !moodFilter) {
+                             return 'No songs found';
+                           } else if (genreFilter && moodFilter) {
+                             return `No songs found for ${genreFilter} genre with ${moodFilter} mood`;
+                           } else if (genreFilter) {
+                             return `No songs found for ${genreFilter} genre`;
+                           } else {
+                             return `No songs found for ${moodFilter} mood`;
+                           }
+                         })()}
+                       </p>
                     );
                   })()}
                 </CardContent>
