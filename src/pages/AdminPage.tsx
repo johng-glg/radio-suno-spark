@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useMusicGeneration } from '@/hooks/useMusicGeneration';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart, X } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart, X, Loader2, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
@@ -58,10 +59,19 @@ interface AdminStats {
     likes_count: number;
     total_plays: number;
   }>;
+  library_overview: Array<{
+    genre: string;
+    mood: string;
+    count: number;
+  }>;
 }
+
+const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
+const MOODS = ['Upbeat', 'Chill', 'Aggressive', 'Emotional', 'Epic', 'Playful'];
 
 export default function AdminPage() {
   const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
+  const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -73,6 +83,13 @@ export default function AdminPage() {
   const [topSongsGenreFilter, setTopSongsGenreFilter] = useState<string>('all');
   const [topSongsMoodFilter, setTopSongsMoodFilter] = useState<string>('all');
   const [topSongsSortBy, setTopSongsSortBy] = useState<'likes' | 'plays'>('likes');
+  
+  // Library management state
+  const [bulkGenre, setBulkGenre] = useState<string>('');
+  const [bulkMood, setBulkMood] = useState<string>('');
+  const [bulkCount, setBulkCount] = useState<number>(1);
+  const [generatingCount, setGeneratingCount] = useState<number>(0);
+  const [totalToGenerate, setTotalToGenerate] = useState<number>(0);
 
   useEffect(() => {
     if (isAdmin) {
@@ -218,6 +235,67 @@ export default function AdminPage() {
     }
   };
 
+  const handleBulkGenerate = async () => {
+    if (!bulkGenre || !bulkMood || bulkCount < 1 || bulkCount > 10) {
+      toast({
+        title: "Invalid Input",
+        description: "Please select a genre, mood, and enter a count between 1-10",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTotalToGenerate(bulkCount);
+    setGeneratingCount(0);
+
+    toast({
+      title: "Bulk Generation Started",
+      description: `Generating ${bulkCount} ${bulkGenre} songs with ${bulkMood} mood...`,
+    });
+
+    for (let i = 0; i < bulkCount; i++) {
+      try {
+        await generateWithBuildPrompt(
+          false, // wildCardMode
+          false, // makeInstrumental
+          [bulkGenre], // genres
+          bulkMood, // mood
+          true // asLibrary
+        );
+
+        setGeneratingCount(prev => prev + 1);
+        
+        toast({
+          title: "Song Generated",
+          description: `Generated ${i + 1} of ${bulkCount} songs`,
+        });
+
+        // Small delay between generations to avoid overwhelming the API
+        if (i < bulkCount - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.error('Bulk generation error:', error);
+        toast({
+          title: "Generation Error",
+          description: `Failed to generate song ${i + 1}. Continuing with next...`,
+          variant: "destructive"
+        });
+      }
+    }
+
+    toast({
+      title: "Bulk Generation Complete",
+      description: `Successfully generated ${bulkCount} songs for ${bulkGenre} - ${bulkMood}`,
+    });
+
+    setTotalToGenerate(0);
+    setGeneratingCount(0);
+    
+    // Reload stats to show updated library counts
+    await loadStats();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -276,6 +354,7 @@ export default function AdminPage() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
+            <TabsTrigger value="library">Library Management</TabsTrigger>
             <TabsTrigger value="failed-songs">Failed Generations</TabsTrigger>
             <TabsTrigger value="recent-songs">Recent Songs</TabsTrigger>
             <TabsTrigger value="top-songs">Top Songs</TabsTrigger>
@@ -452,6 +531,155 @@ export default function AdminPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="library" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Bulk Generation Tool */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bulk Generation Tool</CardTitle>
+                  <CardDescription>
+                    Generate multiple songs for the library at once
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-genre">Genre</Label>
+                    <Select value={bulkGenre} onValueChange={setBulkGenre}>
+                      <SelectTrigger id="bulk-genre">
+                        <SelectValue placeholder="Select genre" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GENRES.map(genre => (
+                          <SelectItem key={genre} value={genre}>
+                            {genre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-mood">Mood</Label>
+                    <Select value={bulkMood} onValueChange={setBulkMood}>
+                      <SelectTrigger id="bulk-mood">
+                        <SelectValue placeholder="Select mood" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MOODS.map(mood => (
+                          <SelectItem key={mood} value={mood}>
+                            {mood}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-count">Number of Songs (1-10)</Label>
+                    <Input
+                      id="bulk-count"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={bulkCount}
+                      onChange={(e) => setBulkCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    />
+                  </div>
+
+                  {totalToGenerate > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Progress:</span>
+                        <span className="font-medium">
+                          {generatingCount} / {totalToGenerate}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{ width: `${(generatingCount / totalToGenerate) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleBulkGenerate}
+                    disabled={isGenerating || !bulkGenre || !bulkMood || totalToGenerate > 0}
+                    className="w-full"
+                  >
+                    {isGenerating || totalToGenerate > 0 ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Generate Songs
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Library Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Library Overview</CardTitle>
+                  <CardDescription>
+                    Genre-Mood combinations in the library
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {statsLoading ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Loading library stats...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {GENRES.map(genre => {
+                        const genreSongs = stats?.library_overview?.filter(
+                          item => item.genre === genre
+                        ) || [];
+                        const totalForGenre = genreSongs.reduce((sum, item) => sum + item.count, 0);
+
+                        return (
+                          <div key={genre} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium capitalize">{genre}</h4>
+                              <Badge variant="outline">{totalForGenre} total</Badge>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {MOODS.map(mood => {
+                                const combo = genreSongs.find(item => item.mood === mood);
+                                const count = combo?.count || 0;
+                                return (
+                                  <div
+                                    key={mood}
+                                    className={`text-xs p-2 rounded border text-center ${
+                                      count === 0 
+                                        ? 'bg-destructive/10 border-destructive/20 text-destructive' 
+                                        : 'bg-muted border-border'
+                                    }`}
+                                  >
+                                    <div className="font-medium">{mood}</div>
+                                    <div className="text-muted-foreground">{count}</div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="failed-songs" className="space-y-6">
