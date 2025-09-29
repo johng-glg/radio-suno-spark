@@ -680,7 +680,71 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     }
   };
 
-  // Maintain queue with at least 2-3 songs (library-first)
+  // Get unplayed genre+mood songs for current user
+  const getGenreMoodUnplayed = async (excludeSongId?: string, excludeSecondId?: string) => {
+    if (!user) return null;
+    
+    const genresLowerCase = selectedGenres?.map(g => g.toLowerCase()) || [];
+    const moodLowerCase = selectedMood?.toLowerCase();
+    
+    if (genresLowerCase.length === 0 || !moodLowerCase) return null;
+    
+    try {
+      let query = supabase
+        .from('songs')
+        .select('*')
+        .eq('status', 'ready')
+        .is('requested_by', null)
+        .eq('is_public', true)
+        .not('url', 'is', null);
+      
+      if (genresLowerCase.length > 0) {
+        query = query.in('genre', genresLowerCase);
+      }
+      if (moodLowerCase) {
+        query = query.eq('mood', moodLowerCase);
+      }
+      if (excludeSongId) {
+        query = query.neq('id', excludeSongId);
+      }
+      if (excludeSecondId) {
+        query = query.neq('id', excludeSecondId);
+      }
+      
+      const { data: songs, error } = await query;
+      
+      if (error || !songs || songs.length === 0) {
+        return null;
+      }
+      
+      // Filter to only unplayed songs for this user
+      const unplayedSongs = [];
+      for (const song of songs) {
+        const { data: playData } = await supabase
+          .from('user_song_plays')
+          .select('play_count')
+          .eq('user_id', user.id)
+          .eq('song_id', song.id)
+          .maybeSingle();
+          
+        if (!playData || playData.play_count === 0) {
+          unplayedSongs.push(song);
+        }
+      }
+      
+      if (unplayedSongs.length === 0) return null;
+      
+      // Return random unplayed song
+      const randomIndex = Math.floor(Math.random() * unplayedSongs.length);
+      return unplayedSongs[randomIndex];
+      
+    } catch (error) {
+      console.error('Error in getGenreMoodUnplayed:', error);
+      return null;
+    }
+  };
+
+  // Simplified queue system with clear priority order
   const maintainQueue = async () => {
     try {
       const readySongs = queue.filter(song => song.status === 'ready' && song.url);
@@ -688,49 +752,51 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       
       console.log(`Maintaining queue - current status: ${readySongs.length} ready, ${generatingSongs.length} generating`);
       
-      // Aim to have at least 2 ready songs or 1 ready + 1 generating
-      const targetReadySongs = 2;
-      const songsNeeded = Math.max(0, targetReadySongs - readySongs.length - generatingSongs.length);
+      // Keep it simple: aim for 2 songs ready
+      const songsNeeded = Math.max(0, 2 - readySongs.length);
       
       if (songsNeeded > 0) {
         console.log(`Need ${songsNeeded} more songs in queue`);
         
-        for (let i = 0; i < songsNeeded; i++) {
-          const nextSong = await getNextSongByPriority(currentSong?.id);
-          if (nextSong) {
-            await addSongToQueue(nextSong);
-            console.log(`Added song ${i + 1}/${songsNeeded} to queue:`, nextSong.title);
-          } else {
-            // Try genre-only fallback before generating
-            const genreOnlyFallback = await getRandomGenreAnyMood(currentSong?.id);
-            if (genreOnlyFallback) {
-              console.log('Adding genre-only fallback while generating mood-specific songs...');
-              await addSongToQueue(genreOnlyFallback);
-              
-              // Start background generation for mood-specific songs
-              if (generatingSongs.length === 0 && preferences.generate_when_exhausted) {
-                console.log('Starting background generation for mood-specific songs...');
-                generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
-                  .catch(error => console.error('Background generation failed:', error));
-              }
-            } else {
-              // Check if we should generate
-              const hasLibrarySongs = await checkLibrarySongsAvailable(currentSong?.id, true);
-              if (!hasLibrarySongs && generatingSongs.length === 0) {
-                console.log('No library songs available, starting generation...');
-                startGenerationTask();
-                break; // Only start one generation at a time
-              } else if (hasLibrarySongs) {
-                console.log('Library songs available but not returned by priority function - might be filtered by mood');
-              }
+        // Step 1: Try to find genre+mood match with 0 plays for current user
+        const unplayedGenreMood = await getGenreMoodUnplayed(currentSong?.id);
+        if (unplayedGenreMood) {
+          console.log('Found unplayed genre+mood match:', unplayedGenreMood.title);
+          await addSongToQueue(unplayedGenreMood);
+          
+          // If we need another song, try to get another genre+mood match
+          if (songsNeeded > 1) {
+            const anotherGenreMood = await getGenreMoodUnplayed(currentSong?.id, unplayedGenreMood.id);
+            if (anotherGenreMood) {
+              console.log('Found second genre+mood match:', anotherGenreMood.title);
+              await addSongToQueue(anotherGenreMood);
             }
-            break; // Stop trying if no songs available
+          }
+          return;
+        }
+        
+        // Step 2: If no unplayed genre+mood, try any genre match and generate
+        const anyGenreMatch = await getRandomGenreAnyMood(currentSong?.id);
+        if (anyGenreMatch) {
+          console.log('No unplayed genre+mood found, using genre fallback:', anyGenreMatch.title);
+          await addSongToQueue(anyGenreMatch);
+          
+          // Start generation immediately if enabled
+          if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
+            console.log('Starting generation for genre+mood match...');
+            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+              .catch(error => console.error('Generation failed:', error));
+          }
+        } else {
+          console.log('No songs available in library, starting generation...');
+          if (preferences.generate_when_exhausted && generatingSongs.length === 0) {
+            generateWithBuildPrompt(preferences.wild_card_mode, false, selectedGenres, selectedMood, true)
+              .catch(error => console.error('Generation failed:', error));
           }
         }
-      } else {
-        console.log('Queue adequately maintained');
       }
       
+      console.log('Queue maintenance complete');
     } catch (error) {
       console.error('Error maintaining queue:', error);
     }
