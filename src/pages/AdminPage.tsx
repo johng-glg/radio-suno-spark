@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart, X, Loader2, Plus } from 'lucide-react';
+import { Users, Music, AlertTriangle, TrendingUp, Settings, RefreshCw, Eye, Filter, Heart, X, Loader2, Plus, Play } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
@@ -239,6 +239,33 @@ export default function AdminPage() {
         return newSet;
       });
     }
+  };
+
+  const handlePlaySong = (url: string | null, title: string) => {
+    if (!url) {
+      toast({
+        title: "Cannot play song",
+        description: "Song URL is not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create and play audio element
+    const audio = new Audio(url);
+    audio.play().catch((error) => {
+      console.error('Error playing audio:', error);
+      toast({
+        title: "Playback error",
+        description: `Failed to play "${title}". The audio file may be corrupted or unavailable.`,
+        variant: "destructive",
+      });
+    });
+    
+    toast({
+      title: "Playing song",
+      description: `Now playing: ${title}`,
+    });
   };
 
   const handleBulkGenerate = async () => {
@@ -904,6 +931,7 @@ export default function AdminPage() {
                           <TableHead>Mood</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Created</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -941,6 +969,17 @@ export default function AdminPage() {
                             </TableCell>
                             <TableCell>
                               {new Date(song.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handlePlaySong(song.url, song.title || 'Untitled')}
+                                disabled={!song.url}
+                                title={song.url ? "Play song" : "No audio available"}
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
