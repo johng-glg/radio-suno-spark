@@ -16,12 +16,14 @@ interface SettingsPopupProps {
   instrumentalMode: boolean;
   wildcardMode: boolean;
   generateWhenExhausted: boolean;
+  holiday?: string;
   onSaveSettings: (settings: {
     genres: string[];
     mood?: string;
     instrumentalMode: boolean;
     wildcardMode: boolean;
     generateWhenExhausted: boolean;
+    holiday?: string;
   }) => void;
 }
 
@@ -33,6 +35,10 @@ const AVAILABLE_MOODS = [
   "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
 ];
 
+const AVAILABLE_HOLIDAYS = [
+  "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"
+];
+
 export default function SettingsPopup({
   isOpen,
   onClose,
@@ -41,6 +47,7 @@ export default function SettingsPopup({
   instrumentalMode,
   wildcardMode,
   generateWhenExhausted,
+  holiday,
   onSaveSettings,
 }: SettingsPopupProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>(currentGenres);
@@ -48,6 +55,7 @@ export default function SettingsPopup({
   const [tempInstrumentalMode, setTempInstrumentalMode] = useState(instrumentalMode);
   const [tempWildcardMode, setTempWildcardMode] = useState(wildcardMode);
   const [tempGenerateWhenExhausted, setTempGenerateWhenExhausted] = useState(generateWhenExhausted);
+  const [selectedHoliday, setSelectedHoliday] = useState<string | undefined>(holiday);
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres(prev => 
@@ -64,6 +72,7 @@ export default function SettingsPopup({
       instrumentalMode: tempInstrumentalMode,
       wildcardMode: tempWildcardMode,
       generateWhenExhausted: tempGenerateWhenExhausted,
+      holiday: selectedHoliday,
     });
     onClose();
   };
@@ -75,6 +84,7 @@ export default function SettingsPopup({
     setTempInstrumentalMode(instrumentalMode);
     setTempWildcardMode(wildcardMode);
     setTempGenerateWhenExhausted(generateWhenExhausted);
+    setSelectedHoliday(holiday);
     onClose();
   };
 
@@ -127,6 +137,25 @@ export default function SettingsPopup({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Holiday Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Holiday Theme (Advanced)</Label>
+            <Select value={selectedHoliday || "none"} onValueChange={(value) => setSelectedHoliday(value === "none" ? undefined : value)}>
+              <SelectTrigger className="border-border">
+                <SelectValue placeholder="No holiday (optional)" />
+              </SelectTrigger>
+              <SelectContent className="border-border">
+                <SelectItem value="none">No Holiday</SelectItem>
+                {AVAILABLE_HOLIDAYS.map((holiday) => (
+                  <SelectItem key={holiday} value={holiday}>
+                    {holiday}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Applies to generated songs only</p>
           </div>
 
           {/* Options */}
@@ -186,6 +215,11 @@ export default function SettingsPopup({
               {selectedMood && (
                 <Badge variant="outline" className="text-xs">
                   {selectedMood}
+                </Badge>
+              )}
+              {selectedHoliday && (
+                <Badge variant="outline" className="text-xs text-purple-400 border-purple-400/50">
+                  🎉 {selectedHoliday}
                 </Badge>
               )}
               {tempInstrumentalMode && (

@@ -8,6 +8,7 @@ interface GenerateMusicParams {
   use_build_prompt?: boolean;
   wild_card_mode?: boolean;
   as_library?: boolean;
+  holiday?: string;
   
   // Legacy parameters for backwards compatibility
   prompt?: string;
@@ -108,7 +109,8 @@ export function useMusicGeneration() {
     makeInstrumental = false, 
     genres?: string[], 
     mood?: string,
-    asLibrary: boolean = true
+    asLibrary: boolean = true,
+    holiday?: string
   ) => {
     return generateMusic({
       use_build_prompt: true,
@@ -116,7 +118,8 @@ export function useMusicGeneration() {
       make_instrumental: makeInstrumental,
       genre: genres && genres.length > 0 ? genres[0].toLowerCase() : undefined,
       mood: mood,
-      as_library: asLibrary
+      as_library: asLibrary,
+      holiday: holiday
     });
   };
 

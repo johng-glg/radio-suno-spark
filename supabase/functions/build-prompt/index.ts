@@ -13,6 +13,7 @@ interface BuildPromptRequest {
   exclude_last_selections?: boolean;
   genre?: string;
   mood?: string;
+  holiday?: string;
 }
 
 interface WordPool {
@@ -45,9 +46,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    const { user_id, wild_card_mode = false, exclude_last_selections = false, genre, mood } = await req.json() as BuildPromptRequest;
+    const { user_id, wild_card_mode = false, exclude_last_selections = false, genre, mood, holiday } = await req.json() as BuildPromptRequest;
 
-    console.log('Building prompt with params:', { user_id, wild_card_mode, exclude_last_selections, genre, mood });
+    console.log('Building prompt with params:', { user_id, wild_card_mode, exclude_last_selections, genre, mood, holiday });
 
     // Get user preferences if user_id is provided
     let userPreferences: UserPreferences = {
@@ -177,6 +178,13 @@ serve(async (req) => {
         selectedWords['twist'] = randomTwist.value;
         console.log('Added wild card twist:', randomTwist.value);
       }
+    }
+
+    // Add holiday theme if provided
+    if (holiday) {
+      builtPrompt += ` with a ${holiday} theme`;
+      selectedWords['holiday'] = holiday;
+      console.log('Added holiday theme:', holiday);
     }
 
     console.log('Built prompt:', builtPrompt);

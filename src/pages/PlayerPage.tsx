@@ -42,16 +42,18 @@ interface PlayerPageProps {
   selectedMood?: string;
   instrumentalMode?: boolean;
   wildcardMode?: boolean;
+  holiday?: string;
   onBack: () => void;
   onSettingsUpdate?: (settings: {
     genres: string[];
     mood?: string;
     instrumentalMode: boolean;
     wildcardMode: boolean;
+    holiday?: string;
   }) => void;
 }
 
-export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, onBack, onSettingsUpdate }: PlayerPageProps) {
+export default function PlayerPage({ selectedGenres, selectedMood, instrumentalMode = false, wildcardMode = false, holiday, onBack, onSettingsUpdate }: PlayerPageProps) {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [queue, setQueue] = useState<Song[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -406,7 +408,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     console.log('🎵 Generating new song for genre + mood...');
     
     try {
-      await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true);
+      await generateWithBuildPrompt(wildcardMode, instrumentalMode, selectedGenres, selectedMood, true, holiday);
     } catch (error) {
       console.error('Error generating song:', error);
     } finally {
@@ -417,7 +419,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   // Update ref whenever generateNewSong dependencies change
   useEffect(() => {
     generateNewSongRef.current = generateNewSong;
-  }, [wildcardMode, instrumentalMode, selectedGenres, selectedMood, isGenerating, generateWithBuildPrompt]);
+  }, [wildcardMode, instrumentalMode, selectedGenres, selectedMood, holiday, isGenerating, generateWithBuildPrompt]);
 
   const addSongToQueue = async (song: Song) => {
     try {
@@ -750,7 +752,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         instrumentalMode,
         selectedGenres,
         selectedMood,
-        true
+        true,
+        holiday
       );
 
       if (result?.success) {
@@ -774,6 +777,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
     instrumentalMode: boolean;
     wildcardMode: boolean;
     generateWhenExhausted: boolean;
+    holiday?: string;
   }) => {
     if (newSettings.wildcardMode !== preferences.wild_card_mode) {
       toggleWildCardMode();
@@ -787,7 +791,8 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
       genres: newSettings.genres,
       mood: newSettings.mood,
       instrumentalMode: newSettings.instrumentalMode,
-      wildcardMode: newSettings.wildcardMode
+      wildcardMode: newSettings.wildcardMode,
+      holiday: newSettings.holiday
     });
     
     toast({
@@ -1103,6 +1108,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
         instrumentalMode={instrumentalMode}
         wildcardMode={wildcardMode}
         generateWhenExhausted={preferences.generate_when_exhausted}
+        holiday={holiday}
         onSaveSettings={handleSettingsSave}
       />
     </div>

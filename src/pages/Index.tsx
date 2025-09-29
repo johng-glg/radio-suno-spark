@@ -15,6 +15,7 @@ const Index = () => {
   const [selectedMood, setSelectedMood] = useState<string>();
   const [instrumentalMode, setInstrumentalMode] = useState<boolean>(false);
   const [wildcardMode, setWildcardMode] = useState<boolean>(false);
+  const [holiday, setHoliday] = useState<string>();
   const { user, loading } = useAuth();
   const { isAdmin } = useAdmin();
 
@@ -58,6 +59,7 @@ const Index = () => {
     setSelectedMood(undefined);
     setInstrumentalMode(false);
     setWildcardMode(false);
+    setHoliday(undefined);
   };
 
   const handleAuthNavigation = () => {
@@ -76,11 +78,13 @@ const Index = () => {
     mood?: string;
     instrumentalMode: boolean;
     wildcardMode: boolean;
+    holiday?: string;
   }) => {
     setSelectedGenres(settings.genres);
     setSelectedMood(settings.mood);
     setInstrumentalMode(settings.instrumentalMode);
     setWildcardMode(settings.wildcardMode);
+    setHoliday(settings.holiday);
   };
 
   // Show auth page by default for unauthenticated users
@@ -96,6 +100,7 @@ const Index = () => {
           selectedMood={selectedMood}
           instrumentalMode={instrumentalMode}
           wildcardMode={wildcardMode}
+          holiday={holiday}
           onBack={handleBackToLanding}
           onSettingsUpdate={handleSettingsUpdate}
         />

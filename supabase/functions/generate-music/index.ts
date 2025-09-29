@@ -11,6 +11,7 @@ interface SunoGenerateRequest {
   user_id?: string;
   use_build_prompt?: boolean;
   wild_card_mode?: boolean;
+  holiday?: string;
   // Legacy fields for backwards compatibility
   prompt?: string;
   title?: string;
@@ -61,6 +62,7 @@ const {
       user_id, 
       use_build_prompt = true, 
       wild_card_mode = false,
+      holiday,
       prompt: legacyPrompt,
       genre: legacyGenre,
       mood: legacyMood,
@@ -101,7 +103,8 @@ const {
           user_id,
           wild_card_mode,
           genre: legacyGenre,
-          mood: legacyMood
+          mood: legacyMood,
+          holiday
         })
       });
 
