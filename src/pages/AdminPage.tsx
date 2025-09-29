@@ -655,7 +655,7 @@ export default function AdminPage() {
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                               {MOODS.map(mood => {
-                                const combo = genreSongs.find(item => item.mood === mood);
+                                const combo = genreSongs.find(item => item.mood.toLowerCase() === mood.toLowerCase());
                                 const count = combo?.count || 0;
                                 return (
                                   <div
