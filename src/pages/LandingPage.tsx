@@ -14,10 +14,7 @@ const GENRES = [
 ];
 
 const MOODS = [
-  "Aggressive", "Atmospheric", "Bold", "Chill", "Contemplative", "Dark", 
-  "Dreamy", "Energetic", "Epic", "Euphoric", "Gritty", "Intense", 
-  "Melancholic", "Mysterious", "Nostalgic", "Peaceful", "Playful", 
-  "Powerful", "Raw", "Upbeat", "Uplifting"
+  "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
 ];
 
 interface LandingPageProps {

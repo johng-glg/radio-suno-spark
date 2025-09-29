@@ -614,8 +614,8 @@ export default function AdminPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Moods</SelectItem>
-                            {stats?.top_songs && [...new Set(stats.top_songs.map(song => song.mood).filter(Boolean))].map((mood) => (
-                              <SelectItem key={mood} value={mood} className="capitalize">
+                            {["Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"].map((mood) => (
+                              <SelectItem key={mood} value={mood.toLowerCase()} className="capitalize">
                                 {mood}
                               </SelectItem>
                             ))}
