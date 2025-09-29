@@ -657,17 +657,58 @@ export default function AdminPage() {
                               {MOODS.map(mood => {
                                 const combo = genreSongs.find(item => item.mood.toLowerCase() === mood.toLowerCase());
                                 const count = combo?.count || 0;
+                                
+                                // Calculate gradient color based on count (0-20+ scale)
+                                const getCountStyles = (count: number) => {
+                                  if (count === 0) {
+                                    return {
+                                      bg: 'bg-destructive/10',
+                                      border: 'border-destructive/20',
+                                      text: 'text-destructive',
+                                      glow: ''
+                                    };
+                                  }
+                                  if (count < 5) {
+                                    return {
+                                      bg: 'bg-orange-500/10',
+                                      border: 'border-orange-500/30',
+                                      text: 'text-orange-400',
+                                      glow: 'drop-shadow-[0_0_8px_rgba(251,146,60,0.4)]'
+                                    };
+                                  }
+                                  if (count < 10) {
+                                    return {
+                                      bg: 'bg-yellow-500/10',
+                                      border: 'border-yellow-500/30',
+                                      text: 'text-yellow-400',
+                                      glow: 'drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]'
+                                    };
+                                  }
+                                  if (count < 15) {
+                                    return {
+                                      bg: 'bg-accent/10',
+                                      border: 'border-accent/30',
+                                      text: 'text-accent',
+                                      glow: 'drop-shadow-[0_0_8px_hsl(var(--accent)/0.4)]'
+                                    };
+                                  }
+                                  return {
+                                    bg: 'bg-primary/10',
+                                    border: 'border-primary/30',
+                                    text: 'text-primary',
+                                    glow: 'drop-shadow-[0_0_8px_hsl(var(--primary)/0.4)]'
+                                  };
+                                };
+                                
+                                const styles = getCountStyles(count);
+                                
                                 return (
                                   <div
                                     key={mood}
-                                    className={`text-xs p-2 rounded border text-center ${
-                                      count === 0 
-                                        ? 'bg-destructive/10 border-destructive/20 text-destructive' 
-                                        : 'bg-muted border-border'
-                                    }`}
+                                    className={`text-xs p-2 rounded border text-center ${styles.bg} ${styles.border}`}
                                   >
-                                    <div className="font-medium">{mood}</div>
-                                    <div className="text-muted-foreground">{count}</div>
+                                    <div className="font-medium text-muted-foreground">{mood}</div>
+                                    <div className={`font-bold ${styles.text} ${styles.glow}`}>{count}</div>
                                   </div>
                                 );
                               })}
