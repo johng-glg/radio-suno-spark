@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  Plus, Music, Play, Pause, Trash2, ListMusic, X 
+  Plus, Music, Play, Pause, Trash2, ListMusic, X, SkipForward, Shuffle 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +47,10 @@ export default function PlaylistsView() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [currentPlayingIndex, setCurrentPlayingIndex] = useState(0);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,6 +101,10 @@ export default function PlaylistsView() {
 
     if (!error && data) {
       setPlaylistSongs(data as PlaylistSong[]);
+      // Reset shuffle when songs change
+      setIsShuffled(false);
+      setShuffledOrder([]);
+      setCurrentPlayingIndex(0);
     }
   };
 
@@ -178,19 +186,22 @@ export default function PlaylistsView() {
     }
   };
 
-  const handlePlayPause = async (song: any) => {
+  const handlePlayPause = async (song: any, index?: number) => {
     if (playingSongId === song.id) {
-      audioElement?.pause();
+      audioRef.current?.pause();
       setPlayingSongId(null);
     } else {
-      if (audioElement) {
-        audioElement.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
       const audio = new Audio(song.url);
       audio.play();
-      audio.onended = () => setPlayingSongId(null);
-      setAudioElement(audio);
+      audio.onended = () => handleSkipToNext();
+      audioRef.current = audio;
       setPlayingSongId(song.id);
+      if (index !== undefined) {
+        setCurrentPlayingIndex(index);
+      }
 
       // Track play
       try {
@@ -202,6 +213,46 @@ export default function PlaylistsView() {
         console.error('Failed to track play:', error);
       }
     }
+  };
+
+  const handleSkipToNext = () => {
+    if (playlistSongs.length === 0) return;
+
+    const order = isShuffled ? shuffledOrder : playlistSongs.map((_, i) => i);
+    const currentOrderIndex = order.indexOf(currentPlayingIndex);
+    const nextOrderIndex = (currentOrderIndex + 1) % order.length;
+    const nextIndex = order[nextOrderIndex];
+
+    const nextSong = playlistSongs[nextIndex]?.songs;
+    if (nextSong) {
+      handlePlayPause(nextSong, nextIndex);
+    }
+  };
+
+  const toggleShuffle = () => {
+    if (!isShuffled) {
+      // Create shuffled order
+      const indices = playlistSongs.map((_, i) => i);
+      const shuffled = [...indices].sort(() => Math.random() - 0.5);
+      setShuffledOrder(shuffled);
+      setIsShuffled(true);
+      toast({
+        title: "Shuffle enabled",
+        description: "Songs will play in random order",
+      });
+    } else {
+      setIsShuffled(false);
+      setShuffledOrder([]);
+      toast({
+        title: "Shuffle disabled",
+        description: "Songs will play in order",
+      });
+    }
+  };
+
+  const getCurrentSong = () => {
+    if (playlistSongs.length === 0) return null;
+    return playlistSongs[currentPlayingIndex]?.songs || playlistSongs[0]?.songs;
   };
 
   if (!user) {
@@ -299,14 +350,95 @@ export default function PlaylistsView() {
               <h2 className="text-2xl font-bold">{selectedPlaylist.name}</h2>
             </div>
             <Button
-              variant="destructive"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={() => setDeletePlaylistId(selectedPlaylist.id)}
+              title="Delete playlist"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Playlist
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
+
+          {/* Mini Player */}
+          {playlistSongs.length > 0 && (
+            <Card className="mb-4 bg-card/50 backdrop-blur-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  {/* Album Art */}
+                  <div className="relative w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0">
+                    {getCurrentSong()?.image_url ? (
+                      <img
+                        src={getCurrentSong()!.image_url!}
+                        alt={getCurrentSong()!.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Music className="h-8 w-8 text-muted-foreground/50" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Song Info */}
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm truncate">
+                      {getCurrentSong()?.title || 'No song playing'}
+                    </h4>
+                    {getCurrentSong() && (
+                      <p className="text-xs text-muted-foreground">
+                        {getCurrentSong()!.genre} • {getCurrentSong()!.mood}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant={isShuffled ? "secondary" : "ghost"}
+                      className="h-8 w-8"
+                      onClick={toggleShuffle}
+                      title={isShuffled ? "Shuffle on" : "Shuffle off"}
+                    >
+                      <Shuffle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="h-9 w-9"
+                      onClick={() => {
+                        const currentSong = getCurrentSong();
+                        if (currentSong) {
+                          handlePlayPause(currentSong, currentPlayingIndex);
+                        }
+                      }}
+                    >
+                      {playingSongId === getCurrentSong()?.id ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={handleSkipToNext}
+                      title="Skip to next"
+                    >
+                      <SkipForward className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {isShuffled && (
+                  <Badge variant="secondary" className="mt-2 text-xs">
+                    <Shuffle className="h-3 w-3 mr-1" />
+                    Shuffle mode
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <ScrollArea className="h-[500px]">
             <div className="space-y-2">
@@ -349,7 +481,10 @@ export default function PlaylistsView() {
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
-                            onClick={() => handlePlayPause(item.songs)}
+                            onClick={() => {
+                              const songIndex = playlistSongs.findIndex(ps => ps.id === item.id);
+                              handlePlayPause(item.songs, songIndex);
+                            }}
                           >
                             {playingSongId === item.songs.id ? (
                               <Pause className="h-4 w-4" />
