@@ -166,10 +166,11 @@ export function StationProvider({ children }: { children: ReactNode }) {
     if (!stationSettings) return null;
     
     const genresLowerCase = stationSettings.genres.map(g => g.toLowerCase());
+    const moodLowerCase = stationSettings.mood?.toLowerCase();
     
     console.log('🔍 Searching for songs with:', {
       genres: genresLowerCase,
-      mood: stationSettings.mood?.toLowerCase(),
+      mood: moodLowerCase,
       excludeIds: excludeIds.length
     });
     
@@ -185,23 +186,44 @@ export function StationProvider({ children }: { children: ReactNode }) {
       query = query.not('id', 'in', `(${quoted})`);
     }
     
-    const { data: allSongs, error } = await query.limit(200);
+    const { data: allSongs, error } = await query.limit(500);
     
     if (error) {
       console.error('Error fetching songs:', error);
       return null;
     }
     
+    if (!allSongs || allSongs.length === 0) {
+      console.error('❌ No public ready songs found in database');
+      return null;
+    }
+    
     // Filter by genre and mood (case-insensitive) on client side
-    const filteredSongs = allSongs?.filter(song => {
+    let filteredSongs = allSongs.filter(song => {
       const genreMatch = genresLowerCase.length === 0 || 
         genresLowerCase.includes(song.genre?.toLowerCase());
-      const moodMatch = !stationSettings.mood || 
-        song.mood?.toLowerCase() === stationSettings.mood.toLowerCase();
+      const moodMatch = !moodLowerCase || 
+        song.mood?.toLowerCase() === moodLowerCase;
       return genreMatch && moodMatch;
-    }) || [];
+    });
     
-    console.log(`📚 Found ${filteredSongs.length} matching songs (out of ${allSongs?.length || 0} total)`);
+    console.log(`📚 Found ${filteredSongs.length} matching songs (out of ${allSongs.length} total)`);
+    
+    // If no exact match and mood was specified, try without mood filter
+    if (filteredSongs.length === 0 && moodLowerCase) {
+      console.log('⚠️ No exact match found, trying genre-only...');
+      filteredSongs = allSongs.filter(song => {
+        return genresLowerCase.length === 0 || 
+          genresLowerCase.includes(song.genre?.toLowerCase());
+      });
+      console.log(`📚 Found ${filteredSongs.length} songs with genre match only`);
+    }
+    
+    // If still no match, return any random song
+    if (filteredSongs.length === 0) {
+      console.log('⚠️ No genre match, returning random song from library');
+      filteredSongs = allSongs;
+    }
     
     if (filteredSongs.length === 0) return null;
     
