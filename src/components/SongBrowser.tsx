@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag } from "lucide-react";
+import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,10 +15,13 @@ interface Song {
   url: string;
   image_url: string | null;
   holiday: string | null;
+  total_plays: number;
+  likes_count: number;
 }
 
 const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
 const MOODS = ["all", "upbeat", "chill", "aggressive", "emotional", "epic", "playful"];
+const HOLIDAYS = ["all", "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"];
 
 const HOLIDAY_ICONS: Record<string, any> = {
   "Christmas": Snowflake,
@@ -34,6 +37,7 @@ export default function SongBrowser() {
   const [loading, setLoading] = useState(true);
   const [genreFilter, setGenreFilter] = useState("all");
   const [moodFilter, setMoodFilter] = useState("all");
+  const [holidayFilter, setHolidayFilter] = useState("all");
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -41,19 +45,19 @@ export default function SongBrowser() {
 
   useEffect(() => {
     fetchSongs();
-  }, [genreFilter, moodFilter]);
+  }, [genreFilter, moodFilter, holidayFilter]);
 
   const fetchSongs = async () => {
     setLoading(true);
     try {
+      // First, get songs with filters
       let query = supabase
         .from('songs')
         .select('id, title, genre, mood, url, image_url, holiday')
         .eq('is_public', true)
         .in('status', ['ready', 'completed'])
         .not('url', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(200);
 
       if (genreFilter !== "all") {
         query = query.ilike('genre', genreFilter);
@@ -61,11 +65,54 @@ export default function SongBrowser() {
       if (moodFilter !== "all") {
         query = query.ilike('mood', moodFilter);
       }
+      if (holidayFilter !== "all") {
+        query = query.eq('holiday', holidayFilter);
+      }
 
-      const { data, error } = await query;
+      const { data: songsData, error: songsError } = await query;
+      if (songsError) throw songsError;
 
-      if (error) throw error;
-      setSongs(data || []);
+      if (!songsData || songsData.length === 0) {
+        setSongs([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get play counts
+      const { data: playsData } = await supabase
+        .from('user_song_plays')
+        .select('song_id, play_count');
+
+      // Get like counts
+      const { data: likesData } = await supabase
+        .from('user_song_interactions')
+        .select('song_id')
+        .eq('interaction_type', 'like');
+
+      // Aggregate plays and likes
+      const playCountMap = new Map<string, number>();
+      playsData?.forEach(play => {
+        const current = playCountMap.get(play.song_id) || 0;
+        playCountMap.set(play.song_id, current + play.play_count);
+      });
+
+      const likeCountMap = new Map<string, number>();
+      likesData?.forEach(like => {
+        const current = likeCountMap.get(like.song_id) || 0;
+        likeCountMap.set(like.song_id, current + 1);
+      });
+
+      // Combine data
+      const enrichedSongs = songsData.map(song => ({
+        ...song,
+        total_plays: playCountMap.get(song.id) || 0,
+        likes_count: likeCountMap.get(song.id) || 0,
+      }));
+
+      // Sort by play count (descending)
+      enrichedSongs.sort((a, b) => b.total_plays - a.total_plays);
+
+      setSongs(enrichedSongs);
     } catch (error) {
       console.error('Error fetching songs:', error);
       toast({
@@ -139,11 +186,11 @@ export default function SongBrowser() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[150px]">
           <Select value={genreFilter} onValueChange={setGenreFilter}>
             <SelectTrigger className="bg-card/50 backdrop-blur-sm">
-              <SelectValue placeholder="Filter by genre" />
+              <SelectValue placeholder="Genre" />
             </SelectTrigger>
             <SelectContent>
               {GENRES.map(genre => (
@@ -155,10 +202,10 @@ export default function SongBrowser() {
           </Select>
         </div>
         
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[150px]">
           <Select value={moodFilter} onValueChange={setMoodFilter}>
             <SelectTrigger className="bg-card/50 backdrop-blur-sm">
-              <SelectValue placeholder="Filter by mood" />
+              <SelectValue placeholder="Mood" />
             </SelectTrigger>
             <SelectContent>
               {MOODS.map(mood => (
@@ -169,17 +216,32 @@ export default function SongBrowser() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex-1 min-w-[150px]">
+          <Select value={holidayFilter} onValueChange={setHolidayFilter}>
+            <SelectTrigger className="bg-card/50 backdrop-blur-sm">
+              <SelectValue placeholder="Holiday" />
+            </SelectTrigger>
+            <SelectContent>
+              {HOLIDAYS.map(holiday => (
+                <SelectItem key={holiday} value={holiday}>
+                  {holiday}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Song Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="p-4">
-                <Skeleton className="h-48 w-full mb-4" />
-                <Skeleton className="h-6 w-3/4 mb-2" />
-                <Skeleton className="h-4 w-1/2" />
+              <CardContent className="p-3">
+                <Skeleton className="h-32 w-full mb-3" />
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-3 w-1/2" />
               </CardContent>
             </Card>
           ))
@@ -191,9 +253,9 @@ export default function SongBrowser() {
         ) : (
           songs.map(song => (
             <Card key={song.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all group">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 {/* Album Art */}
-                <div className="relative mb-4 rounded-lg overflow-hidden aspect-square bg-muted">
+                <div className="relative mb-3 rounded-md overflow-hidden aspect-square bg-muted">
                   {song.image_url ? (
                     <img 
                       src={song.image_url} 
@@ -202,7 +264,7 @@ export default function SongBrowser() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Music className="h-16 w-16 text-muted-foreground/50" />
+                      <Music className="h-10 w-10 text-muted-foreground/50" />
                     </div>
                   )}
                   
@@ -211,7 +273,7 @@ export default function SongBrowser() {
                     <Button
                       size="icon"
                       variant="secondary"
-                      className="h-14 w-14 rounded-full"
+                      className="h-10 w-10 rounded-full"
                       onClick={() => handlePlayPause(song)}
                     >
                       {playingSongId === song.id ? (
@@ -224,9 +286,9 @@ export default function SongBrowser() {
                 </div>
 
                 {/* Song Info */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-sm line-clamp-2 flex-1">
+                    <h3 className="font-semibold text-xs line-clamp-2 flex-1">
                       {song.title}
                     </h3>
                     {song.holiday && (
@@ -236,8 +298,8 @@ export default function SongBrowser() {
                     )}
                   </div>
                   
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex gap-2">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <div className="flex gap-1.5">
                       <span className="capitalize">{song.genre}</span>
                       <span>•</span>
                       <span className="capitalize">{song.mood}</span>
@@ -247,6 +309,18 @@ export default function SongBrowser() {
                         {formatDuration(audioDurations[song.id])}
                       </span>
                     )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1">
+                    <div className="flex items-center gap-1">
+                      <Play className="h-3 w-3" />
+                      <span>{song.total_plays}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Heart className="h-3 w-3" />
+                      <span>{song.likes_count}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
