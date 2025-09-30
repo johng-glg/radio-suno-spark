@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Play, Pause, SkipForward, ThumbsUp, ThumbsDown, 
-  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, RefreshCw
+  Settings, Music, Clock, Volume2, ArrowLeft, LogOut, User, Sparkles, Info, RefreshCw, ListPlus
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ import { useMusicGeneration } from "@/hooks/useMusicGeneration";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 import SettingsPopup from "@/components/SettingsPopup";
+import { AddToPlaylistDialog } from "@/components/AddToPlaylistDialog";
 
 interface Song {
   id: string;
@@ -67,6 +68,7 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const generationLockRef = useRef(false);
@@ -1064,6 +1066,17 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
               >
                 <ThumbsDown className="h-5 w-5" />
               </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="player-control"
+                onClick={() => setShowAddToPlaylist(true)}
+                disabled={!currentSong}
+                title="Add to Playlist"
+              >
+                <ListPlus className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Volume */}
@@ -1165,6 +1178,12 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
           </CardContent>
         </Card>
       </div>
+
+      <AddToPlaylistDialog
+        song={currentSong ? { id: currentSong.id, title: currentSong.title } : null}
+        open={showAddToPlaylist}
+        onOpenChange={setShowAddToPlaylist}
+      />
 
       <SettingsPopup
         isOpen={showSettingsPopup}

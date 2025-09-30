@@ -4,12 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2, Snowflake, Ghost, Star, Leaf, Clover, Flag, Library } from "lucide-react";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2, Snowflake, Ghost, Star, Leaf, Clover, Flag, Library, ListMusic } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import SongBrowser from "@/components/SongBrowser";
+import PlaylistsView from "@/components/PlaylistsView";
 
 const GENRES = [
   "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
@@ -131,16 +132,20 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           </p>
         </div>
 
-        {/* Tabs for Radio vs Browser */}
+        {/* Tabs for Radio vs Browser vs Playlists */}
         <Tabs defaultValue="radio" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="radio" className="flex items-center gap-2">
               <Radio className="h-4 w-4" />
-              Create Radio
+              Create Station
             </TabsTrigger>
             <TabsTrigger value="browser" className="flex items-center gap-2">
               <Library className="h-4 w-4" />
               Browse Songs
+            </TabsTrigger>
+            <TabsTrigger value="playlists" className="flex items-center gap-2">
+              <ListMusic className="h-4 w-4" />
+              Playlists
             </TabsTrigger>
           </TabsList>
 
@@ -280,7 +285,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
                     size="lg"
                   >
                     <Play className="h-6 w-6 mr-3" />
-                    {user ? "Start Radio" : "Sign In to Start Radio"}
+                    {user ? "Start Station" : "Sign In to Start Station"}
                   </Button>
                   {!user && (
                     <p className="text-sm text-accent text-center mt-2">
@@ -297,6 +302,15 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
             <Card className="bg-card/50 backdrop-blur-sm border-border/50">
               <CardContent className="p-8">
                 <SongBrowser />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Playlists Tab */}
+          <TabsContent value="playlists">
+            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              <CardContent className="p-8">
+                <PlaylistsView />
               </CardContent>
             </Card>
           </TabsContent>

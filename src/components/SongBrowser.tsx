@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart } from "lucide-react";
+import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart, ListPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/useAuth";
+import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
 
 interface Song {
   id: string;
@@ -17,6 +19,7 @@ interface Song {
   holiday: string | null;
   total_plays: number;
   likes_count: number;
+  user_liked: boolean;
 }
 
 const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
@@ -40,8 +43,10 @@ export default function SongBrowser() {
   const [holidayFilter, setHolidayFilter] = useState("all");
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
+  const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<Song | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchSongs();
@@ -86,8 +91,18 @@ export default function SongBrowser() {
       // Get like counts
       const { data: likesData } = await supabase
         .from('user_song_interactions')
-        .select('song_id')
+        .select('song_id, user_id')
         .eq('interaction_type', 'like');
+
+      // Get user's likes if logged in
+      const userLikes = new Set<string>();
+      if (user) {
+        likesData?.forEach(like => {
+          if (like.user_id === user.id) {
+            userLikes.add(like.song_id);
+          }
+        });
+      }
 
       // Aggregate plays and likes
       const playCountMap = new Map<string, number>();
@@ -107,6 +122,7 @@ export default function SongBrowser() {
         ...song,
         total_plays: playCountMap.get(song.id) || 0,
         likes_count: likeCountMap.get(song.id) || 0,
+        user_liked: userLikes.has(song.id),
       }));
 
       // Sort by play count (descending)
@@ -151,7 +167,7 @@ export default function SongBrowser() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlayPause = (song: Song) => {
+  const handlePlayPause = async (song: Song) => {
     if (playingSongId === song.id) {
       audioRef.current?.pause();
       setPlayingSongId(null);
@@ -164,9 +180,72 @@ export default function SongBrowser() {
       audioRef.current.onended = () => setPlayingSongId(null);
       setPlayingSongId(song.id);
       
+      // Track play
+      try {
+        await supabase.rpc('track_song_play', {
+          _song_id: song.id,
+          _user_id: user?.id || null
+        });
+      } catch (error) {
+        console.error('Failed to track play:', error);
+      }
+      
       toast({
         title: "Now Playing",
         description: song.title,
+      });
+    }
+  };
+
+  const handleLike = async (song: Song, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to like songs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      if (song.user_liked) {
+        // Unlike
+        await supabase
+          .from('user_song_interactions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('song_id', song.id)
+          .eq('interaction_type', 'like');
+        
+        setSongs(prev => prev.map(s => 
+          s.id === song.id 
+            ? { ...s, user_liked: false, likes_count: s.likes_count - 1 }
+            : s
+        ));
+      } else {
+        // Like
+        await supabase
+          .from('user_song_interactions')
+          .insert({
+            user_id: user.id,
+            song_id: song.id,
+            interaction_type: 'like'
+          });
+        
+        setSongs(prev => prev.map(s => 
+          s.id === song.id 
+            ? { ...s, user_liked: true, likes_count: s.likes_count + 1 }
+            : s
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update like",
+        variant: "destructive",
       });
     }
   };
@@ -311,15 +390,42 @@ export default function SongBrowser() {
                     )}
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground pt-1">
-                    <div className="flex items-center gap-1">
-                      <Play className="h-3 w-3" />
-                      <span>{song.total_plays}</span>
+                  {/* Stats & Actions */}
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Play className="h-3 w-3" />
+                        <span>{song.total_plays}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Heart className="h-3 w-3" />
+                        <span>{song.likes_count}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Heart className="h-3 w-3" />
-                      <span>{song.likes_count}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={(e) => handleLike(song, e)}
+                      >
+                        <Heart 
+                          className={`h-3.5 w-3.5 ${song.user_liked ? 'fill-red-500 text-red-500' : ''}`}
+                        />
+                      </Button>
+                      {user && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSongForPlaylist(song);
+                          }}
+                        >
+                          <ListPlus className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -328,6 +434,12 @@ export default function SongBrowser() {
           ))
         )}
       </div>
+
+      <AddToPlaylistDialog
+        song={selectedSongForPlaylist}
+        open={!!selectedSongForPlaylist}
+        onOpenChange={(open) => !open && setSelectedSongForPlaylist(null)}
+      />
     </div>
   );
 }
