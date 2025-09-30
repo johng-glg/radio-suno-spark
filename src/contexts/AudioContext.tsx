@@ -23,6 +23,8 @@ interface AudioContextType {
   seekTo: (percentage: number) => void;
   stop: () => void;
   activeContext: 'player' | 'playlist' | null;
+  isShuffled: boolean;
+  toggleShuffle: () => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -36,6 +38,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(80);
   const [activeContext, setActiveContext] = useState<'player' | 'playlist' | null>(null);
+  const [isShuffled, setIsShuffled] = useState(false);
 
   // Cleanup audio on unmount only (lazy-init the element on first play)
   useEffect(() => {
@@ -226,6 +229,10 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleShuffle = () => {
+    setIsShuffled(!isShuffled);
+  };
+
   return (
     <AudioContext.Provider
       value={{
@@ -241,6 +248,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         seekTo,
         stop,
         activeContext,
+        isShuffled,
+        toggleShuffle,
       }}
     >
       {children}

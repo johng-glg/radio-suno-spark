@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Play, Pause, SkipForward, ThumbsUp, ThumbsDown, Volume2, Music, ListPlus, Info
+  Play, Pause, SkipForward, ThumbsUp, ThumbsDown, Volume2, Music, ListPlus, Info, Shuffle
 } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
 
 export default function UnifiedPlayer() {
-  const { currentSong, isPlaying, progress, duration, volume, setVolume, resume, pause } = useAudioPlayer();
+  const { currentSong, isPlaying, progress, duration, volume, setVolume, resume, pause, activeContext, isShuffled, toggleShuffle } = useAudioPlayer();
   const { user } = useAuth();
   const { toast } = useToast();
   const [currentInteraction, setCurrentInteraction] = useState<'like' | 'dislike' | null>(null);
@@ -142,6 +142,18 @@ export default function UnifiedPlayer() {
               >
                 <ThumbsDown className="h-4 w-4" />
               </Button>
+
+              {activeContext === 'playlist' && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 transition-colors ${isShuffled ? 'text-primary' : ''}`}
+                  onClick={toggleShuffle}
+                  title={isShuffled ? "Shuffle On" : "Shuffle Off"}
+                >
+                  <Shuffle className="h-4 w-4" />
+                </Button>
+              )}
 
               <Button
                 variant="ghost"

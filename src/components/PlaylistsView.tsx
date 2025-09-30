@@ -49,12 +49,11 @@ export default function PlaylistsView() {
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState(0);
-  const [isShuffled, setIsShuffled] = useState(false);
   const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
   const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
-  const { currentSong, isPlaying, playSong, pause, progress, duration, activeContext } = useAudioPlayer();
+  const { currentSong, isPlaying, playSong, pause, progress, duration, activeContext, isShuffled, toggleShuffle: contextToggleShuffle } = useAudioPlayer();
 
   useEffect(() => {
     if (user) {
@@ -105,8 +104,7 @@ export default function PlaylistsView() {
 
     if (!error && data) {
       setPlaylistSongs(data as PlaylistSong[]);
-      // Reset shuffle when songs change
-      setIsShuffled(false);
+      // Reset shuffle order when songs change
       setShuffledOrder([]);
       setCurrentPlayingIndex(0);
     }
@@ -226,14 +224,14 @@ export default function PlaylistsView() {
       const indices = playlistSongs.map((_, i) => i);
       const shuffled = [...indices].sort(() => Math.random() - 0.5);
       setShuffledOrder(shuffled);
-      setIsShuffled(true);
+      contextToggleShuffle();
       toast({
         title: "Shuffle enabled",
         description: "Songs will play in random order",
       });
     } else {
-      setIsShuffled(false);
       setShuffledOrder([]);
+      contextToggleShuffle();
       toast({
         title: "Shuffle disabled",
         description: "Songs will play in order",
