@@ -51,19 +51,30 @@ export function StationProvider({ children }: { children: ReactNode }) {
   // Poll for new songs in queue
   const pollForNewSongs = useCallback(async (force = false) => {
     if (!isStationActive && !force) return;
+    if (!stationSettings) return;
     
     const { data: queueItems } = await supabase
       .from('queue')
       .select('*, songs(*)')
       .order('position');
     
-    const songs = queueItems
+    const allSongs = queueItems
       ?.filter(item => item.songs)
       .map(item => item.songs as Song) || [];
     
-    console.log(`📋 Queue updated: ${songs.length} songs (${songs.filter(s => s.status === 'ready').length} ready)`);
-    setQueue([...songs]); // Force new array reference to trigger re-render
-  }, [isStationActive]);
+    // Filter songs to match current station settings
+    const matchingSongs = allSongs.filter(song => {
+      const genresLowerCase = stationSettings.genres.map(g => g.toLowerCase());
+      const genreMatch = genresLowerCase.length === 0 || 
+        genresLowerCase.includes(song.genre?.toLowerCase());
+      const moodMatch = !stationSettings.mood || 
+        song.mood?.toLowerCase() === stationSettings.mood.toLowerCase();
+      return genreMatch && moodMatch;
+    });
+    
+    console.log(`📋 Queue updated: ${matchingSongs.length}/${allSongs.length} songs match (${matchingSongs.filter(s => s.status === 'ready').length} ready)`);
+    setQueue([...matchingSongs]); // Force new array reference to trigger re-render
+  }, [isStationActive, stationSettings]);
 
   // Initial fetch when station becomes active
   useEffect(() => {
