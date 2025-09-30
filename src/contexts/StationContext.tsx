@@ -169,12 +169,19 @@ export function StationProvider({ children }: { children: ReactNode }) {
     
     // IMPORTANT: Only use genre and mood for playback matching
     // Holiday and other advanced options are ONLY for generation, not playback
-    const genresLowerCase = stationSettings.genres.map(g => g.toLowerCase());
+    const genresLowerCase = stationSettings.genres?.length > 0 
+      ? stationSettings.genres.map(g => g.toLowerCase()) 
+      : [];
     const moodLowerCase = stationSettings.mood?.toLowerCase();
     
+    const hasGenreFilter = genresLowerCase.length > 0;
+    const hasMoodFilter = !!moodLowerCase;
+    
     console.log('🔍 Searching for songs with (PLAYBACK - no holiday filter):', {
-      genres: genresLowerCase,
-      mood: moodLowerCase,
+      genres: genresLowerCase.length > 0 ? genresLowerCase : 'ALL GENRES',
+      mood: moodLowerCase || 'ALL MOODS',
+      hasGenreFilter,
+      hasMoodFilter,
       excludeIds: excludeIds.length,
       note: 'Holiday filter is NOT applied for playback'
     });
@@ -205,10 +212,13 @@ export function StationProvider({ children }: { children: ReactNode }) {
     
     // Filter by genre and mood ONLY (case-insensitive) on client side
     // NEVER filter by holiday - that's only for generation
+    // If no filters are set, match ALL songs
     let filteredSongs = allSongs.filter(song => {
-      const genreMatch = genresLowerCase.length === 0 || 
+      // If no genre filter, accept all genres
+      const genreMatch = !hasGenreFilter || 
         genresLowerCase.includes(song.genre?.toLowerCase());
-      const moodMatch = !moodLowerCase || 
+      // If no mood filter, accept all moods  
+      const moodMatch = !hasMoodFilter || 
         song.mood?.toLowerCase() === moodLowerCase;
       // Explicitly NOT filtering by holiday - we want ALL songs matching genre+mood
       return genreMatch && moodMatch;
@@ -284,10 +294,16 @@ export function StationProvider({ children }: { children: ReactNode }) {
       console.log(`Found ${existingReadySongs.length} existing ready songs in queue`);
       
       // Check if existing songs match our genre/mood (NOT holiday - that's only for generation)
+      const hasGenreFilter = settings.genres?.length > 0;
+      const hasMoodFilter = !!settings.mood;
+      
       const matchingSong = existingReadySongs.find(song => {
-        const genreMatch = settings.genres.length === 0 || 
+        // If no genre filter, accept all genres
+        const genreMatch = !hasGenreFilter || 
           settings.genres.some(g => g.toLowerCase() === song.genre?.toLowerCase());
-        const moodMatch = !settings.mood || song.mood?.toLowerCase() === settings.mood.toLowerCase();
+        // If no mood filter, accept all moods
+        const moodMatch = !hasMoodFilter || 
+          song.mood?.toLowerCase() === settings.mood.toLowerCase();
         // Explicitly NOT checking holiday - we want any song matching genre+mood
         return genreMatch && moodMatch;
       });
