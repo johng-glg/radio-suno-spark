@@ -90,16 +90,17 @@ export function StationProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [isStationActive, pollForNewSongs]);
 
-  // Auto-generate when queue is low (max 1 ready + 1 generating)
+  // Auto-generate when queue is low (maintain up to 2 songs in queue)
   useEffect(() => {
     if (!isStationActive || !stationSettings) return;
     
     const readySongs = queue.filter(s => s.status === 'ready' && s.url);
     const generatingSongs = queue.filter(s => s.status === 'generating');
+    const totalInQueue = readySongs.length + generatingSongs.length;
     
-    // Only generate if we have 0 ready songs in queue and no songs currently generating
-    if (readySongs.length === 0 && generatingSongs.length === 0 && !generationLockRef.current && !isGenerating) {
-      console.log('🎵 Queue empty - generating new song...');
+    // Generate if we have less than 2 songs in queue and not already generating
+    if (totalInQueue < 2 && !generationLockRef.current && !isGenerating) {
+      console.log(`🎵 Queue has ${totalInQueue} songs - generating new song...`);
       generateNewSong();
     }
   }, [queue, isStationActive, stationSettings]);
@@ -293,8 +294,11 @@ export function StationProvider({ children }: { children: ReactNode }) {
         
         toast({ title: "Music Ready!", description: `Playing ${matchingSong.title}` });
         
-        // Start generating one song for the queue
-        setTimeout(() => generateNewSong(), 1000);
+        // Start generating two songs for the queue
+        setTimeout(() => {
+          generateNewSong();
+          setTimeout(() => generateNewSong(), 1500);
+        }, 1000);
       } else {
         console.log('No matching songs in queue - getting from library with filters:', {
           genres: settings.genres,
@@ -308,8 +312,11 @@ export function StationProvider({ children }: { children: ReactNode }) {
           playSong(currentSong, 'player');
           toast({ title: "Music Ready!", description: `Playing ${currentSong.title}` });
           
-          // Only generate one song for the queue (not queuing from library)
-          setTimeout(() => generateNewSong(), 1000);
+          // Start generating two songs for the queue
+          setTimeout(() => {
+            generateNewSong();
+            setTimeout(() => generateNewSong(), 1500);
+          }, 1000);
         } else {
           console.error('❌ No songs found matching criteria');
           toast({
