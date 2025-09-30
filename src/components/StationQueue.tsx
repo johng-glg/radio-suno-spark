@@ -6,12 +6,19 @@ import { useStation } from "@/contexts/StationContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function StationQueue() {
-  const { queue, skipToNext, refreshQueue, stopStation, isStationActive } = useStation();
+  const { queue, skipToNext, refreshQueue, stopStation, isStationActive, stationSettings } = useStation();
 
   if (!isStationActive) return null;
 
   const readySongs = queue.filter(s => s.status === 'ready' && s.url);
   const generatingSongs = queue.filter(s => s.status === 'generating');
+
+  console.log('StationQueue render:', { 
+    totalQueue: queue.length, 
+    ready: readySongs.length, 
+    generating: generatingSongs.length,
+    settings: stationSettings
+  });
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
@@ -51,7 +58,9 @@ export default function StationQueue() {
             </div>
             <ScrollArea className="h-[200px]">
               <div className="space-y-2 pr-4">
-                {readySongs.map((song, index) => (
+                {readySongs.map((song, index) => {
+                  console.log('Rendering ready song:', song.id, song.title);
+                  return (
                   <div
                     key={song.id}
                     className="flex items-center gap-3 p-3 rounded-lg bg-background/50 hover:bg-background/80 transition-colors"
@@ -88,8 +97,9 @@ export default function StationQueue() {
                         <SkipForward className="h-4 w-4" />
                       </Button>
                     )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </ScrollArea>
           </div>

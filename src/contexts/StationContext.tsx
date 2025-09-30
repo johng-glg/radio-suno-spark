@@ -61,7 +61,8 @@ export function StationProvider({ children }: { children: ReactNode }) {
       ?.filter(item => item.songs)
       .map(item => item.songs as Song) || [];
     
-    setQueue(songs);
+    console.log(`📋 Queue updated: ${songs.length} songs (${songs.filter(s => s.status === 'ready').length} ready)`);
+    setQueue([...songs]); // Force new array reference to trigger re-render
   }, [isStationActive]);
 
   // Auto-generate when queue is low
@@ -185,6 +186,8 @@ export function StationProvider({ children }: { children: ReactNode }) {
     if (initializationRef.current) return;
     initializationRef.current = true;
     
+    console.log('🎵 Starting station with settings:', settings);
+    
     setStationSettings(settings);
     setIsStationActive(true);
     setQueue([]);
@@ -202,8 +205,20 @@ export function StationProvider({ children }: { children: ReactNode }) {
         ?.filter(item => item.songs)
         .map(item => item.songs as Song) || [];
       
+      console.log(`Found ${existingReadySongs.length} existing ready songs in queue`);
+      
       if (existingReadySongs.length > 0) {
-        const firstSong = existingReadySongs[0];
+        // Check if existing songs match our genre/mood
+        const matchingSong = existingReadySongs.find(song => {
+          const genreMatch = settings.genres.length === 0 || 
+            settings.genres.some(g => g.toLowerCase() === song.genre?.toLowerCase());
+          const moodMatch = !settings.mood || song.mood?.toLowerCase() === settings.mood.toLowerCase();
+          return genreMatch && moodMatch;
+        });
+        
+        const firstSong = matchingSong || existingReadySongs[0];
+        console.log(`Playing song: ${firstSong.title} (${firstSong.genre} - ${firstSong.mood})`);
+        
         playSong(firstSong, 'player');
         
         // Remove from queue
@@ -218,20 +233,34 @@ export function StationProvider({ children }: { children: ReactNode }) {
           setTimeout(() => generateNewSong(), 1000);
         }
       } else {
-        // Get random song to play immediately
+        console.log('No existing queue - getting song from library with filters:', {
+          genres: settings.genres,
+          mood: settings.mood
+        });
+        
+        // Get random song to play immediately - with proper filtering
         const currentSong = await getRandomSong([]);
         if (currentSong) {
+          console.log(`✅ Playing: ${currentSong.title} (${currentSong.genre} - ${currentSong.mood})`);
           playSong(currentSong, 'player');
           toast({ title: "Music Ready!", description: `Playing ${currentSong.title}` });
           
           // Queue another song
           const nextSong = await getRandomSong([currentSong.id]);
           if (nextSong) {
+            console.log(`✅ Queued: ${nextSong.title}`);
             await addSongToQueue(nextSong);
           }
           
           // Generate new song
           setTimeout(() => generateNewSong(), 1000);
+        } else {
+          console.error('❌ No songs found matching criteria');
+          toast({
+            title: "No Songs Found",
+            description: "No songs match your selection. Try different settings.",
+            variant: "destructive"
+          });
         }
       }
       
