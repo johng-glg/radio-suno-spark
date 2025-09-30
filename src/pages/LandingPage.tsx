@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2, Snowflake, Ghost, Star, Leaf, Clover, Flag } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Play, Music, Radio, Sparkles, LogIn, LogOut, User, Zap, Volume2, Snowflake, Ghost, Star, Leaf, Clover, Flag, Library } from "lucide-react";
 import { User as AuthUser } from '@supabase/supabase-js';
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import SongBrowser from "@/components/SongBrowser";
 
 const GENRES = [
   "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
@@ -113,7 +115,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
       </div>
 
       {/* Main Content */}
-      <div className="w-full max-w-2xl space-y-8 animate-fade-in-up mt-16">
+      <div className="w-full max-w-6xl space-y-8 animate-fade-in-up mt-16">
         {/* AI Radio Title */}
         <div className="text-center">
           <div className="flex items-center justify-center space-x-3 mb-6">
@@ -129,152 +131,176 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
           </p>
         </div>
 
-        {/* Main Card */}
-        <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardContent className="p-8 space-y-8">
-            {/* Genre Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Music className="h-5 w-5 text-primary" />
-                <h3 className="text-lg font-semibold">Choose Your Genres</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {selectedGenres.length === 0 ? 'optional' : `${selectedGenres.length} selected`}
-                </Badge>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {GENRES.map((genre) => (
-                  <button
-                    key={genre}
-                    onClick={() => toggleGenre(genre)}
-                    className={`genre-chip ${selectedGenres.includes(genre) ? 'selected' : ''}`}
-                  >
-                    {genre}
-                  </button>
-                ))}
-              </div>
-              {selectedGenres.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No genres selected - will use all available genres
-                </p>
-              )}
-            </div>
+        {/* Tabs for Radio vs Browser */}
+        <Tabs defaultValue="radio" className="w-full">
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+            <TabsTrigger value="radio" className="flex items-center gap-2">
+              <Radio className="h-4 w-4" />
+              Create Radio
+            </TabsTrigger>
+            <TabsTrigger value="browser" className="flex items-center gap-2">
+              <Library className="h-4 w-4" />
+              Browse Songs
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Mood Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold">Select a Mood</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {selectedMood ? 'selected' : 'optional'}
-                </Badge>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {MOODS.map((mood) => (
-                  <button
-                    key={mood}
-                    onClick={() => setSelectedMood(mood === selectedMood ? null : mood)}
-                    className={`genre-chip ${selectedMood === mood ? 'selected' : ''}`}
-                  >
-                    {mood}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Advanced Options */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Advanced Options</h3>
-              <div className="space-y-4">
-                {/* Instrumental Toggle */}
-                <div className="flex items-center justify-between">
+          {/* Create Radio Tab */}
+          <TabsContent value="radio">
+            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              <CardContent className="p-8 space-y-8">
+                {/* Genre Selection */}
+                <div className="space-y-4">
                   <div className="flex items-center space-x-2">
-                    <Volume2 className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Instrumental</p>
-                      <p className="text-sm text-muted-foreground">Generate music without vocals</p>
-                    </div>
+                    <Music className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Choose Your Genres</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedGenres.length === 0 ? 'optional' : `${selectedGenres.length} selected`}
+                    </Badge>
                   </div>
-                  <Switch
-                    checked={isInstrumental}
-                    onCheckedChange={setIsInstrumental}
-                  />
-                </div>
-
-                {/* Wildcard Toggle */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Zap className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Wildcard Mode</p>
-                      <p className="text-sm text-muted-foreground">Add unexpected creative twists</p>
-                    </div>
+                  <div className="flex flex-wrap gap-3">
+                    {GENRES.map((genre) => (
+                      <button
+                        key={genre}
+                        onClick={() => toggleGenre(genre)}
+                        className={`genre-chip ${selectedGenres.includes(genre) ? 'selected' : ''}`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
                   </div>
-                  <Switch
-                    checked={isWildcard}
-                    onCheckedChange={setIsWildcard}
-                  />
-                </div>
-
-                {/* Holiday Theme */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Sparkles className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Holiday Theme</p>
-                      <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {HOLIDAYS.map((holiday) => {
-                      const Icon = holiday.icon;
-                      return (
-                        <button
-                          key={holiday.name}
-                          onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
-                          className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                            selectedHoliday === holiday.name
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
-                          }`}
-                        >
-                          {Icon ? (
-                            <Icon className="h-5 w-5 mb-1" />
-                          ) : (
-                            <span className="text-2xl mb-1">{holiday.emoji}</span>
-                          )}
-                          <span className="text-[10px] font-medium text-center leading-tight">{holiday.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {selectedHoliday && (
-                    <p className="text-xs text-muted-foreground">
-                      🎉 {selectedHoliday} theme will be applied to generated songs
+                  {selectedGenres.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No genres selected - will use all available genres
                     </p>
                   )}
                 </div>
-              </div>
-            </div>
 
+                {/* Mood Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-5 w-5 text-accent" />
+                    <h3 className="text-lg font-semibold">Select a Mood</h3>
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedMood ? 'selected' : 'optional'}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {MOODS.map((mood) => (
+                      <button
+                        key={mood}
+                        onClick={() => setSelectedMood(mood === selectedMood ? null : mood)}
+                        className={`genre-chip ${selectedMood === mood ? 'selected' : ''}`}
+                      >
+                        {mood}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Start Button */}
-            <div className="pt-4">
-              <Button 
-                onClick={handleStartRadio}
-                className="w-full h-14 text-lg font-semibold neon-glow"
-                size="lg"
-              >
-                <Play className="h-6 w-6 mr-3" />
-                {user ? "Start Radio" : "Sign In to Start Radio"}
-              </Button>
-              {!user && (
-                <p className="text-sm text-accent text-center mt-2">
-                  Sign in to save your preferences and start listening
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {/* Advanced Options */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Advanced Options</h3>
+                  <div className="space-y-4">
+                    {/* Instrumental Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Volume2 className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Instrumental</p>
+                          <p className="text-sm text-muted-foreground">Generate music without vocals</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={isInstrumental}
+                        onCheckedChange={setIsInstrumental}
+                      />
+                    </div>
+
+                    {/* Wildcard Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Zap className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Wildcard Mode</p>
+                          <p className="text-sm text-muted-foreground">Add unexpected creative twists</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={isWildcard}
+                        onCheckedChange={setIsWildcard}
+                      />
+                    </div>
+
+                    {/* Holiday Theme */}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">Holiday Theme</p>
+                          <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {HOLIDAYS.map((holiday) => {
+                          const Icon = holiday.icon;
+                          return (
+                            <button
+                              key={holiday.name}
+                              onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
+                              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                                selectedHoliday === holiday.name
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
+                              }`}
+                            >
+                              {Icon ? (
+                                <Icon className="h-5 w-5 mb-1" />
+                              ) : (
+                                <span className="text-2xl mb-1">{holiday.emoji}</span>
+                              )}
+                              <span className="text-[10px] font-medium text-center leading-tight">{holiday.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selectedHoliday && (
+                        <p className="text-xs text-muted-foreground">
+                          🎉 {selectedHoliday} theme will be applied to generated songs
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Start Button */}
+                <div className="pt-4">
+                  <Button 
+                    onClick={handleStartRadio}
+                    className="w-full h-14 text-lg font-semibold neon-glow"
+                    size="lg"
+                  >
+                    <Play className="h-6 w-6 mr-3" />
+                    {user ? "Start Radio" : "Sign In to Start Radio"}
+                  </Button>
+                  {!user && (
+                    <p className="text-sm text-accent text-center mt-2">
+                      Sign in to save your preferences and start listening
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Browse Songs Tab */}
+          <TabsContent value="browser">
+            <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+              <CardContent className="p-8">
+                <SongBrowser />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
         {/* Feature highlights */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center text-sm text-muted-foreground">
