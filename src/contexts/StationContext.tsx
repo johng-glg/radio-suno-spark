@@ -164,6 +164,12 @@ export function StationProvider({ children }: { children: ReactNode }) {
     
     const genresLowerCase = stationSettings.genres.map(g => g.toLowerCase());
     
+    console.log('🔍 Searching for songs with:', {
+      genres: genresLowerCase,
+      mood: stationSettings.mood?.toLowerCase(),
+      excludeIds: excludeIds.length
+    });
+    
     let query = supabase
       .from('songs')
       .select('*')
@@ -172,23 +178,31 @@ export function StationProvider({ children }: { children: ReactNode }) {
       .eq('is_public', true)
       .not('url', 'is', null);
     
-    if (genresLowerCase.length > 0) {
-      query = query.in('genre', genresLowerCase);
-    }
-    
-    if (stationSettings.mood) {
-      query = query.eq('mood', stationSettings.mood.toLowerCase());
-    }
-    
     if (excludeIds.length > 0) {
       query = query.not('id', 'in', `(${excludeIds.join(',')})`);
     }
     
-    const { data: songs } = await query.limit(50);
+    const { data: allSongs, error } = await query.limit(200);
     
-    if (!songs || songs.length === 0) return null;
+    if (error) {
+      console.error('Error fetching songs:', error);
+      return null;
+    }
     
-    return songs[Math.floor(Math.random() * songs.length)] as Song;
+    // Filter by genre and mood (case-insensitive) on client side
+    const filteredSongs = allSongs?.filter(song => {
+      const genreMatch = genresLowerCase.length === 0 || 
+        genresLowerCase.includes(song.genre?.toLowerCase());
+      const moodMatch = !stationSettings.mood || 
+        song.mood?.toLowerCase() === stationSettings.mood.toLowerCase();
+      return genreMatch && moodMatch;
+    }) || [];
+    
+    console.log(`📚 Found ${filteredSongs.length} matching songs (out of ${allSongs?.length || 0} total)`);
+    
+    if (filteredSongs.length === 0) return null;
+    
+    return filteredSongs[Math.floor(Math.random() * filteredSongs.length)] as Song;
   };
 
   const addSongToQueue = async (song: Song) => {
