@@ -132,27 +132,53 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setActiveContext(context);
       setProgress(0);
 
-      // Wait until audio can play to avoid play/pause race
+      // Load the audio and start playing
+      audio.load();
+      
+      // Wait for audio to be ready and start playback
       await new Promise<void>((resolve, reject) => {
+        let resolved = false;
+        
+        const cleanup = () => {
+          audio.removeEventListener('canplaythrough', onCanPlay);
+          audio.removeEventListener('error', onError);
+        };
+        
         const onCanPlay = () => {
-          audio.removeEventListener('canplay', onCanPlay);
+          if (resolved) return;
+          cleanup();
+          
           audio.play()
             .then(() => {
+              resolved = true;
               console.log('Song started successfully');
+              // Force playing state update
+              setIsPlaying(true);
               resolve();
             })
             .catch((err) => {
-              if ((err as any)?.name === 'AbortError') {
-                // Retry once on AbortError (common when switching sources)
+              if (!resolved && (err as any)?.name === 'AbortError') {
                 console.log('AbortError detected, retrying...');
-                audio.play().then(resolve).catch(reject);
+                audio.play()
+                  .then(() => {
+                    resolved = true;
+                    setIsPlaying(true);
+                    resolve();
+                  })
+                  .catch(reject);
               } else {
                 reject(err);
               }
             });
         };
-        audio.addEventListener('canplay', onCanPlay);
-        audio.load();
+        
+        const onError = (e: Event) => {
+          cleanup();
+          reject(new Error('Failed to load audio'));
+        };
+        
+        audio.addEventListener('canplaythrough', onCanPlay);
+        audio.addEventListener('error', onError);
       });
 
       // Track play in database (best-effort)
