@@ -174,12 +174,12 @@ export function StationProvider({ children }: { children: ReactNode }) {
       .from('songs')
       .select('*')
       .eq('status', 'ready')
-      .is('requested_by', null)
       .eq('is_public', true)
       .not('url', 'is', null);
     
     if (excludeIds.length > 0) {
-      query = query.not('id', 'in', `(${excludeIds.join(',')})`);
+      const quoted = excludeIds.map((id) => `'${id}'`).join(',');
+      query = query.not('id', 'in', `(${quoted})`);
     }
     
     const { data: allSongs, error } = await query.limit(200);
