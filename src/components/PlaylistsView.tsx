@@ -67,8 +67,27 @@ export default function PlaylistsView() {
   useEffect(() => {
     if (selectedPlaylist) {
       fetchPlaylistSongs(selectedPlaylist.id);
+    } else {
+      // Stop playback when navigating away from playlist
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setPlayingSongId(null);
+      setCurrentTime(0);
+      setDuration(0);
     }
   }, [selectedPlaylist]);
+
+  // Cleanup audio on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchPlaylists = async () => {
     if (!user) return;
