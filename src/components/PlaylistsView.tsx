@@ -197,6 +197,15 @@ export default function PlaylistsView() {
   };
 
   const handlePlayPause = (song: any, index?: number) => {
+    if (!song.url) {
+      toast({
+        title: "Cannot play song",
+        description: "This song doesn't have an audio file yet",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (index !== undefined) {
       setCurrentPlayingIndex(index);
     }

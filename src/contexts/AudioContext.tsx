@@ -90,14 +90,17 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [volume]);
 
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
-    if (!audioRef.current || !song.url) return;
+    if (!audioRef.current || !song.url) {
+      console.log('Cannot play song:', { hasAudioRef: !!audioRef.current, hasUrl: !!song.url, song });
+      return;
+    }
 
     const audio = audioRef.current;
 
     // If it's the same song, just toggle play/pause
     if (currentSong?.id === song.id) {
       if (audio.paused) {
-        audio.play().catch(console.error);
+        await audio.play().catch(console.error);
       } else {
         audio.pause();
       }
