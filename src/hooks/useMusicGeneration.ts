@@ -112,6 +112,7 @@ export function useMusicGeneration() {
     asLibrary: boolean = true,
     holiday?: string
   ) => {
+    console.log('🎵 generateWithBuildPrompt called with mood:', mood);
     return generateMusic({
       use_build_prompt: true,
       wild_card_mode: wildCardMode,

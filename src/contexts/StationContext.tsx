@@ -148,6 +148,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
     
     generationLockRef.current = true;
     try {
+      console.log('🎵 Generating song with mood:', stationSettings.mood);
       await generateWithBuildPrompt(
         stationSettings.wildcard,
         stationSettings.instrumental,
@@ -252,6 +253,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
     initializationRef.current = true;
     
     console.log('🎵 Starting station with settings:', settings);
+    console.log('🎵 Mood received:', settings.mood);
     
     setStationSettings(settings);
     setIsStationActive(true);
