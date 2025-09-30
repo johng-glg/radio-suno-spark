@@ -24,6 +24,13 @@ const Index = () => {
     document.documentElement.classList.add('dark');
   }, []);
 
+  // Redirect unauthenticated users to auth page
+  useEffect(() => {
+    if (!loading && !user && currentPage !== 'auth') {
+      setCurrentPage('auth');
+    }
+  }, [loading, user, currentPage]);
+
   // Show loading while checking auth
   if (loading) {
     return (
@@ -34,11 +41,6 @@ const Index = () => {
         </div>
       </div>
     );
-  }
-
-  // Redirect unauthenticated users to auth page by default
-  if (!loading && !user && currentPage !== 'auth') {
-    setCurrentPage('auth');
   }
 
   const handleStartRadio = (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean, holiday?: string) => {
