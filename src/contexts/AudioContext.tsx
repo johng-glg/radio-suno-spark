@@ -36,49 +36,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   const [volume, setVolumeState] = useState(80);
   const [activeContext, setActiveContext] = useState<'player' | 'playlist' | null>(null);
 
-  // Initialize audio element
+  // Cleanup audio on unmount only (lazy-init the element on first play)
   useEffect(() => {
-    const audio = new Audio();
-    audio.volume = volume / 100;
-    audioRef.current = audio;
-
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
-    };
-
-    const handleTimeUpdate = () => {
-      if (audio.duration > 0) {
-        setProgress((audio.currentTime / audio.duration) * 100);
-      }
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(0);
-    };
-
-    const handlePlay = () => {
-      setIsPlaying(true);
-    };
-
-    const handlePause = () => {
-      setIsPlaying(false);
-    };
-
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.pause();
-      audio.src = '';
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
     };
   }, []);
 
@@ -90,9 +54,42 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   }, [volume]);
 
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
-    if (!audioRef.current || !song.url) {
-      console.log('Cannot play song:', { hasAudioRef: !!audioRef.current, hasUrl: !!song.url, song });
+    if (!song.url) {
+      console.log('Cannot play song: missing URL', song);
       return;
+    }
+
+    // Lazy-initialize the audio element on first user interaction
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.volume = volume / 100;
+
+      const handleLoadedMetadata = () => {
+        setDuration(audio.duration);
+      };
+
+      const handleTimeUpdate = () => {
+        if (audio.duration > 0) {
+          setProgress((audio.currentTime / audio.duration) * 100);
+        }
+      };
+
+      const handleEnded = () => {
+        setIsPlaying(false);
+        setProgress(0);
+      };
+
+      const handlePlay = () => setIsPlaying(true);
+      const handlePause = () => setIsPlaying(false);
+
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
+
+      audioRef.current = audio;
     }
 
     const audio = audioRef.current;
@@ -100,7 +97,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     // If it's the same song, just toggle play/pause
     if (currentSong?.id === song.id) {
       if (audio.paused) {
-        await audio.play().catch(console.error);
+        try { await audio.play(); } catch (e) { console.error(e); }
       } else {
         audio.pause();
       }
@@ -118,8 +115,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     try {
       await audio.play();
-      
-      // Track play in database
+      // Track play in database (best-effort)
       await supabase.rpc('track_song_play', {
         _song_id: song.id,
         _user_id: (await supabase.auth.getUser()).data.user?.id || null
