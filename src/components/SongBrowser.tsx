@@ -25,15 +25,15 @@ interface Song {
 
 const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
 const MOODS = ["all", "upbeat", "chill", "aggressive", "emotional", "epic", "playful"];
-const HOLIDAYS = ["all", "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"];
+const HOLIDAYS = ["all", "christmas", "halloween", "hanukkah", "thanksgiving", "st. patty's day", "4th of july"];
 
 const HOLIDAY_ICONS: Record<string, any> = {
-  "Christmas": Snowflake,
-  "Halloween": Ghost,
-  "Hanukkah": "🕎",
-  "Thanksgiving": "🍗",
-  "St. Patty's Day": Clover,
-  "4th of July": Flag,
+  "christmas": Snowflake,
+  "halloween": Ghost,
+  "hanukkah": "🕎",
+  "thanksgiving": "🍗",
+  "st. patty's day": Clover,
+  "4th of july": Flag,
 };
 
 export default function SongBrowser() {

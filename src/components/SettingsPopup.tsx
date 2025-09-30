@@ -28,15 +28,15 @@ interface SettingsPopupProps {
 }
 
 const AVAILABLE_GENRES = [
-  "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
+  "classical", "edm", "pop", "rock", "jazz", "hip-hop", "country"
 ];
 
 const AVAILABLE_MOODS = [
-  "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
+  "upbeat", "chill", "aggressive", "emotional", "epic", "playful"
 ];
 
 const AVAILABLE_HOLIDAYS = [
-  "Christmas", "Halloween", "Hanukkah", "Thanksgiving", "St. Patty's Day", "4th of July"
+  "christmas", "halloween", "hanukkah", "thanksgiving", "st. patty's day", "4th of july"
 ];
 
 export default function SettingsPopup({

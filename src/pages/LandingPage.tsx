@@ -16,20 +16,20 @@ import StationQueue from "@/components/StationQueue";
 import { useStation } from "@/contexts/StationContext";
 
 const GENRES = [
-  "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
+  "classical", "edm", "pop", "rock", "jazz", "hip-hop", "country"
 ];
 
 const MOODS = [
-  "Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"
+  "upbeat", "chill", "aggressive", "emotional", "epic", "playful"
 ];
 
 const HOLIDAYS = [
-  { name: "Christmas", icon: Snowflake, emoji: null },
-  { name: "Halloween", icon: Ghost, emoji: null },
-  { name: "Hanukkah", icon: null, emoji: "🕎" },
-  { name: "Thanksgiving", icon: null, emoji: "🍗" },
-  { name: "St. Patty's Day", icon: Clover, emoji: null },
-  { name: "4th of July", icon: Flag, emoji: null },
+  { name: "christmas", icon: Snowflake, emoji: null },
+  { name: "halloween", icon: Ghost, emoji: null },
+  { name: "hanukkah", icon: null, emoji: "🕎" },
+  { name: "thanksgiving", icon: null, emoji: "🍗" },
+  { name: "st. patty's day", icon: Clover, emoji: null },
+  { name: "4th of july", icon: Flag, emoji: null },
 ];
 
 interface LandingPageProps {

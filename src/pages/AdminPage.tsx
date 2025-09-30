@@ -67,7 +67,7 @@ interface AdminStats {
 }
 
 const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
-const MOODS = ['Upbeat', 'Chill', 'Aggressive', 'Emotional', 'Epic', 'Playful'];
+const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
 
 export default function AdminPage() {
   const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
@@ -1061,8 +1061,8 @@ export default function AdminPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Moods</SelectItem>
-                            {["Upbeat", "Chill", "Aggressive", "Emotional", "Epic", "Playful"].map((mood) => (
-                              <SelectItem key={mood} value={mood.toLowerCase()} className="capitalize">
+                            {MOODS.map((mood) => (
+                              <SelectItem key={mood} value={mood} className="capitalize">
                                 {mood}
                               </SelectItem>
                             ))}
