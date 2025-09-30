@@ -61,8 +61,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // Lazy-initialize the audio element on first user interaction
     if (!audioRef.current) {
-      const audio = new Audio();
+      // Create a real DOM audio element to improve iOS Safari compatibility
+      const audio = document.createElement('audio');
+      audio.setAttribute('preload', 'auto');
+      audio.setAttribute('playsinline', 'true');
+      audio.style.display = 'none';
       audio.crossOrigin = 'anonymous';
+      document.body.appendChild(audio);
       audio.volume = volume / 100;
 
       const handleLoadedMetadata = () => {
@@ -89,7 +94,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       audio.addEventListener('play', handlePlay);
       audio.addEventListener('pause', handlePause);
 
-      audioRef.current = audio;
+      audioRef.current = audio as HTMLAudioElement;
     }
 
     const audio = audioRef.current;
