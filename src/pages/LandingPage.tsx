@@ -42,6 +42,7 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
   const [isInstrumental, setIsInstrumental] = useState(false);
   const [isWildcard, setIsWildcard] = useState(false);
   const [selectedHoliday, setSelectedHoliday] = useState<string | undefined>(undefined);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const { signOut } = useAuth();
   const { toast } = useToast();
 
@@ -208,77 +209,86 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
 
                 {/* Advanced Options */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Advanced Options</h3>
-                  <div className="space-y-4">
-                    {/* Instrumental Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Volume2 className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Instrumental</p>
-                          <p className="text-sm text-muted-foreground">Generate music without vocals</p>
+                  <button
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span>{showAdvanced ? '▼' : '▶'}</span>
+                    <span className="font-medium">Advanced Options</span>
+                  </button>
+                  
+                  {showAdvanced && (
+                    <div className="space-y-4 animate-fade-in-up">
+                      {/* Instrumental Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Volume2 className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Instrumental</p>
+                            <p className="text-sm text-muted-foreground">Generate music without vocals</p>
+                          </div>
                         </div>
+                        <Switch
+                          checked={isInstrumental}
+                          onCheckedChange={setIsInstrumental}
+                        />
                       </div>
-                      <Switch
-                        checked={isInstrumental}
-                        onCheckedChange={setIsInstrumental}
-                      />
-                    </div>
 
-                    {/* Wildcard Toggle */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Zap className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Wildcard Mode</p>
-                          <p className="text-sm text-muted-foreground">Add unexpected creative twists</p>
+                      {/* Wildcard Toggle */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Zap className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Wildcard Mode</p>
+                            <p className="text-sm text-muted-foreground">Add unexpected creative twists</p>
+                          </div>
                         </div>
+                        <Switch
+                          checked={isWildcard}
+                          onCheckedChange={setIsWildcard}
+                        />
                       </div>
-                      <Switch
-                        checked={isWildcard}
-                        onCheckedChange={setIsWildcard}
-                      />
-                    </div>
 
-                    {/* Holiday Theme */}
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Sparkles className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">Holiday Theme</p>
-                          <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
+                      {/* Holiday Theme */}
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Sparkles className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Holiday Theme</p>
+                            <p className="text-sm text-muted-foreground">Add festive vibes to generated music</p>
+                          </div>
                         </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {HOLIDAYS.map((holiday) => {
+                            const Icon = holiday.icon;
+                            return (
+                              <button
+                                key={holiday.name}
+                                onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
+                                className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
+                                  selectedHoliday === holiday.name
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
+                                }`}
+                              >
+                                {Icon ? (
+                                  <Icon className="h-5 w-5 mb-1" />
+                                ) : (
+                                  <span className="text-2xl mb-1">{holiday.emoji}</span>
+                                )}
+                                <span className="text-[10px] font-medium text-center leading-tight">{holiday.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {selectedHoliday && (
+                          <p className="text-xs text-muted-foreground">
+                            🎉 {selectedHoliday} theme will be applied to generated songs
+                          </p>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {HOLIDAYS.map((holiday) => {
-                          const Icon = holiday.icon;
-                          return (
-                            <button
-                              key={holiday.name}
-                              onClick={() => setSelectedHoliday(selectedHoliday === holiday.name ? undefined : holiday.name)}
-                              className={`flex flex-col items-center justify-center p-2 rounded-lg border-2 transition-all ${
-                                selectedHoliday === holiday.name
-                                  ? 'border-primary bg-primary/10 text-primary'
-                                  : 'border-border bg-background/50 hover:border-primary/50 hover:bg-background/80'
-                              }`}
-                            >
-                              {Icon ? (
-                                <Icon className="h-5 w-5 mb-1" />
-                              ) : (
-                                <span className="text-2xl mb-1">{holiday.emoji}</span>
-                              )}
-                              <span className="text-[10px] font-medium text-center leading-tight">{holiday.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {selectedHoliday && (
-                        <p className="text-xs text-muted-foreground">
-                          🎉 {selectedHoliday} theme will be applied to generated songs
-                        </p>
-                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Start Button */}
