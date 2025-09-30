@@ -49,8 +49,8 @@ export function StationProvider({ children }: { children: ReactNode }) {
   const initializationRef = useRef(false);
 
   // Poll for new songs in queue
-  const pollForNewSongs = useCallback(async () => {
-    if (!isStationActive) return;
+  const pollForNewSongs = useCallback(async (force = false) => {
+    if (!isStationActive && !force) return;
     
     const { data: queueItems } = await supabase
       .from('queue')
@@ -64,6 +64,20 @@ export function StationProvider({ children }: { children: ReactNode }) {
     console.log(`📋 Queue updated: ${songs.length} songs (${songs.filter(s => s.status === 'ready').length} ready)`);
     setQueue([...songs]); // Force new array reference to trigger re-render
   }, [isStationActive]);
+
+  // Initial fetch when station becomes active
+  useEffect(() => {
+    if (isStationActive) {
+      pollForNewSongs(true);
+    }
+  }, [isStationActive, pollForNewSongs]);
+
+  // Periodic polling while station is active
+  useEffect(() => {
+    if (!isStationActive) return;
+    const intervalId = setInterval(() => pollForNewSongs(true), 5000);
+    return () => clearInterval(intervalId);
+  }, [isStationActive, pollForNewSongs]);
 
   // Auto-generate when queue is low
   useEffect(() => {
@@ -85,12 +99,12 @@ export function StationProvider({ children }: { children: ReactNode }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'queue' },
-        () => pollForNewSongs()
+        () => pollForNewSongs(true)
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'songs' },
-        () => pollForNewSongs()
+        () => pollForNewSongs(true)
       )
       .subscribe();
 
@@ -225,6 +239,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
         const queueItemToRemove = existingReadyQueue?.find(item => item.songs?.id === firstSong.id);
         if (queueItemToRemove) {
           await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
+          await pollForNewSongs(true);
         }
         
         toast({ title: "Music Ready!", description: `Playing ${firstSong.title}` });
@@ -250,6 +265,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
           if (nextSong) {
             console.log(`✅ Queued: ${nextSong.title}`);
             await addSongToQueue(nextSong);
+            await pollForNewSongs(true);
           }
           
           // Generate new song
@@ -302,6 +318,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
       
       if (queueItems) {
         await supabase.from('queue').delete().eq('id', queueItems.id);
+        await pollForNewSongs(true);
       }
       
       toast({ title: 'Next Track', description: nextSong.title });
@@ -317,7 +334,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshQueue = async () => {
-    await pollForNewSongs();
+    await pollForNewSongs(true);
   };
 
   return (
