@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import { 
   Plus, Music, Play, Pause, Trash2, ListMusic, X, SkipForward, Shuffle 
 } from "lucide-react";
@@ -50,6 +51,8 @@ export default function PlaylistsView() {
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState(0);
   const [isShuffled, setIsShuffled] = useState(false);
   const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -197,6 +200,8 @@ export default function PlaylistsView() {
       const audio = new Audio(song.url);
       audio.play();
       audio.onended = () => handleSkipToNext();
+      audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
+      audio.onloadedmetadata = () => setDuration(audio.duration);
       audioRef.current = audio;
       setPlayingSongId(song.id);
       if (index !== undefined) {
@@ -430,6 +435,12 @@ export default function PlaylistsView() {
                     </Button>
                   </div>
                 </div>
+                
+                {/* Progress Bar */}
+                <div className="mt-3">
+                  <Progress value={duration > 0 ? (currentTime / duration) * 100 : 0} />
+                </div>
+
                 {isShuffled && (
                   <Badge variant="secondary" className="mt-2 text-xs">
                     <Shuffle className="h-3 w-3 mr-1" />
