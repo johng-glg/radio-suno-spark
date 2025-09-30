@@ -379,28 +379,52 @@ const {
       if (errMessage.toLowerCase().includes('concurrency')) {
         console.log('Concurrency limit reached, searching for existing song in genre:', genre);
         
-        // Find an existing ready song (prefer same genre, but fallback to any if none found)
-        let fallbackQuery = serviceClient
-          .from('songs')
-          .select('*')
-          .eq('status', 'ready')
-          .not('requested_by', 'eq', requesterId) // Avoid user's own songs
-          .eq('genre', genre)
-          .limit(1);
+        // Find an existing ready song (prefer same genre AND mood, then genre-only, then any)
+        let existingSong: any = null;
+        let existingError: any = null;
+
+        // 1) Try exact genre + mood match if mood provided
+        if (mood) {
+          const genreMoodQuery = serviceClient
+            .from('songs')
+            .select('*')
+            .eq('status', 'ready')
+            .not('requested_by', 'eq', requesterId) // Avoid user's own songs
+            .eq('genre', genre)
+            .eq('mood', mood)
+            .limit(1);
+          const res1 = await genreMoodQuery.single();
+          existingSong = res1.data;
+          existingError = res1.error;
+          if (existingSong && !existingError) {
+            console.log('Found fallback with same genre and mood:', existingSong.id);
+          }
+        }
+
+        // 2) If not found, try same genre only
+        if (!existingSong || existingError) {
+          const genreOnlyQuery = serviceClient
+            .from('songs')
+            .select('*')
+            .eq('status', 'ready')
+            .not('requested_by', 'eq', requesterId)
+            .eq('genre', genre)
+            .limit(1);
+          const res2 = await genreOnlyQuery.single();
+          existingSong = res2.data;
+          existingError = res2.error;
+        }
         
-        let { data: existingSong, error: existingError } = await fallbackQuery.single();
-        
-        // If no song found in the specific genre, try any genre
+        // 3) If still not found, try any ready song
         if (!existingSong || existingError) {
           console.log(`No existing song found for genre ${genre}, trying any genre`);
-          fallbackQuery = serviceClient
+          const anyQuery = serviceClient
             .from('songs')
             .select('*')
             .eq('status', 'ready')
             .not('requested_by', 'eq', requesterId)
             .limit(1);
-          
-          const fallbackResult = await fallbackQuery.single();
+          const fallbackResult = await anyQuery.single();
           existingSong = fallbackResult.data;
           existingError = fallbackResult.error;
         }
