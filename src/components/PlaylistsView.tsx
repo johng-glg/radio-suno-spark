@@ -68,14 +68,8 @@ export default function PlaylistsView() {
     }
   }, [selectedPlaylist]);
 
-  // Stop playback when unmounting or leaving playlist view
-  useEffect(() => {
-    return () => {
-      if (activeContext === 'playlist') {
-        pause();
-      }
-    };
-  }, [activeContext, pause]);
+  
+
 
   const fetchPlaylists = async () => {
     if (!user) return;
