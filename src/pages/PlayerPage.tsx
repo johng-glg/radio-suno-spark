@@ -928,11 +928,22 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
       <div className="max-w-2xl mx-auto space-y-8">
         {/* Now Playing */}
-        <Card className="bg-card/50 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm relative">
           <CardContent className="p-8 text-center space-y-6">
+            {/* Settings Button - Top Right */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 player-control"
+              onClick={() => setShowSettingsPopup(true)}
+              title="Music Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">{currentSong?.title || "Loading..."}</h2>
+              <div className="flex flex-col items-center space-y-2">
+                <h2 className="text-2xl font-bold text-center">{currentSong?.title || "Loading..."}</h2>
                 {currentSong?.prompt_metadata && (
                   <Button
                     variant="ghost"
@@ -1015,16 +1026,6 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
 
             {/* Controls */}
             <div className="flex items-center justify-center space-x-6">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="player-control"
-                onClick={() => setShowSettingsPopup(true)}
-                title="Music Settings"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-              
               <Button
                 size="icon"
                 className="h-16 w-16 rounded-full neon-glow"
