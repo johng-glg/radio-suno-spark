@@ -116,16 +116,34 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     startingRef.current = true;
 
     try {
-      // Stop current song and play new one
+      // Stop current song and prepare new source
       audio.pause();
       audio.src = song.url;
-      audio.load();
+      audio.currentTime = 0;
       
       setCurrentSong(song);
       setActiveContext(context);
       setProgress(0);
 
-      await audio.play();
+      // Wait until audio can play to avoid play/pause race
+      await new Promise<void>((resolve, reject) => {
+        const onCanPlay = () => {
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.play()
+            .then(resolve)
+            .catch((err) => {
+              if ((err as any)?.name === 'AbortError') {
+                // Retry once on AbortError (common when switching sources)
+                audio.play().then(resolve).catch(reject);
+              } else {
+                reject(err);
+              }
+            });
+        };
+        audio.addEventListener('canplay', onCanPlay);
+        audio.load();
+      });
+
       // Track play in database (best-effort)
       await supabase.rpc('track_song_play', {
         _song_id: song.id,
