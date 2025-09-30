@@ -90,13 +90,16 @@ export function StationProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(intervalId);
   }, [isStationActive, pollForNewSongs]);
 
-  // Auto-generate when queue is low
+  // Auto-generate when queue is low (max 1 ready + 1 generating)
   useEffect(() => {
     if (!isStationActive || !stationSettings) return;
     
     const readySongs = queue.filter(s => s.status === 'ready' && s.url);
-    if (readySongs.length <= 2 && !generationLockRef.current && !isGenerating) {
-      console.log('🎵 Queue running low - generating new song...');
+    const generatingSongs = queue.filter(s => s.status === 'generating');
+    
+    // Only generate if we have 0 ready songs in queue and no songs currently generating
+    if (readySongs.length === 0 && generatingSongs.length === 0 && !generationLockRef.current && !isGenerating) {
+      console.log('🎵 Queue empty - generating new song...');
       generateNewSong();
     }
   }, [queue, isStationActive, stationSettings]);
@@ -268,9 +271,8 @@ export function StationProvider({ children }: { children: ReactNode }) {
         
         toast({ title: "Music Ready!", description: `Playing ${matchingSong.title}` });
         
-        if (existingReadySongs.length <= 2) {
-          setTimeout(() => generateNewSong(), 1000);
-        }
+        // Start generating one song for the queue
+        setTimeout(() => generateNewSong(), 1000);
       } else {
         console.log('No matching songs in queue - getting from library with filters:', {
           genres: settings.genres,
@@ -284,15 +286,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
           playSong(currentSong, 'player');
           toast({ title: "Music Ready!", description: `Playing ${currentSong.title}` });
           
-          // Queue another song
-          const nextSong = await getRandomSong([currentSong.id]);
-          if (nextSong) {
-            console.log(`✅ Queued: ${nextSong.title}`);
-            await addSongToQueue(nextSong);
-            await pollForNewSongs(true);
-          }
-          
-          // Generate new song
+          // Only generate one song for the queue (not queuing from library)
           setTimeout(() => generateNewSong(), 1000);
         } else {
           console.error('❌ No songs found matching criteria');
