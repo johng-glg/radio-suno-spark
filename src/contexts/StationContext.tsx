@@ -167,13 +167,16 @@ export function StationProvider({ children }: { children: ReactNode }) {
   const getRandomSong = async (excludeIds: string[]): Promise<Song | null> => {
     if (!stationSettings) return null;
     
+    // IMPORTANT: Only use genre and mood for playback matching
+    // Holiday and other advanced options are ONLY for generation, not playback
     const genresLowerCase = stationSettings.genres.map(g => g.toLowerCase());
     const moodLowerCase = stationSettings.mood?.toLowerCase();
     
-    console.log('🔍 Searching for songs with:', {
+    console.log('🔍 Searching for songs with (PLAYBACK - no holiday filter):', {
       genres: genresLowerCase,
       mood: moodLowerCase,
-      excludeIds: excludeIds.length
+      excludeIds: excludeIds.length,
+      note: 'Holiday filter is NOT applied for playback'
     });
     
     let query = supabase
@@ -200,12 +203,14 @@ export function StationProvider({ children }: { children: ReactNode }) {
       return null;
     }
     
-    // Filter by genre and mood (case-insensitive) on client side
+    // Filter by genre and mood ONLY (case-insensitive) on client side
+    // NEVER filter by holiday - that's only for generation
     let filteredSongs = allSongs.filter(song => {
       const genreMatch = genresLowerCase.length === 0 || 
         genresLowerCase.includes(song.genre?.toLowerCase());
       const moodMatch = !moodLowerCase || 
         song.mood?.toLowerCase() === moodLowerCase;
+      // Explicitly NOT filtering by holiday - we want ALL songs matching genre+mood
       return genreMatch && moodMatch;
     });
     
@@ -274,11 +279,12 @@ export function StationProvider({ children }: { children: ReactNode }) {
       
       console.log(`Found ${existingReadySongs.length} existing ready songs in queue`);
       
-      // Check if existing songs match our genre/mood
+      // Check if existing songs match our genre/mood (NOT holiday - that's only for generation)
       const matchingSong = existingReadySongs.find(song => {
         const genreMatch = settings.genres.length === 0 || 
           settings.genres.some(g => g.toLowerCase() === song.genre?.toLowerCase());
         const moodMatch = !settings.mood || song.mood?.toLowerCase() === settings.mood.toLowerCase();
+        // Explicitly NOT checking holiday - we want any song matching genre+mood
         return genreMatch && moodMatch;
       });
       
@@ -302,9 +308,10 @@ export function StationProvider({ children }: { children: ReactNode }) {
           setTimeout(() => generateNewSong(), 1500);
         }, 1000);
       } else {
-        console.log('No matching songs in queue - getting from library with filters:', {
+        console.log('No matching songs in queue - getting from library (genre+mood only, NO holiday):', {
           genres: settings.genres,
-          mood: settings.mood
+          mood: settings.mood,
+          holiday: settings.holiday + ' (NOT used for matching)'
         });
         
         // Get random song from library with proper filtering
