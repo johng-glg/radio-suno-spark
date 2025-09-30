@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { useAudioPlayer } from "@/contexts/AudioContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,16 +48,13 @@ export default function PlaylistsView() {
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
-  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState(0);
   const [isShuffled, setIsShuffled] = useState(false);
   const [shuffledOrder, setShuffledOrder] = useState<number[]>([]);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [deletePlaylistId, setDeletePlaylistId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { currentSong, isPlaying, playSong, pause, progress, duration, activeContext } = useAudioPlayer();
 
   useEffect(() => {
     if (user) {
@@ -67,27 +65,17 @@ export default function PlaylistsView() {
   useEffect(() => {
     if (selectedPlaylist) {
       fetchPlaylistSongs(selectedPlaylist.id);
-    } else {
-      // Stop playback when navigating away from playlist
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-      setPlayingSongId(null);
-      setCurrentTime(0);
-      setDuration(0);
     }
   }, [selectedPlaylist]);
 
-  // Cleanup audio on component unmount
+  // Stop playback when unmounting or leaving playlist view
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+      if (activeContext === 'playlist') {
+        pause();
       }
     };
-  }, []);
+  }, [activeContext, pause]);
 
   const fetchPlaylists = async () => {
     if (!user) return;
@@ -208,35 +196,11 @@ export default function PlaylistsView() {
     }
   };
 
-  const handlePlayPause = async (song: any, index?: number) => {
-    if (playingSongId === song.id) {
-      audioRef.current?.pause();
-      setPlayingSongId(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      const audio = new Audio(song.url);
-      audio.play();
-      audio.onended = () => handleSkipToNext();
-      audio.ontimeupdate = () => setCurrentTime(audio.currentTime);
-      audio.onloadedmetadata = () => setDuration(audio.duration);
-      audioRef.current = audio;
-      setPlayingSongId(song.id);
-      if (index !== undefined) {
-        setCurrentPlayingIndex(index);
-      }
-
-      // Track play
-      try {
-        await supabase.rpc('track_song_play', {
-          _song_id: song.id,
-          _user_id: user?.id || null
-        });
-      } catch (error) {
-        console.error('Failed to track play:', error);
-      }
+  const handlePlayPause = (song: any, index?: number) => {
+    if (index !== undefined) {
+      setCurrentPlayingIndex(index);
     }
+    playSong(song, 'playlist');
   };
 
   const handleSkipToNext = () => {
@@ -276,6 +240,11 @@ export default function PlaylistsView() {
 
   const getCurrentSong = () => {
     if (playlistSongs.length === 0) return null;
+    // If audio is playing from playlist context and matches a song in this playlist
+    if (activeContext === 'playlist' && currentSong) {
+      const matchingSong = playlistSongs.find(ps => ps.songs.id === currentSong.id);
+      if (matchingSong) return matchingSong.songs;
+    }
     return playlistSongs[currentPlayingIndex]?.songs || playlistSongs[0]?.songs;
   };
 
@@ -437,7 +406,7 @@ export default function PlaylistsView() {
                         }
                       }}
                     >
-                      {playingSongId === getCurrentSong()?.id ? (
+                      {isPlaying && currentSong?.id === getCurrentSong()?.id ? (
                         <Pause className="h-4 w-4" />
                       ) : (
                         <Play className="h-4 w-4" />
@@ -457,7 +426,7 @@ export default function PlaylistsView() {
                 
                 {/* Progress Bar */}
                 <div className="mt-3">
-                  <Progress value={duration > 0 ? (currentTime / duration) * 100 : 0} />
+                  <Progress value={activeContext === 'playlist' ? progress : 0} />
                 </div>
 
                 {isShuffled && (
@@ -516,7 +485,7 @@ export default function PlaylistsView() {
                               handlePlayPause(item.songs, songIndex);
                             }}
                           >
-                            {playingSongId === item.songs.id ? (
+                            {isPlaying && currentSong?.id === item.songs.id ? (
                               <Pause className="h-4 w-4" />
                             ) : (
                               <Play className="h-4 w-4" />

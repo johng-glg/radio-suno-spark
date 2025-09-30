@@ -16,6 +16,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { supabase } from "@/integrations/supabase/client";
 import SettingsPopup from "@/components/SettingsPopup";
 import { AddToPlaylistDialog } from "@/components/AddToPlaylistDialog";
+import { useAudioPlayer } from "@/contexts/AudioContext";
 
 interface Song {
   id: string;
@@ -78,6 +79,14 @@ export default function PlayerPage({ selectedGenres, selectedMood, instrumentalM
   const { user, signOut } = useAuth();
   const { generateWithBuildPrompt, isGenerating } = useMusicGeneration();
   const { preferences, toggleWildCardMode, addExclusion, updatePreferences } = useUserPreferences();
+  const { playSong: playSongGlobal, activeContext, stop: stopGlobal } = useAudioPlayer();
+
+  // Stop any playlist audio when mounting player
+  useEffect(() => {
+    if (activeContext === 'playlist') {
+      stopGlobal();
+    }
+  }, []);
 
   // Audio element setup
   useEffect(() => {
