@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
+import { useAudioPlayer } from "@/contexts/AudioContext";
 
 interface Song {
   id: string;
@@ -41,12 +42,11 @@ export default function SongBrowser() {
   const [genreFilter, setGenreFilter] = useState("all");
   const [moodFilter, setMoodFilter] = useState("all");
   const [holidayFilter, setHolidayFilter] = useState("all");
-  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<Song | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { currentSong, isPlaying, playSong } = useAudioPlayer();
 
   useEffect(() => {
     fetchSongs();
@@ -168,33 +168,14 @@ export default function SongBrowser() {
   };
 
   const handlePlayPause = async (song: Song) => {
-    if (playingSongId === song.id) {
-      audioRef.current?.pause();
-      setPlayingSongId(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      audioRef.current = new Audio(song.url);
-      audioRef.current.play();
-      audioRef.current.onended = () => setPlayingSongId(null);
-      setPlayingSongId(song.id);
-      
-      // Track play
-      try {
-        await supabase.rpc('track_song_play', {
-          _song_id: song.id,
-          _user_id: user?.id || null
-        });
-      } catch (error) {
-        console.error('Failed to track play:', error);
-      }
-      
-      toast({
-        title: "Now Playing",
-        description: song.title,
-      });
-    }
+    playSong({
+      id: song.id,
+      title: song.title,
+      url: song.url,
+      genre: song.genre,
+      mood: song.mood,
+      image_url: song.image_url || undefined
+    }, 'player');
   };
 
   const handleLike = async (song: Song, e: React.MouseEvent) => {
@@ -355,7 +336,7 @@ export default function SongBrowser() {
                       className="h-10 w-10 rounded-full"
                       onClick={() => handlePlayPause(song)}
                     >
-                      {playingSongId === song.id ? (
+                      {isPlaying && currentSong?.id === song.id ? (
                         <Pause className="h-6 w-6" />
                       ) : (
                         <Play className="h-6 w-6 ml-1" />

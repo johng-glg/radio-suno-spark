@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import SongBrowser from "@/components/SongBrowser";
 import PlaylistsView from "@/components/PlaylistsView";
+import UnifiedPlayer from "@/components/UnifiedPlayer";
 
 const GENRES = [
   "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
@@ -131,6 +132,9 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
             Endless AI-generated music tailored to your taste. Select your genres and let the algorithm create your perfect radio station.
           </p>
         </div>
+
+        {/* Unified Player */}
+        <UnifiedPlayer />
 
         {/* Tabs for Radio vs Browser vs Playlists */}
         <Tabs defaultValue="radio" className="w-full">
