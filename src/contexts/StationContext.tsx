@@ -232,42 +232,41 @@ export function StationProvider({ children }: { children: ReactNode }) {
       
       console.log(`Found ${existingReadySongs.length} existing ready songs in queue`);
       
-      if (existingReadySongs.length > 0) {
-        // Check if existing songs match our genre/mood
-        const matchingSong = existingReadySongs.find(song => {
-          const genreMatch = settings.genres.length === 0 || 
-            settings.genres.some(g => g.toLowerCase() === song.genre?.toLowerCase());
-          const moodMatch = !settings.mood || song.mood?.toLowerCase() === settings.mood.toLowerCase();
-          return genreMatch && moodMatch;
-        });
+      // Check if existing songs match our genre/mood
+      const matchingSong = existingReadySongs.find(song => {
+        const genreMatch = settings.genres.length === 0 || 
+          settings.genres.some(g => g.toLowerCase() === song.genre?.toLowerCase());
+        const moodMatch = !settings.mood || song.mood?.toLowerCase() === settings.mood.toLowerCase();
+        return genreMatch && moodMatch;
+      });
+      
+      if (matchingSong) {
+        console.log(`Playing matching song from queue: ${matchingSong.title} (${matchingSong.genre} - ${matchingSong.mood})`);
         
-        const firstSong = matchingSong || existingReadySongs[0];
-        console.log(`Playing song: ${firstSong.title} (${firstSong.genre} - ${firstSong.mood})`);
-        
-        playSong(firstSong, 'player');
+        playSong(matchingSong, 'player');
         
         // Remove from queue
-        const queueItemToRemove = existingReadyQueue?.find(item => item.songs?.id === firstSong.id);
+        const queueItemToRemove = existingReadyQueue?.find(item => item.songs?.id === matchingSong.id);
         if (queueItemToRemove) {
           await supabase.from('queue').delete().eq('id', queueItemToRemove.id);
           await pollForNewSongs(true);
         }
         
-        toast({ title: "Music Ready!", description: `Playing ${firstSong.title}` });
+        toast({ title: "Music Ready!", description: `Playing ${matchingSong.title}` });
         
         if (existingReadySongs.length <= 2) {
           setTimeout(() => generateNewSong(), 1000);
         }
       } else {
-        console.log('No existing queue - getting song from library with filters:', {
+        console.log('No matching songs in queue - getting from library with filters:', {
           genres: settings.genres,
           mood: settings.mood
         });
         
-        // Get random song to play immediately - with proper filtering
+        // Get random song from library with proper filtering
         const currentSong = await getRandomSong([]);
         if (currentSong) {
-          console.log(`✅ Playing: ${currentSong.title} (${currentSong.genre} - ${currentSong.mood})`);
+          console.log(`✅ Playing from library: ${currentSong.title} (${currentSong.genre} - ${currentSong.mood})`);
           playSong(currentSong, 'player');
           toast({ title: "Music Ready!", description: `Playing ${currentSong.title}` });
           
