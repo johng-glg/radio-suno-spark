@@ -29,6 +29,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const startingRef = useRef(false);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -101,6 +102,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // If it's the same song, just toggle play/pause
     if (currentSong?.id === song.id) {
+      if (startingRef.current) return; // avoid toggling during startup
       if (audio.paused) {
         try { await audio.play(); } catch (e) { console.error(e); }
       } else {
@@ -109,16 +111,20 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Stop current song and play new one
-    audio.pause();
-    audio.src = song.url;
-    audio.load();
-    
-    setCurrentSong(song);
-    setActiveContext(context);
-    setProgress(0);
+    // Prevent overlapping start requests
+    if (startingRef.current) return;
+    startingRef.current = true;
 
     try {
+      // Stop current song and play new one
+      audio.pause();
+      audio.src = song.url;
+      audio.load();
+      
+      setCurrentSong(song);
+      setActiveContext(context);
+      setProgress(0);
+
       await audio.play();
       // Track play in database (best-effort)
       await supabase.rpc('track_song_play', {
@@ -127,6 +133,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error('Failed to play song:', error);
+    } finally {
+      startingRef.current = false;
     }
   };
 
