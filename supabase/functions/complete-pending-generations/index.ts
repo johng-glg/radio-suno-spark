@@ -224,29 +224,41 @@ Deno.serve(async (req) => {
               console.log(`Successfully completed song: ${song.title}`);
               completedCount++;
 
-              // Add to queue if not already there
-              const { data: existingQueue } = await supabaseClient
-                .from('queue')
-                .select('id')
-                .eq('song_id', song.id)
-                .limit(1);
+              // Check if song was requested by a user and add to their queue
+              const { data: songData } = await supabaseClient
+                .from('songs')
+                .select('requested_by')
+                .eq('id', song.id)
+                .single();
 
-              if (!existingQueue || existingQueue.length === 0) {
-                const { data: queueData } = await supabaseClient
+              if (songData?.requested_by) {
+                const { data: existingQueueItem } = await supabaseClient
                   .from('queue')
-                  .select('position')
-                  .order('position', { ascending: false })
-                  .limit(1);
+                  .select('id')
+                  .eq('song_id', song.id)
+                  .eq('user_id', songData.requested_by)
+                  .maybeSingle();
 
-                const nextPosition = (queueData?.[0]?.position || 0) + 1;
-                
-                await supabaseClient.from('queue').insert({
-                  song_id: song.id,
-                  position: nextPosition,
-                  status: 'queued'
-                });
-                
-                console.log(`Added completed song to queue at position: ${nextPosition}`);
+                if (!existingQueueItem) {
+                  const { data: maxPositionData } = await supabaseClient
+                    .from('queue')
+                    .select('position')
+                    .eq('user_id', songData.requested_by)
+                    .order('position', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                  const nextPosition = (maxPositionData?.position || 0) + 1;
+
+                  await supabaseClient.from('queue').insert({
+                    song_id: song.id,
+                    user_id: songData.requested_by,
+                    position: nextPosition,
+                    status: 'queued',
+                  });
+
+                  console.log(`Added completed song to user ${songData.requested_by}'s queue at position: ${nextPosition}`);
+                }
               }
             }
           } else {

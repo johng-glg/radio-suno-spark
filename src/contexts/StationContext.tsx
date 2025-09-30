@@ -238,6 +238,9 @@ export function StationProvider({ children }: { children: ReactNode }) {
   };
 
   const addSongToQueue = async (song: Song) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
     const { data: existingQueue } = await supabase
       .from('queue')
       .select('position')
@@ -248,6 +251,7 @@ export function StationProvider({ children }: { children: ReactNode }) {
     
     await supabase.from('queue').insert({
       song_id: song.id,
+      user_id: user.id,
       position: maxPosition + 1,
       status: 'queued'
     });
