@@ -102,17 +102,24 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     // If it's the same song, just toggle play/pause
     if (currentSong?.id === song.id) {
-      if (startingRef.current) return; // avoid toggling during startup
+      // Don't check startingRef here - allow play/pause toggle even during startup
       if (audio.paused) {
-        try { await audio.play(); } catch (e) { console.error(e); }
+        try { 
+          await audio.play(); 
+        } catch (e) { 
+          console.error('Play error:', e); 
+        }
       } else {
         audio.pause();
       }
       return;
     }
 
-    // Prevent overlapping start requests
-    if (startingRef.current) return;
+    // Prevent overlapping start requests for different songs
+    if (startingRef.current) {
+      console.log('Already starting a song, ignoring new request');
+      return;
+    }
     startingRef.current = true;
 
     try {
@@ -130,10 +137,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         const onCanPlay = () => {
           audio.removeEventListener('canplay', onCanPlay);
           audio.play()
-            .then(resolve)
+            .then(() => {
+              console.log('Song started successfully');
+              resolve();
+            })
             .catch((err) => {
               if ((err as any)?.name === 'AbortError') {
                 // Retry once on AbortError (common when switching sources)
+                console.log('AbortError detected, retrying...');
                 audio.play().then(resolve).catch(reject);
               } else {
                 reject(err);
