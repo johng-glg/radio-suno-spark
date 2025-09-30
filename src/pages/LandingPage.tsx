@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import SongBrowser from "@/components/SongBrowser";
 import PlaylistsView from "@/components/PlaylistsView";
 import UnifiedPlayer from "@/components/UnifiedPlayer";
+import StationQueue from "@/components/StationQueue";
+import { useStation } from "@/contexts/StationContext";
 
 const GENRES = [
   "Classical", "EDM", "Pop", "Rock", "Jazz", "Hip-Hop", "Country"
@@ -31,20 +33,21 @@ const HOLIDAYS = [
 ];
 
 interface LandingPageProps {
-  onStartRadio: (genres: string[], mood?: string, instrumental?: boolean, wildcard?: boolean, holiday?: string) => void;
   onAuthNavigate: () => void;
   user: AuthUser | null;
 }
 
-export default function LandingPage({ onStartRadio, onAuthNavigate, user }: LandingPageProps) {
+export default function LandingPage({ onAuthNavigate, user }: LandingPageProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [isInstrumental, setIsInstrumental] = useState(false);
   const [isWildcard, setIsWildcard] = useState(false);
   const [selectedHoliday, setSelectedHoliday] = useState<string | undefined>(undefined);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeTab, setActiveTab] = useState("radio");
   const { signOut } = useAuth();
   const { toast } = useToast();
+  const { startStation, isStationActive } = useStation();
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres(prev => 
@@ -54,8 +57,19 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
     );
   };
 
-  const handleStartRadio = () => {
-    onStartRadio(selectedGenres, selectedMood || undefined, isInstrumental, isWildcard, selectedHoliday);
+  const handleStartRadio = async () => {
+    if (!user) {
+      onAuthNavigate();
+      return;
+    }
+    
+    await startStation({
+      genres: selectedGenres,
+      mood: selectedMood || undefined,
+      instrumental: isInstrumental,
+      wildcard: isWildcard,
+      holiday: selectedHoliday
+    });
   };
 
   const handleSignOut = async () => {
@@ -137,8 +151,11 @@ export default function LandingPage({ onStartRadio, onAuthNavigate, user }: Land
         {/* Unified Player */}
         <UnifiedPlayer />
 
+        {/* Station Queue - show below player when station is active and on radio tab */}
+        {isStationActive && activeTab === "radio" && <StationQueue />}
+
         {/* Tabs for Radio vs Browser vs Playlists */}
-        <Tabs defaultValue="radio" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="radio" className="flex items-center gap-2">
               <Radio className="h-4 w-4" />

@@ -87,6 +87,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       const handleEnded = () => {
         setIsPlaying(false);
         setProgress(0);
+        // Dispatch custom event for station to handle auto-advance
+        window.dispatchEvent(new CustomEvent('song-ended'));
       };
 
       const handlePlay = () => setIsPlaying(true);

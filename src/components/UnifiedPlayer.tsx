@@ -11,11 +11,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AddToPlaylistDialog } from "./AddToPlaylistDialog";
+import { useStation } from "@/contexts/StationContext";
 
 export default function UnifiedPlayer() {
   const { currentSong, isPlaying, progress, duration, volume, setVolume, resume, pause, activeContext, isShuffled, toggleShuffle } = useAudioPlayer();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isStationActive, skipToNext: stationSkipToNext } = useStation();
   const [currentInteraction, setCurrentInteraction] = useState<'like' | 'dislike' | null>(null);
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   
@@ -152,6 +154,18 @@ export default function UnifiedPlayer() {
                   title={isShuffled ? "Shuffle On" : "Shuffle Off"}
                 >
                   <Shuffle className="h-4 w-4" />
+                </Button>
+              )}
+
+              {isStationActive && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={stationSkipToNext}
+                  title="Skip to Next"
+                >
+                  <SkipForward className="h-4 w-4" />
                 </Button>
               )}
 
