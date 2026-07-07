@@ -150,6 +150,24 @@ export default function AdminPage() {
     }
   }, [isAdmin]);
 
+  const loadApiStatus = async () => {
+    setApiStatusLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('api-status');
+      if (error) throw error;
+      setApiStatus(data as ApiStatusResponse);
+    } catch (error) {
+      console.error('Error loading API status:', error);
+      toast({
+        title: 'Failed to check connections',
+        description: 'Could not reach the API status service.',
+        variant: 'destructive',
+      });
+    } finally {
+      setApiStatusLoading(false);
+    }
+  };
+
   const loadStats = async () => {
     setStatsLoading(true);
     const data = await getAdminStats();
