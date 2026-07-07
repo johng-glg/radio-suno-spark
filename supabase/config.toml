@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.seed-music-samples]
 verify_jwt = true
+
+[functions.api-status]
+verify_jwt = true
