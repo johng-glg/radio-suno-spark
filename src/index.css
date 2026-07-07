@@ -2,109 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Spark Radio design system.
+   Late-night FM dial: deep charcoal-violet room, warm amber signal glow,
+   violet for the machinery (things the AI is doing). All colors HSL. */
 
 @layer base {
   :root {
-    /* AI Radio Dark Theme - Light Mode (rarely used) */
-    --background: 220 13% 8%;
-    --foreground: 0 0% 95%;
+    --background: 250 18% 7%;
+    --foreground: 40 25% 94%;
 
-    --card: 220 13% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 250 15% 10%;
+    --card-foreground: 40 25% 94%;
 
-    --popover: 220 13% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 250 15% 10%;
+    --popover-foreground: 40 25% 94%;
 
-    --primary: 280 100% 70%;
-    --primary-foreground: 220 13% 8%;
+    /* Amber: the on-air light. Play buttons, likes, the live signal. */
+    --primary: 38 92% 55%;
+    --primary-foreground: 250 20% 8%;
 
-    --secondary: 217 19% 15%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 250 12% 15%;
+    --secondary-foreground: 40 25% 94%;
 
-    --muted: 217 19% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 250 12% 15%;
+    --muted-foreground: 40 10% 62%;
 
-    --accent: 158 100% 50%;
-    --accent-foreground: 220 13% 8%;
+    /* Violet: the studio. Anything the AI is composing or learning. */
+    --accent: 262 65% 65%;
+    --accent-foreground: 250 20% 8%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 40 25% 94%;
 
-    --border: 217 19% 20%;
-    --input: 217 19% 15%;
-    --ring: 280 100% 70%;
+    --border: 250 12% 19%;
+    --input: 250 12% 15%;
+    --ring: 38 92% 55%;
 
     --radius: 0.75rem;
 
-    /* Radio-specific colors */
-    --neon-purple: 280 100% 70%;
-    --neon-cyan: 158 100% 50%;
-    --neon-pink: 320 100% 70%;
-    --spotify-green: 142 76% 36%;
-    --radio-bg: 220 13% 8%;
-    --radio-surface: 220 13% 12%;
-    --radio-surface-hover: 217 19% 18%;
+    /* Legacy names kept for existing components; remapped to the new palette */
+    --neon-purple: 262 65% 65%;
+    --neon-cyan: 174 55% 48%;
+    --neon-pink: 330 70% 65%;
+    --spotify-green: 142 60% 42%;
+    --radio-bg: 250 18% 7%;
+    --radio-surface: 250 15% 10%;
+    --radio-surface-hover: 250 13% 15%;
 
-    --sidebar-background: 220 13% 10%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 280 100% 70%;
-    --sidebar-primary-foreground: 220 13% 8%;
-    --sidebar-accent: 217 19% 15%;
-    --sidebar-accent-foreground: 0 0% 85%;
-    --sidebar-border: 217 19% 20%;
-    --sidebar-ring: 280 100% 70%;
+    --sidebar-background: 250 16% 9%;
+    --sidebar-foreground: 40 15% 85%;
+    --sidebar-primary: 38 92% 55%;
+    --sidebar-primary-foreground: 250 20% 8%;
+    --sidebar-accent: 250 12% 15%;
+    --sidebar-accent-foreground: 40 15% 85%;
+    --sidebar-border: 250 12% 19%;
+    --sidebar-ring: 38 92% 55%;
   }
 
+  /* The app runs dark-only; keep .dark identical to :root */
   .dark {
-    /* AI Radio Dark Theme - This is the primary theme */
-    --background: 220 13% 8%;
-    --foreground: 0 0% 95%;
+    --background: 250 18% 7%;
+    --foreground: 40 25% 94%;
 
-    --card: 220 13% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 250 15% 10%;
+    --card-foreground: 40 25% 94%;
 
-    --popover: 220 13% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 250 15% 10%;
+    --popover-foreground: 40 25% 94%;
 
-    --primary: 280 100% 70%;
-    --primary-foreground: 220 13% 8%;
+    --primary: 38 92% 55%;
+    --primary-foreground: 250 20% 8%;
 
-    --secondary: 217 19% 15%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 250 12% 15%;
+    --secondary-foreground: 40 25% 94%;
 
-    --muted: 217 19% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 250 12% 15%;
+    --muted-foreground: 40 10% 62%;
 
-    --accent: 158 100% 50%;
-    --accent-foreground: 220 13% 8%;
+    --accent: 262 65% 65%;
+    --accent-foreground: 250 20% 8%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 40 25% 94%;
 
-    --border: 217 19% 20%;
-    --input: 217 19% 15%;
-    --ring: 280 100% 70%;
+    --border: 250 12% 19%;
+    --input: 250 12% 15%;
+    --ring: 38 92% 55%;
 
-    /* Radio-specific colors */
-    --neon-purple: 280 100% 70%;
-    --neon-cyan: 158 100% 50%;
-    --neon-pink: 320 100% 70%;
-    --spotify-green: 142 76% 36%;
-    --radio-bg: 220 13% 8%;
-    --radio-surface: 220 13% 12%;
-    --radio-surface-hover: 217 19% 18%;
+    --neon-purple: 262 65% 65%;
+    --neon-cyan: 174 55% 48%;
+    --neon-pink: 330 70% 65%;
+    --spotify-green: 142 60% 42%;
+    --radio-bg: 250 18% 7%;
+    --radio-surface: 250 15% 10%;
+    --radio-surface-hover: 250 13% 15%;
 
-    --sidebar-background: 220 13% 10%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 280 100% 70%;
-    --sidebar-primary-foreground: 220 13% 8%;
-    --sidebar-accent: 217 19% 15%;
-    --sidebar-accent-foreground: 0 0% 85%;
-    --sidebar-border: 217 19% 20%;
-    --sidebar-ring: 280 100% 70%;
+    --sidebar-background: 250 16% 9%;
+    --sidebar-foreground: 40 15% 85%;
+    --sidebar-primary: 38 92% 55%;
+    --sidebar-primary-foreground: 250 20% 8%;
+    --sidebar-accent: 250 12% 15%;
+    --sidebar-accent-foreground: 40 15% 85%;
+    --sidebar-border: 250 12% 19%;
+    --sidebar-ring: 38 92% 55%;
   }
 }
 
@@ -118,14 +118,15 @@ All colors MUST be HSL.
   }
 }
 
-/* AI Radio Custom Styles */
 @layer components {
   .radio-gradient {
-    background: linear-gradient(135deg, hsl(var(--neon-purple) / 0.1), hsl(var(--neon-cyan) / 0.1));
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(var(--accent) / 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 80% 110%, hsl(var(--primary) / 0.07), transparent);
   }
 
   .neon-glow {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    box-shadow: 0 0 24px hsl(var(--primary) / 0.35);
   }
 
   .waveform-animation {
@@ -134,7 +135,7 @@ All colors MUST be HSL.
 
   .genre-chip {
     @apply px-4 py-2 rounded-full bg-muted/50 text-muted-foreground transition-all duration-200;
-    @apply hover:bg-primary/20 hover:text-primary hover:neon-glow cursor-pointer;
+    @apply hover:bg-primary/20 hover:text-primary cursor-pointer;
   }
 
   .genre-chip.selected {
@@ -143,7 +144,7 @@ All colors MUST be HSL.
 
   .player-control {
     @apply p-3 rounded-full bg-muted/30 text-foreground transition-all duration-200;
-    @apply hover:bg-primary hover:text-primary-foreground hover:neon-glow;
+    @apply hover:bg-primary hover:text-primary-foreground;
   }
 
   .progress-bar {
@@ -151,7 +152,29 @@ All colors MUST be HSL.
   }
 
   .progress-fill {
-    @apply h-full bg-primary transition-all duration-100 rounded-full;
+    @apply h-full transition-all duration-100 rounded-full;
     background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
   }
+
+  /* Spinning record artwork while on the air */
+  .vinyl-spin {
+    animation: vinyl-rotate 14s linear infinite;
+  }
+
+  /* Tiny equalizer bars for "in the studio" */
+  .eq-bar {
+    @apply inline-block w-1 rounded-sm bg-accent;
+    height: 4px;
+    animation: eq-bounce 0.9s ease-in-out infinite;
+  }
+}
+
+@keyframes vinyl-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes eq-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
 }

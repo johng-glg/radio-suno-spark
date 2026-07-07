@@ -213,6 +213,7 @@ export type Database = {
       }
       songs: {
         Row: {
+          commissioned_by: string | null
           created_at: string
           description: string | null
           genre: string
@@ -226,6 +227,7 @@ export type Database = {
           requested_by: string | null
           resubmission_succeeded_at: string | null
           resubmitted_at: string | null
+          station_id: string | null
           status: string
           suno_id: string | null
           title: string | null
@@ -233,6 +235,7 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          commissioned_by?: string | null
           created_at?: string
           description?: string | null
           genre: string
@@ -246,6 +249,7 @@ export type Database = {
           requested_by?: string | null
           resubmission_succeeded_at?: string | null
           resubmitted_at?: string | null
+          station_id?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
@@ -253,6 +257,7 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          commissioned_by?: string | null
           created_at?: string
           description?: string | null
           genre?: string
@@ -266,6 +271,7 @@ export type Database = {
           requested_by?: string | null
           resubmission_succeeded_at?: string | null
           resubmitted_at?: string | null
+          station_id?: string | null
           status?: string
           suno_id?: string | null
           title?: string | null
@@ -281,6 +287,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      station_plays: {
+        Row: {
+          created_at: string
+          id: string
+          signal: string
+          song_id: string
+          station_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          signal: string
+          song_id: string
+          station_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          signal?: string
+          song_id?: string
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_plays_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "station_plays_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stations: {
+        Row: {
+          created_at: string
+          genres: string[]
+          holiday: string | null
+          id: string
+          instrumental: boolean
+          last_tuned_at: string | null
+          mood: string | null
+          name: string
+          taste: Json
+          updated_at: string
+          user_id: string
+          wildcard: boolean
+        }
+        Insert: {
+          created_at?: string
+          genres?: string[]
+          holiday?: string | null
+          id?: string
+          instrumental?: boolean
+          last_tuned_at?: string | null
+          mood?: string | null
+          name?: string
+          taste?: Json
+          updated_at?: string
+          user_id: string
+          wildcard?: boolean
+        }
+        Update: {
+          created_at?: string
+          genres?: string[]
+          holiday?: string | null
+          id?: string
+          instrumental?: boolean
+          last_tuned_at?: string | null
+          mood?: string | null
+          name?: string
+          taste?: Json
+          updated_at?: string
+          user_id?: string
+          wildcard?: boolean
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -433,14 +523,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_admin_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_current_user_email: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      commission_track: { Args: { p_station: string }; Returns: string }
+      get_admin_stats: { Args: never; Returns: Json }
+      get_current_user_email: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -448,10 +533,54 @@ export type Database = {
         }
         Returns: boolean
       }
-      seed_premade_songs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
+      library_genres: {
+        Args: never
+        Returns: {
+          genre: string
+          n: number
+        }[]
       }
+      next_track: {
+        Args: {
+          p_exclude?: string[]
+          p_genres?: string[]
+          p_mood?: string
+          p_station?: string
+        }
+        Returns: {
+          commissioned_by: string | null
+          created_at: string
+          description: string | null
+          genre: string
+          holiday: string | null
+          id: string
+          image_url: string | null
+          is_public: boolean | null
+          mood: string | null
+          original_song_id: string | null
+          prompt: string
+          requested_by: string | null
+          resubmission_succeeded_at: string | null
+          resubmitted_at: string | null
+          station_id: string | null
+          status: string
+          suno_id: string | null
+          title: string | null
+          updated_at: string
+          url: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "songs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      record_feedback: {
+        Args: { p_signal: string; p_song: string; p_station: string }
+        Returns: Json
+      }
+      seed_premade_songs: { Args: never; Returns: undefined }
       system_update_song: {
         Args: { song_id: string; update_data: Json }
         Returns: boolean

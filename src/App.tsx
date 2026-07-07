@@ -1,20 +1,22 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
-import { StationProvider } from "@/contexts/StationContext";
-import Index from "./pages/Index";
+import { RadioProvider } from "@/hooks/useRadio";
+import RadioPage from "./pages/RadioPage";
 import AdminPage from "./pages/AdminPage";
+import NotFound from "./pages/NotFound";
 
 const App = () => {
   return (
-    <StationProvider>
+    <RadioProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<Index />} />
+          <Route path="/" element={<RadioPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />
       </BrowserRouter>
-    </StationProvider>
+    </RadioProvider>
   );
 };
 

@@ -17,6 +17,7 @@ interface AudioContextType {
   duration: number;
   volume: number;
   playSong: (song: Song, context?: 'player' | 'playlist') => void;
+  preload: (url: string) => void;
   pause: () => void;
   resume: () => void;
   setVolume: (volume: number) => void;
@@ -31,6 +32,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prefetchRef = useRef<HTMLAudioElement | null>(null);
   const startingRef = useRef(false);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -186,6 +188,20 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         audio.addEventListener('error', onError);
       });
 
+      // Surface track info on lock screens / media keys
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song.title,
+          artist: `Spark Radio · ${song.genre}${song.mood ? ` · ${song.mood}` : ''}`,
+          artwork: song.image_url ? [{ src: song.image_url, sizes: '512x512' }] : [],
+        });
+        navigator.mediaSession.setActionHandler('play', () => audio.play().catch(console.error));
+        navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          window.dispatchEvent(new CustomEvent('radio-skip'));
+        });
+      }
+
       // Track play in database (best-effort)
       await supabase.rpc('track_song_play', {
         _song_id: song.id,
@@ -195,6 +211,24 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       console.error('Failed to play song:', error);
     } finally {
       startingRef.current = false;
+    }
+  };
+
+  // Warm the browser's media cache with the next track so advancing
+  // feels instant. Best-effort: a hidden audio element buffers it.
+  const preload = (url: string) => {
+    try {
+      if (!prefetchRef.current) {
+        prefetchRef.current = new Audio();
+        prefetchRef.current.preload = 'auto';
+        prefetchRef.current.muted = true;
+      }
+      if (prefetchRef.current.src !== url) {
+        prefetchRef.current.src = url;
+        prefetchRef.current.load();
+      }
+    } catch (e) {
+      console.warn('preload failed:', e);
     }
   };
 
@@ -244,6 +278,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         playSong,
+        preload,
         pause,
         resume,
         setVolume,

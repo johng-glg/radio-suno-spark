@@ -62,7 +62,7 @@ serve(async (req) => {
         .from('user_preferences')
         .select('excluded_moods, excluded_instruments, wild_card_mode')
         .eq('user_id', user_id)
-        .single();
+        .maybeSingle();
 
       if (preferences) {
         userPreferences = preferences;
