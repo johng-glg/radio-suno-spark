@@ -66,6 +66,26 @@ interface AdminStats {
   }>;
 }
 
+interface ServiceStatus {
+  name: string;
+  key: string;
+  configured: boolean;
+  connected: boolean;
+  status: 'operational' | 'degraded' | 'down' | 'not_configured';
+  message: string;
+  details?: {
+    credits?: number | string | null;
+    total_songs?: number | null;
+    [k: string]: unknown;
+  };
+  latency_ms?: number;
+}
+
+interface ApiStatusResponse {
+  services: ServiceStatus[];
+  checked_at: string;
+}
+
 const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
 const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
 
