@@ -421,6 +421,7 @@ export default function AdminPage() {
             <TabsTrigger value="failed-songs">Failed Generations</TabsTrigger>
             <TabsTrigger value="recent-songs">Recent Songs</TabsTrigger>
             <TabsTrigger value="top-songs">Top Songs</TabsTrigger>
+            <TabsTrigger value="api">API Management</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
