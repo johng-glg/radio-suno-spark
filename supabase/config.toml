@@ -23,3 +23,5 @@ verify_jwt = false
 
 [functions.check-pending-songs]
 verify_jwt = false
+[functions.api-status]
+verify_jwt = true
