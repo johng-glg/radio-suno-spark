@@ -45,9 +45,20 @@ export default function AuthPage({ onBack }: AuthPageProps) {
     displayName: ""
   });
   
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsLoading(true);
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setError(error.message);
+      setIsLoading(false);
+    }
+    // On success the browser redirects to Google, no further action needed
+  };
 
 
   const handleLogin = async (e: React.FormEvent) => {
