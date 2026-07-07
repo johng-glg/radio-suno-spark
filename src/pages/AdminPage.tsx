@@ -124,6 +124,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) {
       loadStats();
+      loadApiStatus();
 
       // Set up real-time subscription for song status changes
       const channel = supabase
