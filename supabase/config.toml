@@ -18,8 +18,23 @@ enable_signup = true
 [functions.generate-music]
 verify_jwt = true
 
+# All functions require a valid JWT (the platform anon key passes verification,
+# so pg_cron jobs that send the anon key keep working — but bare, keyless
+# invocations from the open internet are rejected).
 [functions.build-prompt]
-verify_jwt = false
+verify_jwt = true
 
 [functions.check-pending-songs]
-verify_jwt = false
+verify_jwt = true
+
+[functions.complete-pending-generations]
+verify_jwt = true
+
+[functions.check-stuck-songs]
+verify_jwt = true
+
+[functions.fetch-missing-images]
+verify_jwt = true
+
+[functions.seed-music-samples]
+verify_jwt = true
