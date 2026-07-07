@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files (Supabase anon key is public but envs should never be tracked)
+.env
+.env.*
+!.env.example
+*.tsbuildinfo

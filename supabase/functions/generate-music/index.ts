@@ -183,7 +183,7 @@ const {
         .select('*')
         .eq('status', 'ready')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (demoSong && !demoError) {
         console.log('Using existing demo song:', demoSong.id);
@@ -393,7 +393,7 @@ const {
             .eq('genre', genre)
             .eq('mood', mood)
             .limit(1);
-          const res1 = await genreMoodQuery.single();
+          const res1 = await genreMoodQuery.maybeSingle();
           existingSong = res1.data;
           existingError = res1.error;
           if (existingSong && !existingError) {
@@ -410,7 +410,7 @@ const {
             .not('requested_by', 'eq', requesterId)
             .eq('genre', genre)
             .limit(1);
-          const res2 = await genreOnlyQuery.single();
+          const res2 = await genreOnlyQuery.maybeSingle();
           existingSong = res2.data;
           existingError = res2.error;
         }
@@ -424,7 +424,7 @@ const {
             .eq('status', 'ready')
             .not('requested_by', 'eq', requesterId)
             .limit(1);
-          const fallbackResult = await anyQuery.single();
+          const fallbackResult = await anyQuery.maybeSingle();
           existingSong = fallbackResult.data;
           existingError = fallbackResult.error;
         }
@@ -575,21 +575,7 @@ const {
     }
 
     if (finalResult?.lyrics) {
-      // Generate a proper description instead of using lyrics
-      const moodText = genre && finalResult.tags ? 
-        `A ${finalResult.tags.includes('peaceful') ? 'peaceful' : 
-           finalResult.tags.includes('energetic') ? 'energetic' : 
-           finalResult.tags.includes('dreamy') ? 'dreamy' : 
-           finalResult.tags.includes('intense') ? 'intense' : 'atmospheric'} ` : '';
-      
-      const genreText = genre ? `${genre} ` : '';
-      
-      // Extract key instruments from tags if available
-      const instruments = finalResult.tags ? 
-        finalResult.tags.match(/\b(piano|guitar|violin|flute|drums|bass|saxophone|synth|electronic)\b/gi)?.slice(0, 2) || [] : [];
-      const instrumentText = instruments.length > 0 ? ` featuring ${instruments.join(' and ')}` : '';
-      
-      // Use the same dynamic description generator
+      // Use the dynamic description generator instead of raw lyrics
       updateData.description = generateDescription(genre, mood);
     }
 
