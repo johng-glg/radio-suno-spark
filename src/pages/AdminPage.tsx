@@ -1179,6 +1179,106 @@ export default function AdminPage() {
                 </CardContent>
                </Card>
              </TabsContent>
+
+            <TabsContent value="api" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">API Management</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Monitor external service connections and API health
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadApiStatus}
+                  disabled={apiStatusLoading}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${apiStatusLoading ? 'animate-spin' : ''}`} />
+                  Test Connections
+                </Button>
+              </div>
+
+              {apiStatus?.checked_at && (
+                <p className="text-xs text-muted-foreground">
+                  Last checked: {new Date(apiStatus.checked_at).toLocaleString()}
+                </p>
+              )}
+
+              {apiStatusLoading && !apiStatus ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {[...Array(2)].map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-6">
+                        <div className="h-20 animate-pulse rounded bg-muted" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : apiStatus ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {apiStatus.services.map((svc) => {
+                    const tone =
+                      svc.status === 'operational'
+                        ? { badge: 'default' as const, dot: 'bg-green-500', label: 'Operational' }
+                        : svc.status === 'degraded'
+                        ? { badge: 'secondary' as const, dot: 'bg-yellow-500', label: 'Degraded' }
+                        : svc.status === 'not_configured'
+                        ? { badge: 'outline' as const, dot: 'bg-muted-foreground', label: 'Not Configured' }
+                        : { badge: 'destructive' as const, dot: 'bg-red-500', label: 'Down' };
+                    return (
+                      <Card key={svc.key}>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <span className={`inline-block h-2.5 w-2.5 rounded-full ${tone.dot}`} />
+                              {svc.name}
+                            </CardTitle>
+                            <Badge variant={tone.badge}>{tone.label}</Badge>
+                          </div>
+                          <CardDescription>{svc.message}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Secret</span>
+                            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{svc.key}</code>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Configured</span>
+                            <span>{svc.configured ? 'Yes' : 'No'}</span>
+                          </div>
+                          {typeof svc.latency_ms === 'number' && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Latency</span>
+                              <span>{svc.latency_ms} ms</span>
+                            </div>
+                          )}
+                          {svc.details?.credits != null && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Credits</span>
+                              <span className="font-medium">{String(svc.details.credits)}</span>
+                            </div>
+                          )}
+                          {svc.details?.total_songs != null && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Total Songs</span>
+                              <span className="font-medium">{String(svc.details.total_songs)}</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-sm text-muted-foreground">
+                    Unable to load API status. Click "Test Connections" to retry.
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
          </Tabs>
        </div>
      </div>
