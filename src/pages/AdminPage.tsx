@@ -97,6 +97,10 @@ export default function AdminPage() {
     completed: number;
   }>>(new Map());
 
+  // API management / connection status
+  const [apiStatus, setApiStatus] = useState<ApiStatusResponse | null>(null);
+  const [apiStatusLoading, setApiStatusLoading] = useState(false);
+
   useEffect(() => {
     if (isAdmin) {
       loadStats();
