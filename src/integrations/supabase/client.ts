@@ -4,7 +4,7 @@ import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
 const SUPABASE_URL = "https://kbvsckoacdgpgiiqrhqv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtidnNja29hY2RncGdpaXFyaHF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDg1ODEsImV4cCI6MjA3NDU4NDU4MX0.5RwQsg-GySXj3Gs63gCGBZwax2ujqd6G1nLaUcLejXY";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vitFLBUJIUo4v_0gMxUe3A_vwUBK4Zl";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
