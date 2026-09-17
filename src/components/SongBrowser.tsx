@@ -25,6 +25,8 @@ interface Song {
 
 const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
 const MOODS = ["all", "upbeat", "chill", "aggressive", "emotional", "epic", "playful"];
+// 4 columns on desktop x 3 rows
+const PAGE_SIZE = 12;
 const HOLIDAYS = ["all", "christmas", "halloween", "hanukkah", "thanksgiving", "st. patty's day", "4th of july"];
 
 const HOLIDAY_ICONS: Record<string, any> = {
@@ -44,13 +46,18 @@ export default function SongBrowser() {
   const [holidayFilter, setHolidayFilter] = useState("all");
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<Song | null>(null);
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong } = useAudioPlayer();
 
   useEffect(() => {
+    setPage(1);
     fetchSongs();
   }, [genreFilter, moodFilter, holidayFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
+  const pagedSongs = songs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const fetchSongs = async () => {
     setLoading(true);
@@ -311,7 +318,7 @@ export default function SongBrowser() {
             <p>No songs found with the selected filters</p>
           </div>
         ) : (
-          songs.map(song => (
+          pagedSongs.map(song => (
             <Card key={song.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all group">
               <CardContent className="p-3">
                 {/* Album Art */}
@@ -415,6 +422,31 @@ export default function SongBrowser() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {!loading && songs.length > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      )}
 
       <AddToPlaylistDialog
         song={selectedSongForPlaylist}
