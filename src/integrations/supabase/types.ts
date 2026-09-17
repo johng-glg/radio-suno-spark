@@ -229,6 +229,7 @@ export type Database = {
           resubmitted_at: string | null
           station_id: string | null
           status: string
+          storage_path: string | null
           suno_id: string | null
           title: string | null
           updated_at: string
@@ -251,6 +252,7 @@ export type Database = {
           resubmitted_at?: string | null
           station_id?: string | null
           status?: string
+          storage_path?: string | null
           suno_id?: string | null
           title?: string | null
           updated_at?: string
@@ -273,6 +275,7 @@ export type Database = {
           resubmitted_at?: string | null
           station_id?: string | null
           status?: string
+          storage_path?: string | null
           suno_id?: string | null
           title?: string | null
           updated_at?: string
@@ -564,6 +567,7 @@ export type Database = {
           resubmitted_at: string | null
           station_id: string | null
           status: string
+          storage_path: string | null
           suno_id: string | null
           title: string | null
           updated_at: string
