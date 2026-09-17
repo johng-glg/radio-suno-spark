@@ -176,6 +176,8 @@ export default function AdminPage() {
     if (isAdmin) {
       loadStats();
       loadApiStatus();
+      loadArchiveCounts();
+
 
       // Set up real-time subscription for song status changes
       const channel = supabase
