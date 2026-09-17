@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { archiveSongAudio } from '../_shared/archiveAudio.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -223,6 +224,9 @@ Deno.serve(async (req) => {
             } else {
               console.log(`Successfully completed song: ${song.title}`);
               completedCount++;
+
+              // Keep a permanent copy — Suno's CDN links expire.
+              await archiveSongAudio(supabaseClient, song.id, succeededItem.audio_url);
 
               // Check if song was requested by a user and add to their queue
               const { data: songData } = await supabaseClient

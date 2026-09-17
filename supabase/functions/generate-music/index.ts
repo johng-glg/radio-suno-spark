@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { archiveSongAudio } from '../_shared/archiveAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -586,6 +587,11 @@ const {
 
     if (updateError) {
       console.error('Failed to update song:', updateError);
+    }
+
+    // Keep a permanent copy — Suno's CDN links expire.
+    if (finalResult?.audio_url) {
+      await archiveSongAudio(serviceClient, song.id, finalResult.audio_url);
     }
 
     // Add to queue if song is ready

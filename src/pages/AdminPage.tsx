@@ -121,6 +121,31 @@ export default function AdminPage() {
   const [apiStatus, setApiStatus] = useState<ApiStatusResponse | null>(null);
   const [apiStatusLoading, setApiStatusLoading] = useState(false);
 
+  // Audio archiving backfill
+  const [archiveRunning, setArchiveRunning] = useState(false);
+
+  const runAudioArchive = async () => {
+    setArchiveRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('archive-song-audio', {
+        body: { limit: 50 },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Audio archive run complete',
+        description: `Checked ${data?.checked ?? 0} · saved ${data?.archived ?? 0} · recovered ${data?.recovered ?? 0} · unrecoverable ${data?.failed ?? 0}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Archive run failed',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setArchiveRunning(false);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadStats();
@@ -1242,6 +1267,22 @@ export default function AdminPage() {
                   Test Connections
                 </Button>
               </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Audio Archive</CardTitle>
+                  <CardDescription>
+                    Copies song audio into your own storage so playback links never expire.
+                    Runs 50 songs at a time — click again to continue.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
+                    {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
+                  </Button>
+                </CardContent>
+              </Card>
 
               {apiStatus?.checked_at && (
                 <p className="text-xs text-muted-foreground">
