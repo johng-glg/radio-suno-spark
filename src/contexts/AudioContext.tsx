@@ -144,54 +144,28 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setActiveContext(context);
       setProgress(0);
 
-      // Load the audio and start playing
+      // Load the source and start as soon as the browser has anything buffered.
       audio.load();
-      
-      // Wait for audio to be ready and start playback
-      await new Promise<void>((resolve, reject) => {
-        let resolved = false;
-        
-        const cleanup = () => {
-          audio.removeEventListener('canplaythrough', onCanPlay);
-          audio.removeEventListener('error', onError);
-        };
-        
-        const onCanPlay = () => {
-          if (resolved) return;
-          cleanup();
-          
-          audio.play()
-            .then(() => {
-              resolved = true;
-              console.log('Song started successfully');
-              // Force playing state update
-              setIsPlaying(true);
-              resolve();
-            })
-            .catch((err) => {
-              if (!resolved && (err as any)?.name === 'AbortError') {
-                console.log('AbortError detected, retrying...');
-                audio.play()
-                  .then(() => {
-                    resolved = true;
-                    setIsPlaying(true);
-                    resolve();
-                  })
-                  .catch(reject);
-              } else {
-                reject(err);
-              }
-            });
-        };
-        
-        const onError = (e: Event) => {
-          cleanup();
-          reject(new Error('Failed to load audio'));
-        };
-        
-        audio.addEventListener('canplaythrough', onCanPlay);
-        audio.addEventListener('error', onError);
-      });
+
+      try {
+        await audio.play();
+      } catch (err) {
+        const name = (err as any)?.name;
+        if (name === 'AbortError' || name === 'NotAllowedError') {
+          // The load was interrupted or the gesture expired — retry once the
+          // element reports it can play.
+          await new Promise<void>((resolve) => {
+            const onCanPlay = () => {
+              audio.removeEventListener('canplay', onCanPlay);
+              audio.play().catch((e) => console.error('Retry play failed:', e)).finally(resolve);
+            };
+            audio.addEventListener('canplay', onCanPlay);
+          });
+        } else {
+          throw err;
+        }
+      }
+      setIsPlaying(!audio.paused);
 
       // Surface track info on lock screens / media keys
       if ('mediaSession' in navigator) {
