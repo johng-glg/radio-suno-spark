@@ -88,7 +88,7 @@ export default function RadioPage() {
     status, settings, current, upNext, station, taste, brewing, lastFeedback,
     tuneIn, skip, like, dislike, steer, saveStation,
   } = useRadio();
-  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong } = useAudioPlayer();
+  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong, unlock } = useAudioPlayer();
 
   const [genres, setGenres] = useState<string[]>(FALLBACK_GENRES);
   const [showAuth, setShowAuth] = useState(false);
