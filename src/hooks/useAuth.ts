@@ -73,6 +73,23 @@ export function useAuth() {
 
   const signInWithGoogle = async () => {
     const redirectUrl = `${window.location.origin}/`;
+    // Inside an iframe (Lovable preview), a normal redirect can navigate the
+    // parent/editor instead of the app. Open the provider in a new tab instead.
+    const framed = typeof window !== 'undefined' && window.parent !== window;
+
+    if (framed) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        }
+      });
+      if (error) return { error };
+      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
