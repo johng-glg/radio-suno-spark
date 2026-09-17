@@ -318,7 +318,7 @@ export default function SongBrowser() {
             <p>No songs found with the selected filters</p>
           </div>
         ) : (
-          songs.map(song => (
+          pagedSongs.map(song => (
             <Card key={song.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all group">
               <CardContent className="p-3">
                 {/* Album Art */}
