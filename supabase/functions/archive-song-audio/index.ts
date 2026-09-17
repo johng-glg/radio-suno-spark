@@ -54,8 +54,8 @@ Deno.serve(async (req) => {
 
     const { data: songs, error } = await serviceClient
       .from('songs')
-      .select('id, url, suno_id')
-      .is('storage_path', null)
+      .select('id, url, suno_id, storage_path')
+      .or('storage_path.is.null,url.ilike.%/stems/%')
       .not('url', 'is', null)
       .in('status', ['ready', 'completed'])
       .order('created_at', { ascending: false })
@@ -68,13 +68,12 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     for (const song of songs ?? []) {
-      let sourceUrl = isStemAudioUrl(song.url) ? null : song.url as string;
-      let path = sourceUrl
-        ? await archiveSongAudio(serviceClient, song.id, sourceUrl)
-        : null;
+      let sourceUrl: string | null = null;
+      let path: string | null = null;
 
-      // Link dead? Ask Suno for a fresh signed URL and retry once.
-      if (!path && song.suno_id && sunoApiKey) {
+      // Always recover from the provider's finished audio_url first. The URL
+      // saved on older rows points at source/stem output and can sound static.
+      if (song.suno_id && sunoApiKey) {
         try {
           const resp = await fetch(`https://api.sunoapi.com/api/v1/suno/task/${song.suno_id}`, {
             headers: { Authorization: `Bearer ${sunoApiKey}` },
@@ -98,10 +97,19 @@ Deno.serve(async (req) => {
                   .eq('id', song.id);
               }
             }
+          } else {
+            console.error(`Refresh from Suno failed (${resp.status}) for song ${song.id}`);
           }
         } catch (e) {
           console.error('Refresh from Suno failed for song', song.id, e);
         }
+      }
+
+      // Preserve support for old non-provider URLs, but never re-archive the
+      // known source/stem URLs that produced the static copies.
+      if (!path && !isStemAudioUrl(song.url)) {
+        sourceUrl = song.url as string;
+        path = await archiveSongAudio(serviceClient, song.id, sourceUrl);
       }
 
       if (path) archived++;

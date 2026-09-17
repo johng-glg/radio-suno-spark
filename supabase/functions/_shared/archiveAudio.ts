@@ -3,23 +3,20 @@
 
 export const SONG_AUDIO_BUCKET = 'song-audio';
 
-// The provider serves every finished track from a `/stems/` path, so the path
-// itself says nothing about the content. Keep the helper for callers, but never
-// use it to reject a URL.
-export function isStemAudioUrl(_url: unknown): boolean {
-  return false;
+// Historical rows saved source/stem outputs as the playable song. Those files
+// are valid MP3s but can contain only noise, so never use them as a fallback.
+export function isStemAudioUrl(url: unknown): boolean {
+  return typeof url === 'string' && /\/stems\//i.test(url);
 }
 
 export function selectFullMixAudioUrl(item: Record<string, unknown> | null | undefined): string | null {
   if (!item) return null;
 
+  // audio_url is the finished mix. source_audio_url is provider source material
+  // and was the cause of archived tracks playing as static.
   const candidates = [
-    item.source_audio_url,
-    item.sourceAudioUrl,
     item.audio_url,
     item.audioUrl,
-    item.source_stream_audio_url,
-    item.sourceStreamAudioUrl,
     item.stream_audio_url,
     item.streamAudioUrl,
   ];
