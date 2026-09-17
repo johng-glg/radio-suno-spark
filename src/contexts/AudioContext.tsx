@@ -121,7 +121,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   };
 
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
-    if (!song.url) {
+    if (!song.url && !song.storage_path) {
       console.log('Cannot play song: missing URL', song);
       return;
     }
@@ -152,8 +152,13 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     try {
       // Stop current song and prepare new source
+      const playableUrl = await resolvePlayableUrl(song);
+      if (!playableUrl) {
+        console.error('No playable URL for song', song.id);
+        return;
+      }
       audio.pause();
-      audio.src = song.url;
+      audio.src = playableUrl;
       audio.currentTime = 0;
       
       setCurrentSong(song);
