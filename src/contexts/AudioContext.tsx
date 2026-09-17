@@ -284,6 +284,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         volume,
         playSong,
         preload,
+        unlock,
         pause,
         resume,
         setVolume,
