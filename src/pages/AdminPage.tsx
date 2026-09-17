@@ -121,6 +121,31 @@ export default function AdminPage() {
   const [apiStatus, setApiStatus] = useState<ApiStatusResponse | null>(null);
   const [apiStatusLoading, setApiStatusLoading] = useState(false);
 
+  // Audio archiving backfill
+  const [archiveRunning, setArchiveRunning] = useState(false);
+
+  const runAudioArchive = async () => {
+    setArchiveRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('archive-song-audio', {
+        body: { limit: 50 },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Audio archive run complete',
+        description: `Checked ${data?.checked ?? 0} · saved ${data?.archived ?? 0} · recovered ${data?.recovered ?? 0} · unrecoverable ${data?.failed ?? 0}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Archive run failed',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setArchiveRunning(false);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       loadStats();
