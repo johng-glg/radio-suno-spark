@@ -15,15 +15,29 @@ interface Song {
  * Tracks archived in our own bucket are private — mint a short-lived signed
  * link. Anything else falls back to the stored URL (legacy Suno CDN links).
  */
-async function resolvePlayableUrl(song: Song): Promise<string | undefined> {
+async function resolvePlayableUrl(song: Song): Promise<{ url: string; objectUrl?: string } | undefined> {
   if (song.storage_path) {
     const { data, error } = await supabase.storage
       .from('song-audio')
       .createSignedUrl(song.storage_path, 60 * 60 * 6);
-    if (!error && data?.signedUrl) return data.signedUrl;
+    if (!error && data?.signedUrl) {
+      try {
+        // Load the complete file before handing it to the media element. This
+        // avoids browser/CDN byte-range decoding issues that can sound like
+        // loud static even though the archived MP3 itself is intact.
+        const response = await fetch(data.signedUrl);
+        if (!response.ok) throw new Error(`Audio download failed (${response.status})`);
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        return { url: objectUrl, objectUrl };
+      } catch (downloadError) {
+        console.warn('Archived audio download failed, using signed URL', downloadError);
+        return { url: data.signedUrl };
+      }
+    }
     console.warn('Signed URL failed, falling back to stored URL', error);
   }
-  return song.url;
+  return song.url ? { url: song.url } : undefined;
 }
 
 interface AudioContextType {
@@ -54,6 +68,7 @@ const SILENCE =
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prefetchRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
   const startingRef = useRef(false);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,6 +85,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
 
@@ -152,13 +168,15 @@ export function AudioProvider({ children }: { children: ReactNode }) {
 
     try {
       // Stop current song and prepare new source
-      const playableUrl = await resolvePlayableUrl(song);
-      if (!playableUrl) {
+      const playableSource = await resolvePlayableUrl(song);
+      if (!playableSource) {
         console.error('No playable URL for song', song.id);
         return;
       }
       audio.pause();
-      audio.src = playableUrl;
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = playableSource.objectUrl ?? null;
+      audio.src = playableSource.url;
       audio.currentTime = 0;
       
       setCurrentSong(song);
