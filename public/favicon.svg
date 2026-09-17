@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="spark" x1="14" y1="10" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD27A"/>
+      <stop offset="0.5" stop-color="#F6A823"/>
+      <stop offset="1" stop-color="#E07C00"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="30" cy="34" r="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#966CE0" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#966CE0" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#966CE0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect width="64" height="64" rx="15" fill="#100F15"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="14.5" fill="none" stroke="#966CE0" stroke-opacity="0.45"/>
+
+  <!-- broadcast sweep -->
+  <circle cx="32" cy="32" r="27" fill="none" stroke="#966CE0" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 5" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="26" fill="url(#glow)"/>
+
+  <!-- main spark -->
+  <path d="M32 8C32 20 20 32 8 32c12 0 24 12 24 24 0-12 12-24 24-24-12 0-24-12-24-24Z" fill="url(#spark)"/>
+
+  <!-- satellite spark -->
+  <path d="M50 6c0 4.4-4 8.4-8.4 8.4 4.4 0 8.4 4 8.4 8.4 0-4.4 4-8.4 8.4-8.4C54 14.4 50 10.4 50 6Z" fill="#966CE0"/>
+</svg>
