@@ -88,7 +88,7 @@ export default function RadioPage() {
     status, settings, current, upNext, station, taste, brewing, lastFeedback,
     tuneIn, skip, like, dislike, steer, saveStation,
   } = useRadio();
-  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong, unlock } = useAudioPlayer();
+  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong, unlock, currentSong, pause, resume } = useAudioPlayer();
 
   const [genres, setGenres] = useState<string[]>(FALLBACK_GENRES);
   const [showAuth, setShowAuth] = useState(false);
@@ -184,6 +184,41 @@ export default function RadioPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* ---------- library track playing outside the station ---------- */}
+        {!onAir && currentSong && (
+          <Card className="bg-card/60 backdrop-blur-sm border-border/50 animate-fade-in-up">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div
+                className={`w-14 h-14 rounded-full border-2 border-border/60 shrink-0 overflow-hidden ${isPlaying ? 'vinyl-spin' : ''}`}
+                style={currentSong.image_url
+                  ? { backgroundImage: `url(${currentSong.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                  : { background: genreArt(currentSong.genre ?? '') }}
+              />
+              <div className="flex-1 min-w-0 space-y-1">
+                <p className="font-semibold truncate">{currentSong.title ?? 'Untitled'}</p>
+                <div className="progress-bar cursor-pointer h-1.5" onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  seekTo(((e.clientX - rect.left) / rect.width) * 100);
+                }}>
+                  <div className="progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>{formatTime((progress / 100) * duration)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+              <Button size="icon" className="h-11 w-11 rounded-full neon-glow shrink-0"
+                onClick={() => (isPlaying ? pause() : resume())}>
+                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+              </Button>
+              <div className="hidden md:flex items-center gap-2 w-28 shrink-0">
+                <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Slider value={[volume]} onValueChange={(v) => setVolume(v[0])} max={100} step={1} className="w-20" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ---------- hero / now playing ---------- */}
         {!onAir ? (
           <section className="text-center space-y-8 py-8 animate-fade-in-up">
