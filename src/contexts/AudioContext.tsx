@@ -31,6 +31,10 @@ interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
+/** ~3ms of silent 16-bit PCM — used to grant the element autoplay permission. */
+const SILENCE =
+  'data:audio/wav;base64,UklGRqQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+
 export function AudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prefetchRef = useRef<HTMLAudioElement | null>(null);
@@ -68,7 +72,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     audio.setAttribute('preload', 'auto');
     audio.setAttribute('playsinline', 'true');
     audio.style.display = 'none';
-    audio.crossOrigin = 'anonymous';
     document.body.appendChild(audio);
     audio.volume = volume / 100;
 
@@ -77,6 +80,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       if (audio.duration > 0) setProgress((audio.currentTime / audio.duration) * 100);
     });
     audio.addEventListener('ended', () => {
+      if (audio.src === SILENCE) return; // the unlock blip, not a real track
       setIsPlaying(false);
       setProgress(0);
       window.dispatchEvent(new CustomEvent('song-ended'));
@@ -93,15 +97,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // gesture — station start fetches a track first, which loses the gesture.
   const unlock = () => {
     const audio = ensureAudio();
-    if (audio.dataset.unlocked === 'true') return;
+    if (audio.dataset.unlocked === 'true' || audio.src) return;
     audio.dataset.unlocked = 'true';
-    const prevSrc = audio.src;
-    if (!prevSrc) {
-      // Tiny silent wav: plays instantly, satisfies the gesture requirement.
-      audio.src =
-        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-      audio.play().then(() => audio.pause()).catch(() => {});
-    }
+    // A few milliseconds of silence: plays instantly and satisfies the gesture.
+    audio.src = SILENCE;
+    audio.play().then(() => audio.pause()).catch(() => {});
   };
 
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
@@ -144,54 +144,28 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       setActiveContext(context);
       setProgress(0);
 
-      // Load the audio and start playing
+      // Load the source and start as soon as the browser has anything buffered.
       audio.load();
-      
-      // Wait for audio to be ready and start playback
-      await new Promise<void>((resolve, reject) => {
-        let resolved = false;
-        
-        const cleanup = () => {
-          audio.removeEventListener('canplaythrough', onCanPlay);
-          audio.removeEventListener('error', onError);
-        };
-        
-        const onCanPlay = () => {
-          if (resolved) return;
-          cleanup();
-          
-          audio.play()
-            .then(() => {
-              resolved = true;
-              console.log('Song started successfully');
-              // Force playing state update
-              setIsPlaying(true);
-              resolve();
-            })
-            .catch((err) => {
-              if (!resolved && (err as any)?.name === 'AbortError') {
-                console.log('AbortError detected, retrying...');
-                audio.play()
-                  .then(() => {
-                    resolved = true;
-                    setIsPlaying(true);
-                    resolve();
-                  })
-                  .catch(reject);
-              } else {
-                reject(err);
-              }
-            });
-        };
-        
-        const onError = (e: Event) => {
-          cleanup();
-          reject(new Error('Failed to load audio'));
-        };
-        
-        audio.addEventListener('canplaythrough', onCanPlay);
-        audio.addEventListener('error', onError);
-      });
+
+      try {
+        await audio.play();
+      } catch (err) {
+        const name = (err as any)?.name;
+        if (name === 'AbortError' || name === 'NotAllowedError') {
+          // The load was interrupted or the gesture expired — retry once the
+          // element reports it can play.
+          await new Promise<void>((resolve) => {
+            const onCanPlay = () => {
+              audio.removeEventListener('canplay', onCanPlay);
+              audio.play().catch((e) => console.error('Retry play failed:', e)).finally(resolve);
+            };
+            audio.addEventListener('canplay', onCanPlay);
+          });
+        } else {
+          throw err;
+        }
+      }
+      setIsPlaying(!audio.paused);
 
       // Surface track info on lock screens / media keys
       if ('mediaSession' in navigator) {
