@@ -52,8 +52,12 @@ export default function SongBrowser() {
   const { currentSong, isPlaying, playSong } = useAudioPlayer();
 
   useEffect(() => {
+    setPage(1);
     fetchSongs();
   }, [genreFilter, moodFilter, holidayFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
+  const pagedSongs = songs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const fetchSongs = async () => {
     setLoading(true);
