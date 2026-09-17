@@ -44,6 +44,7 @@ export default function SongBrowser() {
   const [holidayFilter, setHolidayFilter] = useState("all");
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
   const [selectedSongForPlaylist, setSelectedSongForPlaylist] = useState<Song | null>(null);
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong } = useAudioPlayer();
