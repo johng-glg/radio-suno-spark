@@ -16,6 +16,7 @@ interface Song {
   genre: string;
   mood: string;
   url: string;
+  storage_path: string | null;
   image_url: string | null;
   holiday: string | null;
   total_plays: number;
@@ -181,6 +182,7 @@ export default function SongBrowser() {
       id: song.id,
       title: song.title,
       url: song.url,
+      storage_path: song.storage_path,
       genre: song.genre,
       mood: song.mood,
       image_url: song.image_url || undefined

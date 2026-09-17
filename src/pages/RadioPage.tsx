@@ -338,6 +338,7 @@ export default function RadioPage() {
                       <Button size="icon" className="h-14 w-14 rounded-full neon-glow"
                         onClick={() => playSong({
                           id: current.id, title: current.title ?? 'Untitled', url: current.url ?? undefined,
+                          storage_path: current.storage_path,
                           genre: current.genre, mood: current.mood ?? undefined, image_url: current.image_url ?? undefined,
                         }, 'player')}>
                         {isPlaying ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7 ml-0.5" />}

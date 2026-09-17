@@ -133,6 +133,7 @@ export function RadioProvider({ children }: { children: ReactNode }) {
         id: song.id,
         title: song.title ?? 'Untitled',
         url: song.url ?? undefined,
+        storage_path: song.storage_path,
         genre: song.genre,
         mood: song.mood ?? undefined,
         image_url: song.image_url ?? undefined,
