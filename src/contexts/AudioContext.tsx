@@ -5,9 +5,25 @@ interface Song {
   id: string;
   title: string;
   url?: string;
+  storage_path?: string | null;
   genre: string;
   mood?: string;
   image_url?: string;
+}
+
+/**
+ * Tracks archived in our own bucket are private — mint a short-lived signed
+ * link. Anything else falls back to the stored URL (legacy Suno CDN links).
+ */
+async function resolvePlayableUrl(song: Song): Promise<string | undefined> {
+  if (song.storage_path) {
+    const { data, error } = await supabase.storage
+      .from('song-audio')
+      .createSignedUrl(song.storage_path, 60 * 60 * 6);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    console.warn('Signed URL failed, falling back to stored URL', error);
+  }
+  return song.url;
 }
 
 interface AudioContextType {
