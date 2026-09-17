@@ -123,6 +123,30 @@ export default function AdminPage() {
 
   // Audio archiving backfill
   const [archiveRunning, setArchiveRunning] = useState(false);
+  const [archiveCounts, setArchiveCounts] = useState<{ archived: number; remaining: number } | null>(null);
+
+  const loadArchiveCounts = async () => {
+    const base = supabase
+      .from('songs')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['ready', 'completed'])
+      .not('url', 'is', null);
+
+    const [archivedRes, remainingRes] = await Promise.all([
+      supabase
+        .from('songs')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['ready', 'completed'])
+        .not('url', 'is', null)
+        .not('storage_path', 'is', null),
+      base.is('storage_path', null),
+    ]);
+
+    setArchiveCounts({
+      archived: archivedRes.count ?? 0,
+      remaining: remainingRes.count ?? 0,
+    });
+  };
 
   const runAudioArchive = async () => {
     setArchiveRunning(true);
@@ -135,6 +159,7 @@ export default function AdminPage() {
         title: 'Audio archive run complete',
         description: `Checked ${data?.checked ?? 0} · saved ${data?.archived ?? 0} · recovered ${data?.recovered ?? 0} · unrecoverable ${data?.failed ?? 0}`,
       });
+      loadArchiveCounts();
     } catch (err: any) {
       toast({
         title: 'Archive run failed',
@@ -145,6 +170,7 @@ export default function AdminPage() {
       setArchiveRunning(false);
     }
   };
+
 
   useEffect(() => {
     if (isAdmin) {
