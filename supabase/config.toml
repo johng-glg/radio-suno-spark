@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.api-status]
 verify_jwt = true
+
+[functions.archive-song-audio]
+verify_jwt = true
