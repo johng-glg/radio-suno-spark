@@ -423,6 +423,31 @@ export default function SongBrowser() {
         )}
       </div>
 
+      {/* Pagination */}
+      {!loading && songs.length > PAGE_SIZE && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            Previous
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      )}
+
       <AddToPlaylistDialog
         song={selectedSongForPlaylist}
         open={!!selectedSongForPlaylist}
