@@ -1268,6 +1268,22 @@ export default function AdminPage() {
                 </Button>
               </div>
 
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Audio Archive</CardTitle>
+                  <CardDescription>
+                    Copies song audio into your own storage so playback links never expire.
+                    Runs 50 songs at a time — click again to continue.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
+                    {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
+                  </Button>
+                </CardContent>
+              </Card>
+
               {apiStatus?.checked_at && (
                 <p className="text-xs text-muted-foreground">
                   Last checked: {new Date(apiStatus.checked_at).toLocaleString()}
