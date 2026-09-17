@@ -38,6 +38,7 @@ interface PlaylistSong {
     genre: string;
     mood: string;
     url: string;
+     storage_path: string | null;
     image_url: string | null;
   };
 }
@@ -96,6 +97,7 @@ export default function PlaylistsView() {
           genre,
           mood,
           url,
+           storage_path,
           image_url
         )
       `)
