@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { archiveSongAudio } from '../_shared/archiveAudio.ts';
+import { archiveSongAudio, isStemAudioUrl, selectFullMixAudioUrl } from '../_shared/archiveAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,7 +68,10 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     for (const song of songs ?? []) {
-      let path = await archiveSongAudio(serviceClient, song.id, song.url as string);
+      let sourceUrl = isStemAudioUrl(song.url) ? null : song.url as string;
+      let path = sourceUrl
+        ? await archiveSongAudio(serviceClient, song.id, sourceUrl)
+        : null;
 
       // Link dead? Ask Suno for a fresh signed URL and retry once.
       if (!path && song.suno_id && sunoApiKey) {
@@ -78,12 +81,22 @@ Deno.serve(async (req) => {
           });
           if (resp.ok) {
             const task = await resp.json();
-            const item = Array.isArray(task?.data)
-              ? task.data.find((i: any) => i.audio_url)
-              : null;
-            if (item?.audio_url) {
-              path = await archiveSongAudio(serviceClient, song.id, item.audio_url);
-              if (path) recovered++;
+            const taskItems = Array.isArray(task?.data)
+              ? task.data
+              : Array.isArray(task?.data?.data)
+                ? task.data.data
+                : [];
+            const item = taskItems.find((candidate: Record<string, unknown>) => selectFullMixAudioUrl(candidate));
+            sourceUrl = selectFullMixAudioUrl(item);
+            if (sourceUrl) {
+              path = await archiveSongAudio(serviceClient, song.id, sourceUrl);
+              if (path) {
+                recovered++;
+                await serviceClient
+                  .from('songs')
+                  .update({ url: sourceUrl })
+                  .eq('id', song.id);
+              }
             }
           }
         } catch (e) {

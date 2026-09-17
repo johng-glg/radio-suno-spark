@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { archiveSongAudio } from '../_shared/archiveAudio.ts';
+import { archiveSongAudio, selectFullMixAudioUrl } from '../_shared/archiveAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -531,7 +531,9 @@ const {
           
           if (tData.code === 200 && Array.isArray(tData.data) && tData.data.length > 0) {
             // Suno may return multiple clips; pick the first one that's succeeded
-            const succeededItem = tData.data.find((item: any) => item.state === 'succeeded' && item.audio_url);
+            const succeededItem = tData.data.find((item: any) =>
+              item.state === 'succeeded' && selectFullMixAudioUrl(item)
+            );
             
             if (succeededItem) {
               finalResult = succeededItem;
@@ -555,16 +557,17 @@ const {
     }
 
     // Prepare update based on poll result
+    const fullMixUrl = selectFullMixAudioUrl(finalResult);
     const updateData: any = {
-      status: finalResult?.audio_url ? 'ready' : 'failed',
+      status: fullMixUrl ? 'ready' : 'failed',
       title: finalResult?.title || song.title,
       updated_at: new Date().toISOString(),
       suno_id: finalResult?.clip_id  // Store the Suno clip ID for fetching images later
     };
 
-    if (finalResult?.audio_url) {
-      updateData.url = finalResult.audio_url;
-      console.log('Updating song with audio URL:', finalResult.audio_url);
+    if (fullMixUrl) {
+      updateData.url = fullMixUrl;
+      console.log('Updating song with full-mix audio URL:', fullMixUrl);
     } else {
       updateData.description = 'Generation timeout or no audio returned';
       console.warn(`Suno task ${taskId} timed out or returned no audio; marking as failed.`);
@@ -590,12 +593,12 @@ const {
     }
 
     // Keep a permanent copy — Suno's CDN links expire.
-    if (finalResult?.audio_url) {
-      await archiveSongAudio(serviceClient, song.id, finalResult.audio_url);
+    if (fullMixUrl) {
+      await archiveSongAudio(serviceClient, song.id, fullMixUrl);
     }
 
     // Add to queue if song is ready
-    if (finalResult?.audio_url) {
+    if (fullMixUrl) {
       // Update existing queue entry to ready status
       const { error: queueError } = await serviceClient
         .from('queue')

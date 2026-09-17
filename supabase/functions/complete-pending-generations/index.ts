@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { archiveSongAudio } from '../_shared/archiveAudio.ts'
+import { archiveSongAudio, selectFullMixAudioUrl } from '../_shared/archiveAudio.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -184,16 +184,20 @@ Deno.serve(async (req) => {
         
         if (taskData.code === 200 && Array.isArray(taskData.data) && taskData.data.length > 0) {
           // Look for completed clips
-          const succeededItem = taskData.data.find((item: any) => item.state === 'succeeded' && item.audio_url);
+          const succeededItem = taskData.data.find((item: any) =>
+            item.state === 'succeeded' && selectFullMixAudioUrl(item)
+          );
           
           if (succeededItem) {
             console.log(`Task ${song.suno_id} completed successfully`);
             
             // Update song with results
+            const fullMixUrl = selectFullMixAudioUrl(succeededItem);
+            if (!fullMixUrl) continue;
             const updateData: any = {
               status: 'ready',
               title: succeededItem.title || song.title,
-              url: succeededItem.audio_url,
+              url: fullMixUrl,
               updated_at: new Date().toISOString()
             };
 
@@ -226,7 +230,7 @@ Deno.serve(async (req) => {
               completedCount++;
 
               // Keep a permanent copy — Suno's CDN links expire.
-              await archiveSongAudio(supabaseClient, song.id, succeededItem.audio_url);
+              await archiveSongAudio(supabaseClient, song.id, fullMixUrl);
 
               // Check if song was requested by a user and add to their queue
               const { data: songData } = await supabaseClient

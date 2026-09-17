@@ -3,13 +3,45 @@
 
 export const SONG_AUDIO_BUCKET = 'song-audio';
 
+export function isStemAudioUrl(url: unknown): boolean {
+  return typeof url === 'string' && /(?:^|\/)stems(?:\/|$)/i.test(url);
+}
+
+export function selectFullMixAudioUrl(item: Record<string, unknown> | null | undefined): string | null {
+  if (!item) return null;
+
+  // Prefer the original full mix. Some provider responses expose a separated
+  // stem as audio_url, which sounds like hiss/noise when used as the song.
+  const candidates = [
+    item.source_audio_url,
+    item.sourceAudioUrl,
+    item.audio_url,
+    item.audioUrl,
+    item.source_stream_audio_url,
+    item.sourceStreamAudioUrl,
+    item.stream_audio_url,
+    item.streamAudioUrl,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.length > 0 && !isStemAudioUrl(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 export async function archiveSongAudio(
   supabase: any,
   songId: string,
   sourceUrl: string,
 ): Promise<string | null> {
   try {
-    if (!sourceUrl) return null;
+    if (!sourceUrl || isStemAudioUrl(sourceUrl)) {
+      console.error(`archiveSongAudio: rejected stem audio URL for song ${songId}`);
+      return null;
+    }
 
     const resp = await fetch(sourceUrl);
     if (!resp.ok) {
