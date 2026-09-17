@@ -588,6 +588,11 @@ const {
       console.error('Failed to update song:', updateError);
     }
 
+    // Keep a permanent copy — Suno's CDN links expire.
+    if (finalResult?.audio_url) {
+      await archiveSongAudio(serviceClient, song.id, finalResult.audio_url);
+    }
+
     // Add to queue if song is ready
     if (finalResult?.audio_url) {
       // Update existing queue entry to ready status
