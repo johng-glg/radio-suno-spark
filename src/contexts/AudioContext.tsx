@@ -72,7 +72,6 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     audio.setAttribute('preload', 'auto');
     audio.setAttribute('playsinline', 'true');
     audio.style.display = 'none';
-    audio.crossOrigin = 'anonymous';
     document.body.appendChild(audio);
     audio.volume = volume / 100;
 
