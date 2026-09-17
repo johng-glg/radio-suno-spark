@@ -69,6 +69,8 @@ export default function SongBrowser() {
         .eq('is_public', true)
         .in('status', ['ready', 'completed'])
         .not('url', 'is', null)
+        .not('storage_path', 'is', null)
+
         .limit(200);
 
       if (genreFilter !== "all") {
