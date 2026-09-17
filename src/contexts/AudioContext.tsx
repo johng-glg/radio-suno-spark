@@ -93,15 +93,11 @@ export function AudioProvider({ children }: { children: ReactNode }) {
   // gesture — station start fetches a track first, which loses the gesture.
   const unlock = () => {
     const audio = ensureAudio();
-    if (audio.dataset.unlocked === 'true') return;
+    if (audio.dataset.unlocked === 'true' || audio.src) return;
     audio.dataset.unlocked = 'true';
-    const prevSrc = audio.src;
-    if (!prevSrc) {
-      // Tiny silent wav: plays instantly, satisfies the gesture requirement.
-      audio.src =
-        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-      audio.play().then(() => audio.pause()).catch(() => {});
-    }
+    // A few milliseconds of silence: plays instantly and satisfies the gesture.
+    audio.src = SILENCE;
+    audio.play().then(() => audio.pause()).catch(() => {});
   };
 
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
