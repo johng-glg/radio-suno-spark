@@ -80,6 +80,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
       if (audio.duration > 0) setProgress((audio.currentTime / audio.duration) * 100);
     });
     audio.addEventListener('ended', () => {
+      if (audio.src === SILENCE) return; // the unlock blip, not a real track
       setIsPlaying(false);
       setProgress(0);
       window.dispatchEvent(new CustomEvent('song-ended'));
