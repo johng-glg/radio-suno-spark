@@ -25,6 +25,8 @@ interface Song {
 
 const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
 const MOODS = ["all", "upbeat", "chill", "aggressive", "emotional", "epic", "playful"];
+// 4 columns on desktop x 3 rows
+const PAGE_SIZE = 12;
 const HOLIDAYS = ["all", "christmas", "halloween", "hanukkah", "thanksgiving", "st. patty's day", "4th of july"];
 
 const HOLIDAY_ICONS: Record<string, any> = {
