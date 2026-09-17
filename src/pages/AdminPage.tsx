@@ -171,6 +171,44 @@ export default function AdminPage() {
     }
   };
 
+  // Song seeding
+  const SEED_GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
+  const [seedCount, setSeedCount] = useState(10);
+  const [seedGenres, setSeedGenres] = useState<string[]>(SEED_GENRES);
+  const [seedRunning, setSeedRunning] = useState(false);
+
+  const toggleSeedGenre = (genre: string) => {
+    setSeedGenres((prev) =>
+      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
+    );
+  };
+
+  const runSeedSongs = async () => {
+    setSeedRunning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-songs', {
+        body: { count: seedCount, genres: seedGenres },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Seeding started',
+        description: `${data?.created ?? 0} new songs queued for generation.`,
+      });
+      loadStats();
+      loadArchiveCounts();
+    } catch (err: any) {
+      toast({
+        title: 'Seeding failed',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setSeedRunning(false);
+    }
+  };
+
+
+
 
   useEffect(() => {
     if (isAdmin) {
@@ -1336,6 +1374,56 @@ export default function AdminPage() {
                 </CardContent>
 
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Seed Library</CardTitle>
+                  <CardDescription>
+                    Generate a batch of new songs spread evenly across the genres you pick.
+                    They appear once generation finishes and the audio is saved.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="seed-count">How many songs</Label>
+                      <Input
+                        id="seed-count"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={seedCount}
+                        onChange={(e) => setSeedCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Genres</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {SEED_GENRES.map((genre) => (
+                        <Badge
+                          key={genre}
+                          variant={seedGenres.includes(genre) ? 'default' : 'outline'}
+                          className="cursor-pointer capitalize"
+                          onClick={() => toggleSeedGenre(genre)}
+                        >
+                          {genre}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <Button
+                    onClick={runSeedSongs}
+                    disabled={seedRunning || seedGenres.length === 0}
+                    className="gap-2"
+                  >
+                    {seedRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    {seedRunning ? 'Queuing…' : `Generate ${seedCount} songs`}
+                  </Button>
+                </CardContent>
+              </Card>
+
 
               {apiStatus?.checked_at && (
                 <p className="text-xs text-muted-foreground">

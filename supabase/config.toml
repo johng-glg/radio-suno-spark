@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.archive-song-audio]
 verify_jwt = true
+
+[functions.seed-songs]
+verify_jwt = true
