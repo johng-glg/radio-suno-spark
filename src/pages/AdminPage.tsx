@@ -1304,12 +1304,37 @@ export default function AdminPage() {
                     Runs 50 songs at a time — click again to continue.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
-                    {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
-                  </Button>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Archived</p>
+                      <p className="text-2xl font-semibold">{archiveCounts?.archived ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Remaining</p>
+                      <p className="text-2xl font-semibold">{archiveCounts?.remaining ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Progress</p>
+                      <p className="text-2xl font-semibold">
+                        {archiveCounts && archiveCounts.archived + archiveCounts.remaining > 0
+                          ? `${Math.round((archiveCounts.archived / (archiveCounts.archived + archiveCounts.remaining)) * 100)}%`
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
+                      <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
+                      {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
+                    </Button>
+                    <Button variant="outline" onClick={loadArchiveCounts} className="gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh counts
+                    </Button>
+                  </div>
                 </CardContent>
+
               </Card>
 
               {apiStatus?.checked_at && (
