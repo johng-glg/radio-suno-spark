@@ -65,7 +65,7 @@ export default function SongBrowser() {
       // First, get songs with filters
       let query = supabase
         .from('songs')
-        .select('id, title, genre, mood, url, image_url, holiday')
+        .select('id, title, genre, mood, url, storage_path, image_url, holiday')
         .eq('is_public', true)
         .in('status', ['ready', 'completed'])
         .not('url', 'is', null)
