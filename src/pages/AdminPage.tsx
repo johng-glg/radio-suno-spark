@@ -123,6 +123,30 @@ export default function AdminPage() {
 
   // Audio archiving backfill
   const [archiveRunning, setArchiveRunning] = useState(false);
+  const [archiveCounts, setArchiveCounts] = useState<{ archived: number; remaining: number } | null>(null);
+
+  const loadArchiveCounts = async () => {
+    const base = supabase
+      .from('songs')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['ready', 'completed'])
+      .not('url', 'is', null);
+
+    const [archivedRes, remainingRes] = await Promise.all([
+      supabase
+        .from('songs')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['ready', 'completed'])
+        .not('url', 'is', null)
+        .not('storage_path', 'is', null),
+      base.is('storage_path', null),
+    ]);
+
+    setArchiveCounts({
+      archived: archivedRes.count ?? 0,
+      remaining: remainingRes.count ?? 0,
+    });
+  };
 
   const runAudioArchive = async () => {
     setArchiveRunning(true);
@@ -135,6 +159,7 @@ export default function AdminPage() {
         title: 'Audio archive run complete',
         description: `Checked ${data?.checked ?? 0} · saved ${data?.archived ?? 0} · recovered ${data?.recovered ?? 0} · unrecoverable ${data?.failed ?? 0}`,
       });
+      loadArchiveCounts();
     } catch (err: any) {
       toast({
         title: 'Archive run failed',
@@ -146,10 +171,13 @@ export default function AdminPage() {
     }
   };
 
+
   useEffect(() => {
     if (isAdmin) {
       loadStats();
       loadApiStatus();
+      loadArchiveCounts();
+
 
       // Set up real-time subscription for song status changes
       const channel = supabase
@@ -1276,12 +1304,37 @@ export default function AdminPage() {
                     Runs 50 songs at a time — click again to continue.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
-                    {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
-                  </Button>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Archived</p>
+                      <p className="text-2xl font-semibold">{archiveCounts?.archived ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Remaining</p>
+                      <p className="text-2xl font-semibold">{archiveCounts?.remaining ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground">Progress</p>
+                      <p className="text-2xl font-semibold">
+                        {archiveCounts && archiveCounts.archived + archiveCounts.remaining > 0
+                          ? `${Math.round((archiveCounts.archived / (archiveCounts.archived + archiveCounts.remaining)) * 100)}%`
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={runAudioArchive} disabled={archiveRunning} className="gap-2">
+                      <RefreshCw className={`h-4 w-4 ${archiveRunning ? 'animate-spin' : ''}`} />
+                      {archiveRunning ? 'Archiving…' : 'Archive next 50 songs'}
+                    </Button>
+                    <Button variant="outline" onClick={loadArchiveCounts} className="gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh counts
+                    </Button>
+                  </div>
                 </CardContent>
+
               </Card>
 
               {apiStatus?.checked_at && (
