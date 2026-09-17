@@ -18,6 +18,7 @@ interface AudioContextType {
   volume: number;
   playSong: (song: Song, context?: 'player' | 'playlist') => void;
   preload: (url: string) => void;
+  unlock: () => void;
   pause: () => void;
   resume: () => void;
   setVolume: (volume: number) => void;
