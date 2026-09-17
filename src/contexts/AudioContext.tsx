@@ -60,53 +60,57 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
   }, [volume]);
 
+  // Create (once) the real DOM audio element used for all playback.
+  const ensureAudio = (): HTMLAudioElement => {
+    if (audioRef.current) return audioRef.current;
+
+    const audio = document.createElement('audio');
+    audio.setAttribute('preload', 'auto');
+    audio.setAttribute('playsinline', 'true');
+    audio.style.display = 'none';
+    audio.crossOrigin = 'anonymous';
+    document.body.appendChild(audio);
+    audio.volume = volume / 100;
+
+    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
+    audio.addEventListener('timeupdate', () => {
+      if (audio.duration > 0) setProgress((audio.currentTime / audio.duration) * 100);
+    });
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false);
+      setProgress(0);
+      window.dispatchEvent(new CustomEvent('song-ended'));
+    });
+    audio.addEventListener('play', () => setIsPlaying(true));
+    audio.addEventListener('pause', () => setIsPlaying(false));
+
+    audioRef.current = audio;
+    return audio;
+  };
+
+  // Must be called synchronously inside a user gesture (e.g. the Tune in click).
+  // Browsers only grant autoplay permission to an element that played during a
+  // gesture — station start fetches a track first, which loses the gesture.
+  const unlock = () => {
+    const audio = ensureAudio();
+    if (audio.dataset.unlocked === 'true') return;
+    audio.dataset.unlocked = 'true';
+    const prevSrc = audio.src;
+    if (!prevSrc) {
+      // Tiny silent wav: plays instantly, satisfies the gesture requirement.
+      audio.src =
+        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      audio.play().then(() => audio.pause()).catch(() => {});
+    }
+  };
+
   const playSong = async (song: Song, context: 'player' | 'playlist' = 'player') => {
     if (!song.url) {
       console.log('Cannot play song: missing URL', song);
       return;
     }
 
-    // Lazy-initialize the audio element on first user interaction
-    if (!audioRef.current) {
-      // Create a real DOM audio element to improve iOS Safari compatibility
-      const audio = document.createElement('audio');
-      audio.setAttribute('preload', 'auto');
-      audio.setAttribute('playsinline', 'true');
-      audio.style.display = 'none';
-      audio.crossOrigin = 'anonymous';
-      document.body.appendChild(audio);
-      audio.volume = volume / 100;
-
-      const handleLoadedMetadata = () => {
-        setDuration(audio.duration);
-      };
-
-      const handleTimeUpdate = () => {
-        if (audio.duration > 0) {
-          setProgress((audio.currentTime / audio.duration) * 100);
-        }
-      };
-
-      const handleEnded = () => {
-        setIsPlaying(false);
-        setProgress(0);
-        // Dispatch custom event for station to handle auto-advance
-        window.dispatchEvent(new CustomEvent('song-ended'));
-      };
-
-      const handlePlay = () => setIsPlaying(true);
-      const handlePause = () => setIsPlaying(false);
-
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', handleEnded);
-      audio.addEventListener('play', handlePlay);
-      audio.addEventListener('pause', handlePause);
-
-      audioRef.current = audio as HTMLAudioElement;
-    }
-
-    const audio = audioRef.current;
+    const audio = ensureAudio();
 
     // If it's the same song, just toggle play/pause
     if (currentSong?.id === song.id) {
