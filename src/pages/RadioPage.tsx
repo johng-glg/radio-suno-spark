@@ -265,7 +265,7 @@ export default function RadioPage() {
                   </div>
                 )}
 
-                <Button onClick={() => tuneIn()} disabled={status === 'tuning'}
+                <Button onClick={() => { unlock(); tuneIn(); }} disabled={status === 'tuning'}
                   className="w-full h-14 text-lg font-semibold neon-glow" size="lg">
                   <Play className="h-6 w-6 mr-2" />
                   {status === 'tuning' ? 'Tuning…' : 'Tune in'}
