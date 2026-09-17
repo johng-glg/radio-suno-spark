@@ -3,15 +3,16 @@
 
 export const SONG_AUDIO_BUCKET = 'song-audio';
 
-export function isStemAudioUrl(url: unknown): boolean {
-  return typeof url === 'string' && /(?:^|\/)stems(?:\/|$)/i.test(url);
+// The provider serves every finished track from a `/stems/` path, so the path
+// itself says nothing about the content. Keep the helper for callers, but never
+// use it to reject a URL.
+export function isStemAudioUrl(_url: unknown): boolean {
+  return false;
 }
 
 export function selectFullMixAudioUrl(item: Record<string, unknown> | null | undefined): string | null {
   if (!item) return null;
 
-  // Prefer the original full mix. Some provider responses expose a separated
-  // stem as audio_url, which sounds like hiss/noise when used as the song.
   const candidates = [
     item.source_audio_url,
     item.sourceAudioUrl,
@@ -24,7 +25,7 @@ export function selectFullMixAudioUrl(item: Record<string, unknown> | null | und
   ];
 
   for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.length > 0 && !isStemAudioUrl(candidate)) {
+    if (typeof candidate === 'string' && candidate.length > 0) {
       return candidate;
     }
   }
@@ -38,10 +39,8 @@ export async function archiveSongAudio(
   sourceUrl: string,
 ): Promise<string | null> {
   try {
-    if (!sourceUrl || isStemAudioUrl(sourceUrl)) {
-      console.error(`archiveSongAudio: rejected stem audio URL for song ${songId}`);
-      return null;
-    }
+    if (!sourceUrl) return null;
+
 
     const resp = await fetch(sourceUrl);
     if (!resp.ok) {
