@@ -93,6 +93,9 @@ export function useAuth() {
     const framed = typeof window !== 'undefined' && window.parent !== window;
 
     if (framed) {
+      // iOS only allows a new tab to be created synchronously from the tap.
+      // Opening it after the OAuth request lets the Lovable shell intercept it.
+      const authWindow = window.open('about:blank', '_blank');
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -100,8 +103,18 @@ export function useAuth() {
           skipBrowserRedirect: true,
         }
       });
-      if (error) return { error };
-      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (error) {
+        authWindow?.close();
+        return { error };
+      }
+      if (data?.url) {
+        if (authWindow) {
+          authWindow.opener = null;
+          authWindow.location.replace(data.url);
+        } else {
+          window.location.assign(data.url);
+        }
+      }
       return { error: null };
     }
 
