@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+const LIVE_APP_URL = 'https://radio.jglab.dev';
+
+function getAuthRedirectUrl() {
+  if (typeof window === 'undefined') return `${LIVE_APP_URL}/`;
+
+  const host = window.location.hostname;
+  const isLovableEditor =
+    host === 'lovable.dev' ||
+    host.endsWith('.lovable.dev') ||
+    host === 'gptengineer.app' ||
+    host.endsWith('.gptengineer.app');
+
+  return isLovableEditor ? `${LIVE_APP_URL}/` : `${window.location.origin}/`;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -72,12 +87,15 @@ export function useAuth() {
 
 
   const signInWithGoogle = async () => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getAuthRedirectUrl();
     // Inside an iframe (Lovable preview), a normal redirect can navigate the
     // parent/editor instead of the app. Open the provider in a new tab instead.
     const framed = typeof window !== 'undefined' && window.parent !== window;
 
     if (framed) {
+      // iOS only allows a new tab to be created synchronously from the tap.
+      // Opening it after the OAuth request lets the Lovable shell intercept it.
+      const authWindow = window.open('about:blank', '_blank');
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -85,8 +103,18 @@ export function useAuth() {
           skipBrowserRedirect: true,
         }
       });
-      if (error) return { error };
-      if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (error) {
+        authWindow?.close();
+        return { error };
+      }
+      if (data?.url) {
+        if (authWindow) {
+          authWindow.opener = null;
+          authWindow.location.replace(data.url);
+        } else {
+          window.location.assign(data.url);
+        }
+      }
       return { error: null };
     }
 
