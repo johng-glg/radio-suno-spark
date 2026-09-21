@@ -3,7 +3,7 @@ import { Play, Pause, SkipForward, Volume2, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useAudioPlayer } from '@/contexts/AudioContext';
-import { useRadio } from '@/hooks/useRadio';
+import { useRadioOptional } from '@/hooks/useRadio';
 
 const GENRE_HUES: Record<string, [number, number]> = {
   classical: [36, 20], edm: [190, 280], pop: [320, 40], rock: [0, 25],
@@ -28,7 +28,9 @@ function formatTime(seconds: number): string {
  */
 export default function GlobalPlayer() {
   const { currentSong, isPlaying, progress, duration, volume, setVolume, seekTo, pause, resume } = useAudioPlayer();
-  const { status, skip } = useRadio();
+  const radio = useRadioOptional();
+  const status = radio?.status;
+  const skip = radio?.skip;
   const location = useLocation();
 
   if (!currentSong) return null;

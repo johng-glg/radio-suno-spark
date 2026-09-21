@@ -393,3 +393,8 @@ export function useRadio() {
   if (ctx === undefined) throw new Error('useRadio must be used within a RadioProvider');
   return ctx;
 }
+
+/** Same context, but safe to call outside the provider (returns undefined). */
+export function useRadioOptional() {
+  return useContext(RadioContext);
+}
