@@ -447,11 +447,13 @@ export default function AdminPage() {
     (async () => {
       for (let i = 0; i < bulkCount; i++) {
         try {
+          const songGenre = anyGenre ? pick(GENRES) : bulkGenre;
+          const songMood = anyMood ? pick(MOODS) : bulkMood;
           await generateWithBuildPrompt(
             bulkWildCard, // wildCardMode
             bulkInstrumental, // makeInstrumental
-            [bulkGenre], // genres
-            bulkMood, // mood
+            [songGenre], // genres
+            songMood, // mood
             true, // asLibrary
             bulkHoliday === 'none' ? undefined : bulkHoliday
           );
