@@ -3,6 +3,20 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 const LIVE_APP_URL = 'https://radio.jglab.dev';
+const LEGACY_AUTH_HOSTS = ['lovableproject.com', 'lovable.app'];
+
+function isLegacyTopLevelHost() {
+  if (typeof window === 'undefined' || window.parent !== window) return false;
+  return LEGACY_AUTH_HOSTS.some(
+    (host) => window.location.hostname === host || window.location.hostname.endsWith(`.${host}`)
+  );
+}
+
+function returnToLiveApp() {
+  const destination = new URL(window.location.pathname, LIVE_APP_URL);
+  destination.search = window.location.search;
+  window.location.replace(destination.toString());
+}
 
 function getAuthRedirectUrl() {
   // OAuth must never return to an editor or preview host. Those hosts route
@@ -19,6 +33,10 @@ export function useAuth() {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (session && isLegacyTopLevelHost()) {
+          returnToLiveApp();
+          return;
+        }
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -27,6 +45,10 @@ export function useAuth() {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && isLegacyTopLevelHost()) {
+        returnToLiveApp();
+        return;
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
