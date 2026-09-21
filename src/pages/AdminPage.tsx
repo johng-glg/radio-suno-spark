@@ -106,8 +106,8 @@ export default function AdminPage() {
   const [topSongsSortBy, setTopSongsSortBy] = useState<'likes' | 'plays'>('likes');
   
   // Library management state
-  const [bulkGenre, setBulkGenre] = useState<string>('');
-  const [bulkMood, setBulkMood] = useState<string>('');
+  const [bulkGenre, setBulkGenre] = useState<string>('any');
+  const [bulkMood, setBulkMood] = useState<string>('any');
   const [bulkCount, setBulkCount] = useState<number>(1);
   const [bulkHoliday, setBulkHoliday] = useState<string>('none');
   const [bulkInstrumental, setBulkInstrumental] = useState<boolean>(false);
