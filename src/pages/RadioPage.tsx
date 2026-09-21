@@ -348,19 +348,6 @@ export default function RadioPage() {
                       </p>
                     </div>
 
-                    {/* progress */}
-                    <div className="space-y-1">
-                      <div className="progress-bar cursor-pointer h-2" onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        seekTo(((e.clientX - rect.left) / rect.width) * 100);
-                      }}>
-                        <div className="progress-fill" style={{ width: `${progress}%` }} />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{formatTime((progress / 100) * duration)}</span>
-                        <span>{formatTime(duration)}</span>
-                      </div>
-                    </div>
 
                     {/* controls */}
                     <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap">
