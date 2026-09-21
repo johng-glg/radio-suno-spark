@@ -343,21 +343,23 @@ export default function RadioPage() {
                         <ListPlus className="h-5 w-5" />
                       </Button>
 
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground" title="The recipe">
-                            <Info className="h-5 w-5" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 text-sm">
-                          <p className="font-medium mb-1">The recipe</p>
-                          <p className="text-muted-foreground">{current.prompt}</p>
-                        </PopoverContent>
-                      </Popover>
+                      {!offStation && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground" title="The recipe">
+                              <Info className="h-5 w-5" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 text-sm">
+                            <p className="font-medium mb-1">The recipe</p>
+                            <p className="text-muted-foreground">{current.prompt}</p>
+                          </PopoverContent>
+                        </Popover>
+                      )}
 
                     </div>
 
-                    {upNext && (
+                    {upNext && !offStation && (
                       <p className="text-xs text-muted-foreground">
                         Up next: <span className="text-foreground/80">{upNext.title ?? upNext.genre}</span>
                       </p>
