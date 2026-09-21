@@ -406,10 +406,6 @@ export default function RadioPage() {
                         </PopoverContent>
                       </Popover>
 
-                      <div className="flex items-center gap-2 ml-auto min-w-28">
-                        <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <Slider value={[volume]} onValueChange={(v) => setVolume(v[0])} max={100} step={1} className="w-20" />
-                      </div>
                     </div>
 
                     {upNext && (
