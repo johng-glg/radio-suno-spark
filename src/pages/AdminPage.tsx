@@ -109,6 +109,9 @@ export default function AdminPage() {
   const [bulkGenre, setBulkGenre] = useState<string>('');
   const [bulkMood, setBulkMood] = useState<string>('');
   const [bulkCount, setBulkCount] = useState<number>(1);
+  const [bulkHoliday, setBulkHoliday] = useState<string>('none');
+  const [bulkInstrumental, setBulkInstrumental] = useState<boolean>(false);
+  const [bulkWildCard, setBulkWildCard] = useState<boolean>(false);
   
   // Track multiple concurrent generation batches
   const [generationBatches, setGenerationBatches] = useState<Map<string, {
