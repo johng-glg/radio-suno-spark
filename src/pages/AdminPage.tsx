@@ -407,24 +407,31 @@ export default function AdminPage() {
   };
 
   const handleBulkGenerate = async () => {
-    if (!bulkGenre || !bulkMood || bulkCount < 1 || bulkCount > 10) {
+    if (bulkCount < 1 || bulkCount > 10) {
       toast({
         title: "Invalid Input",
-        description: "Please select a genre, mood, and enter a count between 1-10",
+        description: "Please enter a count between 1-10",
         variant: "destructive"
       });
       return;
     }
 
+    const anyGenre = !bulkGenre || bulkGenre === 'any';
+    const anyMood = !bulkMood || bulkMood === 'any';
+    const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+    const genreLabel = anyGenre ? 'any genre' : bulkGenre;
+    const moodLabel = anyMood ? 'any mood' : bulkMood;
+
     // Create a unique batch ID
-    const batchId = `${bulkGenre}-${bulkMood}-${Date.now()}`;
+    const batchId = `${genreLabel}-${moodLabel}-${Date.now()}`;
     
     // Add this batch to tracking
     setGenerationBatches(prev => {
       const newBatches = new Map(prev);
       newBatches.set(batchId, {
-        genre: bulkGenre,
-        mood: bulkMood,
+        genre: genreLabel,
+        mood: moodLabel,
         total: bulkCount,
         completed: 0
       });
@@ -433,7 +440,7 @@ export default function AdminPage() {
 
     toast({
       title: "Bulk Generation Started",
-      description: `Generating ${bulkCount} ${bulkGenre} songs with ${bulkMood} mood...`,
+      description: `Generating ${bulkCount} ${genreLabel} songs with ${moodLabel}...`,
     });
 
     // Run generation in background without blocking
