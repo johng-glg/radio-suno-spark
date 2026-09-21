@@ -15,6 +15,7 @@ const App = () => {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <GlobalPlayer />
         <Toaster />
       </BrowserRouter>
     </RadioProvider>
