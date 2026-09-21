@@ -88,6 +88,7 @@ interface ApiStatusResponse {
 
 const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
 const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
+const HOLIDAYS = ['christmas', 'halloween', 'hanukkah', 'thanksgiving', "st. patty's day", '4th of july'];
 
 export default function AdminPage() {
   const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
