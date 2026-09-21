@@ -5,16 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 const LIVE_APP_URL = 'https://radio.jglab.dev';
 
 function getAuthRedirectUrl() {
-  if (typeof window === 'undefined') return `${LIVE_APP_URL}/`;
-
-  const host = window.location.hostname;
-  const isLovableEditor =
-    host === 'lovable.dev' ||
-    host.endsWith('.lovable.dev') ||
-    host === 'gptengineer.app' ||
-    host.endsWith('.gptengineer.app');
-
-  return isLovableEditor ? `${LIVE_APP_URL}/` : `${window.location.origin}/`;
+  // OAuth must never return to an editor or preview host. Those hosts route
+  // auth callbacks through Lovable's own proxy instead of this application.
+  return `${LIVE_APP_URL}/`;
 }
 
 export function useAuth() {
