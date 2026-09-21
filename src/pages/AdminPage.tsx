@@ -490,7 +490,7 @@ export default function AdminPage() {
 
       toast({
         title: "Bulk Generation Complete",
-        description: `Successfully generated ${bulkCount} songs for ${bulkGenre} - ${bulkMood}`,
+        description: `Successfully generated ${bulkCount} songs for ${genreLabel} - ${moodLabel}`,
       });
 
       // Remove this batch from tracking after a delay
