@@ -80,7 +80,7 @@ export default function RadioPage() {
     status, settings, current, upNext, station, taste, brewing, lastFeedback,
     tuneIn, skip, like, dislike, steer, saveStation,
   } = useRadio();
-  const { isPlaying, unlock, pause, resume } = useAudioPlayer();
+  const { isPlaying, unlock, pause, resume, currentSong } = useAudioPlayer();
 
   const [genres, setGenres] = useState<string[]>(FALLBACK_GENRES);
   const [showAuth, setShowAuth] = useState(false);
@@ -109,9 +109,13 @@ export default function RadioPage() {
   }, [user]);
 
   const onAir = status === 'on-air' && current;
+  // When the listener picks something from the library, the audio changes but the
+  // station's track does not — show whatever is actually coming out of the speakers.
+  const offStation = !!currentSong && !!current && currentSong.id !== current.id;
+  const nowPlaying = offStation && currentSong ? currentSong : current;
   const story = useMemo(
-    () => (current ? trackStory(current, taste, station?.id ?? null) : ''),
-    [current, taste, station]
+    () => (current && !offStation ? trackStory(current, taste, station?.id ?? null) : ''),
+    [current, taste, station, offStation]
   );
   const tasteWords = useMemo(() => tasteSummary(taste), [taste]);
 
@@ -279,9 +283,9 @@ export default function RadioPage() {
                   <div className="relative shrink-0">
                     <div
                       className={`w-48 h-48 md:w-56 md:h-56 rounded-full border-4 border-border/60 shadow-2xl overflow-hidden ${isPlaying ? 'vinyl-spin' : ''}`}
-                      style={current.image_url
-                        ? { backgroundImage: `url(${current.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                        : { background: genreArt(current.genre) }}
+                      style={nowPlaying.image_url
+                        ? { backgroundImage: `url(${nowPlaying.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : { background: genreArt(nowPlaying.genre) }}
                     >
                       <div className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-background border-2 border-border/80" />
                     </div>
@@ -296,14 +300,16 @@ export default function RadioPage() {
                   <div className="flex-1 w-full space-y-4 text-center md:text-left">
                     <div className="space-y-2">
                       <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
-                        <Badge variant="outline" className="uppercase tracking-wide text-[10px]">{current.genre}</Badge>
-                        {current.mood && <Badge variant="secondary" className="text-[10px]">{current.mood}</Badge>}
-                        {current.holiday && <Badge className="text-[10px] bg-accent text-accent-foreground">{current.holiday}</Badge>}
+                        <Badge variant="outline" className="uppercase tracking-wide text-[10px]">{nowPlaying.genre}</Badge>
+                        {nowPlaying.mood && <Badge variant="secondary" className="text-[10px]">{nowPlaying.mood}</Badge>}
+                        {!offStation && current.holiday && <Badge className="text-[10px] bg-accent text-accent-foreground">{current.holiday}</Badge>}
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold">{current.title ?? 'Untitled'}</h2>
-                      <p className="text-sm text-muted-foreground italic flex items-center justify-center md:justify-start gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />{story}
-                      </p>
+                      <h2 className="text-2xl md:text-3xl font-bold">{nowPlaying.title ?? 'Untitled'}</h2>
+                      {story && (
+                        <p className="text-sm text-muted-foreground italic flex items-center justify-center md:justify-start gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />{story}
+                        </p>
+                      )}
                     </div>
 
 
@@ -337,21 +343,23 @@ export default function RadioPage() {
                         <ListPlus className="h-5 w-5" />
                       </Button>
 
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground" title="The recipe">
-                            <Info className="h-5 w-5" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 text-sm">
-                          <p className="font-medium mb-1">The recipe</p>
-                          <p className="text-muted-foreground">{current.prompt}</p>
-                        </PopoverContent>
-                      </Popover>
+                      {!offStation && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-muted-foreground" title="The recipe">
+                              <Info className="h-5 w-5" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 text-sm">
+                            <p className="font-medium mb-1">The recipe</p>
+                            <p className="text-muted-foreground">{current.prompt}</p>
+                          </PopoverContent>
+                        </Popover>
+                      )}
 
                     </div>
 
-                    {upNext && (
+                    {upNext && !offStation && (
                       <p className="text-xs text-muted-foreground">
                         Up next: <span className="text-foreground/80">{upNext.title ?? upNext.genre}</span>
                       </p>
