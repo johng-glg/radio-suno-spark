@@ -777,9 +777,10 @@ export default function AdminPage() {
                     <Label htmlFor="bulk-mood">Mood</Label>
                     <Select value={bulkMood} onValueChange={setBulkMood}>
                       <SelectTrigger id="bulk-mood">
-                        <SelectValue placeholder="Select mood" />
+                        <SelectValue placeholder="Any mood" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="any">Any mood (random mix)</SelectItem>
                         {MOODS.map(mood => (
                           <SelectItem key={mood} value={mood}>
                             {mood}
