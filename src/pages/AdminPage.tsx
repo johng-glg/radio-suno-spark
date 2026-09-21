@@ -791,6 +791,47 @@ export default function AdminPage() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-holiday">Holiday</Label>
+                    <Select value={bulkHoliday} onValueChange={setBulkHoliday}>
+                      <SelectTrigger id="bulk-holiday">
+                        <SelectValue placeholder="No holiday" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No holiday</SelectItem>
+                        {HOLIDAYS.map(holiday => (
+                          <SelectItem key={holiday} value={holiday}>
+                            {holiday}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="bulk-instrumental">Instrumental</Label>
+                      <p className="text-xs text-muted-foreground">No vocals (always on for classical)</p>
+                    </div>
+                    <Switch
+                      id="bulk-instrumental"
+                      checked={bulkInstrumental}
+                      onCheckedChange={setBulkInstrumental}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="bulk-wildcard">Wild Card</Label>
+                      <p className="text-xs text-muted-foreground">Adds an unexpected twist to each prompt</p>
+                    </div>
+                    <Switch
+                      id="bulk-wildcard"
+                      checked={bulkWildCard}
+                      onCheckedChange={setBulkWildCard}
+                    />
+                  </div>
+
                   {/* Show all active generation batches */}
                   {generationBatches.size > 0 && (
                     <div className="space-y-3">
