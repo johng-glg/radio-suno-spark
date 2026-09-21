@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -45,13 +44,6 @@ function genreArt(genre: string): string {
   return `conic-gradient(from 220deg at 40% 40%, hsl(${h1} 70% 45%), hsl(${h2} 65% 30%), hsl(${h1} 80% 15%), hsl(${h2} 70% 40%), hsl(${h1} 70% 45%))`;
 }
 
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds <= 0) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 /** The "why this track" line — every song arrives with a story. */
 function trackStory(song: Song, taste: Taste, stationId: string | null): string {
   if (stationId && song.station_id === stationId) {
@@ -88,7 +80,7 @@ export default function RadioPage() {
     status, settings, current, upNext, station, taste, brewing, lastFeedback,
     tuneIn, skip, like, dislike, steer, saveStation,
   } = useRadio();
-  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong, unlock, currentSong, pause, resume } = useAudioPlayer();
+  const { isPlaying, unlock, pause, resume } = useAudioPlayer();
 
   const [genres, setGenres] = useState<string[]>(FALLBACK_GENRES);
   const [showAuth, setShowAuth] = useState(false);
@@ -184,40 +176,6 @@ export default function RadioPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        {/* ---------- library track playing outside the station ---------- */}
-        {!onAir && currentSong && (
-          <Card className="bg-card/60 backdrop-blur-sm border-border/50 animate-fade-in-up">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div
-                className={`w-14 h-14 rounded-full border-2 border-border/60 shrink-0 overflow-hidden ${isPlaying ? 'vinyl-spin' : ''}`}
-                style={currentSong.image_url
-                  ? { backgroundImage: `url(${currentSong.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                  : { background: genreArt(currentSong.genre ?? '') }}
-              />
-              <div className="flex-1 min-w-0 space-y-1">
-                <p className="font-semibold truncate">{currentSong.title ?? 'Untitled'}</p>
-                <div className="progress-bar cursor-pointer h-1.5" onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  seekTo(((e.clientX - rect.left) / rect.width) * 100);
-                }}>
-                  <div className="progress-fill" style={{ width: `${progress}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>{formatTime((progress / 100) * duration)}</span>
-                  <span>{formatTime(duration)}</span>
-                </div>
-              </div>
-              <Button size="icon" className="h-11 w-11 rounded-full neon-glow shrink-0"
-                onClick={() => (isPlaying ? pause() : resume())}>
-                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
-              </Button>
-              <div className="hidden md:flex items-center gap-2 w-28 shrink-0">
-                <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <Slider value={[volume]} onValueChange={(v) => setVolume(v[0])} max={100} step={1} className="w-20" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* ---------- hero / now playing ---------- */}
         {!onAir ? (
@@ -348,19 +306,6 @@ export default function RadioPage() {
                       </p>
                     </div>
 
-                    {/* progress */}
-                    <div className="space-y-1">
-                      <div className="progress-bar cursor-pointer h-2" onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        seekTo(((e.clientX - rect.left) / rect.width) * 100);
-                      }}>
-                        <div className="progress-fill" style={{ width: `${progress}%` }} />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>{formatTime((progress / 100) * duration)}</span>
-                        <span>{formatTime(duration)}</span>
-                      </div>
-                    </div>
 
                     {/* controls */}
                     <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap">
@@ -371,13 +316,11 @@ export default function RadioPage() {
                       </Button>
 
                       <Button size="icon" className="h-14 w-14 rounded-full neon-glow"
-                        onClick={() => playSong({
-                          id: current.id, title: current.title ?? 'Untitled', url: current.url ?? undefined,
-                          storage_path: current.storage_path,
-                          genre: current.genre, mood: current.mood ?? undefined, image_url: current.image_url ?? undefined,
-                        }, 'player')}>
+                        onClick={() => (isPlaying ? pause() : resume())}>
                         {isPlaying ? <Pause className="h-7 w-7" /> : <Play className="h-7 w-7 ml-0.5" />}
                       </Button>
+
+
 
                       <Button variant="ghost" size="icon" onClick={skip} title="Skip">
                         <SkipForward className="h-5 w-5" />
@@ -406,10 +349,6 @@ export default function RadioPage() {
                         </PopoverContent>
                       </Popover>
 
-                      <div className="flex items-center gap-2 ml-auto min-w-28">
-                        <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <Slider value={[volume]} onValueChange={(v) => setVolume(v[0])} max={100} step={1} className="w-20" />
-                      </div>
                     </div>
 
                     {upNext && (
