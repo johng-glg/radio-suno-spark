@@ -109,9 +109,13 @@ export default function RadioPage() {
   }, [user]);
 
   const onAir = status === 'on-air' && current;
+  // When the listener picks something from the library, the audio changes but the
+  // station's track does not — show whatever is actually coming out of the speakers.
+  const offStation = !!currentSong && !!current && currentSong.id !== current.id;
+  const nowPlaying = offStation && currentSong ? currentSong : current;
   const story = useMemo(
-    () => (current ? trackStory(current, taste, station?.id ?? null) : ''),
-    [current, taste, station]
+    () => (current && !offStation ? trackStory(current, taste, station?.id ?? null) : ''),
+    [current, taste, station, offStation]
   );
   const tasteWords = useMemo(() => tasteSummary(taste), [taste]);
 
