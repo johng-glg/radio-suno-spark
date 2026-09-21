@@ -106,8 +106,8 @@ export default function AdminPage() {
   const [topSongsSortBy, setTopSongsSortBy] = useState<'likes' | 'plays'>('likes');
   
   // Library management state
-  const [bulkGenre, setBulkGenre] = useState<string>('');
-  const [bulkMood, setBulkMood] = useState<string>('');
+  const [bulkGenre, setBulkGenre] = useState<string>('any');
+  const [bulkMood, setBulkMood] = useState<string>('any');
   const [bulkCount, setBulkCount] = useState<number>(1);
   const [bulkHoliday, setBulkHoliday] = useState<string>('none');
   const [bulkInstrumental, setBulkInstrumental] = useState<boolean>(false);
@@ -407,24 +407,31 @@ export default function AdminPage() {
   };
 
   const handleBulkGenerate = async () => {
-    if (!bulkGenre || !bulkMood || bulkCount < 1 || bulkCount > 10) {
+    if (bulkCount < 1 || bulkCount > 10) {
       toast({
         title: "Invalid Input",
-        description: "Please select a genre, mood, and enter a count between 1-10",
+        description: "Please enter a count between 1-10",
         variant: "destructive"
       });
       return;
     }
 
+    const anyGenre = !bulkGenre || bulkGenre === 'any';
+    const anyMood = !bulkMood || bulkMood === 'any';
+    const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
+
+    const genreLabel = anyGenre ? 'any genre' : bulkGenre;
+    const moodLabel = anyMood ? 'any mood' : bulkMood;
+
     // Create a unique batch ID
-    const batchId = `${bulkGenre}-${bulkMood}-${Date.now()}`;
+    const batchId = `${genreLabel}-${moodLabel}-${Date.now()}`;
     
     // Add this batch to tracking
     setGenerationBatches(prev => {
       const newBatches = new Map(prev);
       newBatches.set(batchId, {
-        genre: bulkGenre,
-        mood: bulkMood,
+        genre: genreLabel,
+        mood: moodLabel,
         total: bulkCount,
         completed: 0
       });
@@ -433,18 +440,20 @@ export default function AdminPage() {
 
     toast({
       title: "Bulk Generation Started",
-      description: `Generating ${bulkCount} ${bulkGenre} songs with ${bulkMood} mood...`,
+      description: `Generating ${bulkCount} ${genreLabel} songs with ${moodLabel}...`,
     });
 
     // Run generation in background without blocking
     (async () => {
       for (let i = 0; i < bulkCount; i++) {
         try {
+          const songGenre = anyGenre ? pick(GENRES) : bulkGenre;
+          const songMood = anyMood ? pick(MOODS) : bulkMood;
           await generateWithBuildPrompt(
             bulkWildCard, // wildCardMode
             bulkInstrumental, // makeInstrumental
-            [bulkGenre], // genres
-            bulkMood, // mood
+            [songGenre], // genres
+            songMood, // mood
             true, // asLibrary
             bulkHoliday === 'none' ? undefined : bulkHoliday
           );
@@ -481,7 +490,7 @@ export default function AdminPage() {
 
       toast({
         title: "Bulk Generation Complete",
-        description: `Successfully generated ${bulkCount} songs for ${bulkGenre} - ${bulkMood}`,
+        description: `Successfully generated ${bulkCount} songs for ${genreLabel} - ${moodLabel}`,
       });
 
       // Remove this batch from tracking after a delay
@@ -751,9 +760,10 @@ export default function AdminPage() {
                     <Label htmlFor="bulk-genre">Genre</Label>
                     <Select value={bulkGenre} onValueChange={setBulkGenre}>
                       <SelectTrigger id="bulk-genre">
-                        <SelectValue placeholder="Select genre" />
+                        <SelectValue placeholder="Any genre" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="any">Any genre (random mix)</SelectItem>
                         {GENRES.map(genre => (
                           <SelectItem key={genre} value={genre}>
                             {genre}
@@ -767,9 +777,10 @@ export default function AdminPage() {
                     <Label htmlFor="bulk-mood">Mood</Label>
                     <Select value={bulkMood} onValueChange={setBulkMood}>
                       <SelectTrigger id="bulk-mood">
-                        <SelectValue placeholder="Select mood" />
+                        <SelectValue placeholder="Any mood" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="any">Any mood (random mix)</SelectItem>
                         {MOODS.map(mood => (
                           <SelectItem key={mood} value={mood}>
                             {mood}
@@ -859,7 +870,7 @@ export default function AdminPage() {
 
                   <Button
                     onClick={handleBulkGenerate}
-                    disabled={!bulkGenre || !bulkMood}
+                    disabled={isGenerating}
                     className="w-full"
                   >
                     <Plus className="mr-2 h-4 w-4" />
