@@ -12,9 +12,19 @@ function isLegacyTopLevelHost() {
   );
 }
 
-function returnToLiveApp() {
+function returnToLiveApp(session: Session) {
   const destination = new URL(window.location.pathname, LIVE_APP_URL);
   destination.search = window.location.search;
+  // localStorage is isolated per domain. Carry the completed OAuth session in
+  // the URL fragment so the live app's Supabase client can persist it there.
+  // Fragments are not sent to servers or included in HTTP referrers.
+  destination.hash = new URLSearchParams({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_in: String(session.expires_in),
+    expires_at: String(session.expires_at ?? ''),
+    token_type: session.token_type,
+  }).toString();
   window.location.replace(destination.toString());
 }
 
@@ -34,7 +44,7 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session && isLegacyTopLevelHost()) {
-          returnToLiveApp();
+          returnToLiveApp(session);
           return;
         }
         setSession(session);
@@ -46,7 +56,7 @@ export function useAuth() {
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session && isLegacyTopLevelHost()) {
-        returnToLiveApp();
+        returnToLiveApp(session);
         return;
       }
       setSession(session);
