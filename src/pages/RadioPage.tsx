@@ -283,9 +283,9 @@ export default function RadioPage() {
                   <div className="relative shrink-0">
                     <div
                       className={`w-48 h-48 md:w-56 md:h-56 rounded-full border-4 border-border/60 shadow-2xl overflow-hidden ${isPlaying ? 'vinyl-spin' : ''}`}
-                      style={current.image_url
-                        ? { backgroundImage: `url(${current.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                        : { background: genreArt(current.genre) }}
+                      style={nowPlaying.image_url
+                        ? { backgroundImage: `url(${nowPlaying.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : { background: genreArt(nowPlaying.genre) }}
                     >
                       <div className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-background border-2 border-border/80" />
                     </div>
