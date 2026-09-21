@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -45,13 +44,6 @@ function genreArt(genre: string): string {
   return `conic-gradient(from 220deg at 40% 40%, hsl(${h1} 70% 45%), hsl(${h2} 65% 30%), hsl(${h1} 80% 15%), hsl(${h2} 70% 40%), hsl(${h1} 70% 45%))`;
 }
 
-function formatTime(seconds: number): string {
-  if (!isFinite(seconds) || seconds <= 0) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 /** The "why this track" line — every song arrives with a story. */
 function trackStory(song: Song, taste: Taste, stationId: string | null): string {
   if (stationId && song.station_id === stationId) {
@@ -88,7 +80,7 @@ export default function RadioPage() {
     status, settings, current, upNext, station, taste, brewing, lastFeedback,
     tuneIn, skip, like, dislike, steer, saveStation,
   } = useRadio();
-  const { isPlaying, progress, duration, volume, setVolume, seekTo, playSong, unlock, currentSong, pause, resume } = useAudioPlayer();
+  const { isPlaying, unlock, pause, resume } = useAudioPlayer();
 
   const [genres, setGenres] = useState<string[]>(FALLBACK_GENRES);
   const [showAuth, setShowAuth] = useState(false);
