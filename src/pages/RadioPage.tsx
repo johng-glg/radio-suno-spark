@@ -300,14 +300,16 @@ export default function RadioPage() {
                   <div className="flex-1 w-full space-y-4 text-center md:text-left">
                     <div className="space-y-2">
                       <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap">
-                        <Badge variant="outline" className="uppercase tracking-wide text-[10px]">{current.genre}</Badge>
-                        {current.mood && <Badge variant="secondary" className="text-[10px]">{current.mood}</Badge>}
-                        {current.holiday && <Badge className="text-[10px] bg-accent text-accent-foreground">{current.holiday}</Badge>}
+                        <Badge variant="outline" className="uppercase tracking-wide text-[10px]">{nowPlaying.genre}</Badge>
+                        {nowPlaying.mood && <Badge variant="secondary" className="text-[10px]">{nowPlaying.mood}</Badge>}
+                        {!offStation && current.holiday && <Badge className="text-[10px] bg-accent text-accent-foreground">{current.holiday}</Badge>}
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold">{current.title ?? 'Untitled'}</h2>
-                      <p className="text-sm text-muted-foreground italic flex items-center justify-center md:justify-start gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />{story}
-                      </p>
+                      <h2 className="text-2xl md:text-3xl font-bold">{nowPlaying.title ?? 'Untitled'}</h2>
+                      {story && (
+                        <p className="text-sm text-muted-foreground italic flex items-center justify-center md:justify-start gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />{story}
+                        </p>
+                      )}
                     </div>
 
 
