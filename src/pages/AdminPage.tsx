@@ -870,7 +870,7 @@ export default function AdminPage() {
 
                   <Button
                     onClick={handleBulkGenerate}
-                    disabled={!bulkGenre || !bulkMood}
+                    disabled={isGenerating}
                     className="w-full"
                   >
                     <Plus className="mr-2 h-4 w-4" />
