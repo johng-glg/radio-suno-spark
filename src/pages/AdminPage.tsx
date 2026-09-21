@@ -760,9 +760,10 @@ export default function AdminPage() {
                     <Label htmlFor="bulk-genre">Genre</Label>
                     <Select value={bulkGenre} onValueChange={setBulkGenre}>
                       <SelectTrigger id="bulk-genre">
-                        <SelectValue placeholder="Select genre" />
+                        <SelectValue placeholder="Any genre" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="any">Any genre (random mix)</SelectItem>
                         {GENRES.map(genre => (
                           <SelectItem key={genre} value={genre}>
                             {genre}
