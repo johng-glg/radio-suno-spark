@@ -441,11 +441,12 @@ export default function AdminPage() {
       for (let i = 0; i < bulkCount; i++) {
         try {
           await generateWithBuildPrompt(
-            false, // wildCardMode
-            false, // makeInstrumental
+            bulkWildCard, // wildCardMode
+            bulkInstrumental, // makeInstrumental
             [bulkGenre], // genres
             bulkMood, // mood
-            true // asLibrary
+            true, // asLibrary
+            bulkHoliday === 'none' ? undefined : bulkHoliday
           );
 
           // Update batch progress
