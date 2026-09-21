@@ -88,6 +88,7 @@ interface ApiStatusResponse {
 
 const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
 const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
+const HOLIDAYS = ['christmas', 'halloween', 'hanukkah', 'thanksgiving', "st. patty's day", '4th of july'];
 
 export default function AdminPage() {
   const { isAdmin, loading, getAdminStats, makeUserAdmin, resubmitFailedSong, checkSongStatus } = useAdmin();
@@ -108,6 +109,9 @@ export default function AdminPage() {
   const [bulkGenre, setBulkGenre] = useState<string>('');
   const [bulkMood, setBulkMood] = useState<string>('');
   const [bulkCount, setBulkCount] = useState<number>(1);
+  const [bulkHoliday, setBulkHoliday] = useState<string>('none');
+  const [bulkInstrumental, setBulkInstrumental] = useState<boolean>(false);
+  const [bulkWildCard, setBulkWildCard] = useState<boolean>(false);
   
   // Track multiple concurrent generation batches
   const [generationBatches, setGenerationBatches] = useState<Map<string, {
@@ -437,11 +441,12 @@ export default function AdminPage() {
       for (let i = 0; i < bulkCount; i++) {
         try {
           await generateWithBuildPrompt(
-            false, // wildCardMode
-            false, // makeInstrumental
+            bulkWildCard, // wildCardMode
+            bulkInstrumental, // makeInstrumental
             [bulkGenre], // genres
             bulkMood, // mood
-            true // asLibrary
+            true, // asLibrary
+            bulkHoliday === 'none' ? undefined : bulkHoliday
           );
 
           // Update batch progress
@@ -783,6 +788,47 @@ export default function AdminPage() {
                       max="10"
                       value={bulkCount}
                       onChange={(e) => setBulkCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-holiday">Holiday</Label>
+                    <Select value={bulkHoliday} onValueChange={setBulkHoliday}>
+                      <SelectTrigger id="bulk-holiday">
+                        <SelectValue placeholder="No holiday" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No holiday</SelectItem>
+                        {HOLIDAYS.map(holiday => (
+                          <SelectItem key={holiday} value={holiday}>
+                            {holiday}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="bulk-instrumental">Instrumental</Label>
+                      <p className="text-xs text-muted-foreground">No vocals (always on for classical)</p>
+                    </div>
+                    <Switch
+                      id="bulk-instrumental"
+                      checked={bulkInstrumental}
+                      onCheckedChange={setBulkInstrumental}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="bulk-wildcard">Wild Card</Label>
+                      <p className="text-xs text-muted-foreground">Adds an unexpected twist to each prompt</p>
+                    </div>
+                    <Switch
+                      id="bulk-wildcard"
+                      checked={bulkWildCard}
+                      onCheckedChange={setBulkWildCard}
                     />
                   </div>
 
