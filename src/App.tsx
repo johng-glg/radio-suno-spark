@@ -4,6 +4,7 @@ import { RadioProvider } from "@/hooks/useRadio";
 import RadioPage from "./pages/RadioPage";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
+import GlobalPlayer from "./components/GlobalPlayer";
 
 const App = () => {
   return (
