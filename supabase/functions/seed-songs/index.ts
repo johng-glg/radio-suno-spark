@@ -8,6 +8,13 @@ const corsHeaders = {
 const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
 
 const DESCRIPTORS: Record<string, string[]> = {
+  brasscore: [
+    'aggressive drops, jazz dubstep, saxophone lead, heavy bass drop',
+    'electro swing, dubstep drop, brass stabs, aggressive',
+    'jazzstep, neurofunk, upright bass, fast drums',
+    'jazz trap, sax solo, 808s, hard drop',
+    'big band, riddim dubstep, festival drop',
+  ],
   classical: ['sweeping strings', 'solo piano', 'chamber ensemble', 'cinematic orchestra'],
   country: ['slide guitar', 'front-porch banjo', 'dusty road rhythm', 'honky-tonk piano'],
   edm: ['festival synths', 'deep bassline', 'rolling arpeggios', 'euphoric drop'],

@@ -86,7 +86,7 @@ interface ApiStatusResponse {
   checked_at: string;
 }
 
-const GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
+const GENRES = ['brasscore', 'classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
 const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
 const HOLIDAYS = ['christmas', 'halloween', 'hanukkah', 'thanksgiving', "st. patty's day", '4th of july'];
 
@@ -176,7 +176,7 @@ export default function AdminPage() {
   };
 
   // Song seeding
-  const SEED_GENRES = ['classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
+  const SEED_GENRES = ['brasscore', 'classical', 'country', 'edm', 'hip-hop', 'jazz', 'pop', 'rock'];
   const [seedCount, setSeedCount] = useState(10);
   const [seedGenres, setSeedGenres] = useState<string[]>(SEED_GENRES);
   const [seedRunning, setSeedRunning] = useState(false);
