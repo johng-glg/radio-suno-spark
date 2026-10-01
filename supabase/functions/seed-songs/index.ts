@@ -80,7 +80,9 @@ Deno.serve(async (req) => {
       const mood = pick(moods);
       const descriptor = pick(DESCRIPTORS[genre] ?? ['distinctive textures', 'memorable melodies']);
       const instrumental = genre === 'classical' || genre === 'jazz';
-      const prompt = `A ${mood} ${genre} track featuring ${descriptor}, well produced and radio ready${instrumental ? ', instrumental, no vocals' : ''}`;
+      // Describe brasscore as a fusion so prompts don't lean brass
+      const genreLabel = genre === 'brasscore' ? 'edm and jazz fusion' : genre;
+      const prompt = `A ${mood} ${genreLabel} track featuring ${descriptor}, well produced and radio ready${instrumental ? ', instrumental, no vocals' : ''}`;
       return {
         prompt,
         genre,
