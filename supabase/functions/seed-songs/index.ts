@@ -9,11 +9,11 @@ const MOODS = ['upbeat', 'chill', 'aggressive', 'emotional', 'epic', 'playful'];
 
 const DESCRIPTORS: Record<string, string[]> = {
   brasscore: [
-    'aggressive drops, jazz dubstep, saxophone lead, heavy bass drop',
-    'electro swing, dubstep drop, brass stabs, aggressive',
-    'jazzstep, neurofunk, upright bass, fast drums',
-    'jazz trap, sax solo, 808s, hard drop',
-    'big band, riddim dubstep, festival drop',
+    'festival synths, saxophone hooks, heavy bass drop, four-on-the-floor',
+    'electro swing beat, dubstep wobble, jazzy saxophone licks',
+    'jazzstep drums, neuro bass, saxophone riffs, rolling percussion',
+    'jazz piano chords, sax solo, 808s, festival drop',
+    'big band horn accents over a pounding EDM drop, dance floor energy',
   ],
   classical: ['sweeping strings', 'solo piano', 'chamber ensemble', 'cinematic orchestra'],
   country: ['slide guitar', 'front-porch banjo', 'dusty road rhythm', 'honky-tonk piano'],
@@ -80,7 +80,9 @@ Deno.serve(async (req) => {
       const mood = pick(moods);
       const descriptor = pick(DESCRIPTORS[genre] ?? ['distinctive textures', 'memorable melodies']);
       const instrumental = genre === 'classical' || genre === 'jazz';
-      const prompt = `A ${mood} ${genre} track featuring ${descriptor}, well produced and radio ready${instrumental ? ', instrumental, no vocals' : ''}`;
+      // Describe brasscore as a fusion so prompts don't lean brass
+      const genreLabel = genre === 'brasscore' ? 'edm and jazz fusion' : genre;
+      const prompt = `A ${mood} ${genreLabel} track featuring ${descriptor}, well produced and radio ready${instrumental ? ', instrumental, no vocals' : ''}`;
       return {
         prompt,
         genre,

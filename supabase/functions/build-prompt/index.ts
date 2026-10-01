@@ -187,6 +187,11 @@ serve(async (req) => {
       console.log('Added holiday theme:', holiday);
     }
 
+    // Describe brasscore explicitly so the model blends jazz and EDM instead of leaning brass
+    if (selectedWords['genre'] === 'brasscore') {
+      builtPrompt = builtPrompt.replace(/brasscore/gi, 'edm and jazz fusion');
+    }
+
     console.log('Built prompt:', builtPrompt);
     console.log('Selected words:', selectedWords);
 
