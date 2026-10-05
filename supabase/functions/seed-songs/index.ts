@@ -75,18 +75,30 @@ Deno.serve(async (req) => {
       if (genres.length === 0) genres = Object.keys(DESCRIPTORS);
     }
 
+    const holiday: string | null = body?.holiday ? String(body.holiday).toLowerCase().trim() : null;
+    const forceInstrumental = body?.instrumental === true;
+    let twists: string[] = [];
+    if (body?.wildcard === true) {
+      const { data: tw } = await serviceClient.from('word_pools').select('value').eq('type', 'twist');
+      twists = (tw ?? []).map((t: { value: string }) => String(t.value));
+    }
+
     const rows = Array.from({ length: count }, (_, i) => {
-      const genre = genres[i % genres.length];
+      const genre = body?.randomGenre ? pick(genres) : genres[i % genres.length];
       const mood = pick(moods);
       const descriptor = pick(DESCRIPTORS[genre] ?? ['distinctive textures', 'memorable melodies']);
-      const instrumental = genre === 'classical' || genre === 'jazz';
+      const instrumental = forceInstrumental || genre === 'classical' || genre === 'jazz';
       // Describe brasscore as a fusion so prompts don't lean brass
       const genreLabel = genre === 'brasscore' ? 'edm and jazz fusion' : genre;
-      const prompt = `A ${mood} ${genreLabel} track featuring ${descriptor}, well produced and radio ready${instrumental ? ', instrumental, no vocals' : ''}`;
+      let prompt = `A ${mood} ${genreLabel} track featuring ${descriptor}, well produced and radio ready`;
+      if (twists.length) prompt += `, ${pick(twists)}`;
+      if (holiday) prompt += `, with a ${holiday} theme`;
+      if (instrumental) prompt += ', instrumental, no vocals';
       return {
         prompt,
         genre,
         mood,
+        holiday,
         title: `${genre.charAt(0).toUpperCase() + genre.slice(1)} ${mood.charAt(0).toUpperCase() + mood.slice(1)}`,
         status: 'generating',
         description: `Seeded ${mood} ${genre} track`,
