@@ -443,55 +443,35 @@ export default function AdminPage() {
       description: `Generating ${bulkCount} ${genreLabel} songs with ${moodLabel}...`,
     });
 
-    // Run generation in background without blocking
+    // Queue all songs at once; the background worker generates them reliably
     (async () => {
-      for (let i = 0; i < bulkCount; i++) {
-        try {
-          const songGenre = anyGenre ? pick(GENRES) : bulkGenre;
-          const songMood = anyMood ? pick(MOODS) : bulkMood;
-          await generateWithBuildPrompt(
-            bulkWildCard, // wildCardMode
-            bulkInstrumental, // makeInstrumental
-            [songGenre], // genres
-            songMood, // mood
-            true, // asLibrary
-            bulkHoliday === 'none' ? undefined : bulkHoliday
-          );
-
-          // Update batch progress
-          setGenerationBatches(prev => {
-            const newBatches = new Map(prev);
-            const batch = newBatches.get(batchId);
-            if (batch) {
-              batch.completed = i + 1;
-              newBatches.set(batchId, batch);
-            }
-            return newBatches;
-          });
-          
-          toast({
-            title: "Song Generated",
-            description: `Generated ${i + 1} of ${bulkCount} songs`,
-          });
-
-          // Small delay between generations to avoid overwhelming the API
-          if (i < bulkCount - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } catch (error) {
-          console.error('Error in bulk generation:', error);
-          toast({
-            title: "Generation Error",
-            description: `Failed to generate song ${i + 1}`,
-            variant: "destructive"
-          });
-        }
+      try {
+        const { data, error } = await supabase.functions.invoke('seed-songs', {
+          body: {
+            count: bulkCount,
+            genres: anyGenre ? GENRES : [bulkGenre],
+            randomGenre: anyGenre,
+            moods: anyMood ? MOODS : [bulkMood],
+            holiday: bulkHoliday === 'none' ? null : bulkHoliday,
+            instrumental: bulkInstrumental,
+            wildcard: bulkWildCard,
+          },
+        });
+        if (error || data?.error) throw error ?? new Error(data.error);
+        setGenerationBatches(prev => {
+          const newBatches = new Map(prev);
+          const batch = newBatches.get(batchId);
+          if (batch) newBatches.set(batchId, { ...batch, completed: data?.created ?? bulkCount });
+          return newBatches;
+        });
+        toast({
+          title: "Bulk Generation Queued",
+          description: `${data?.created ?? bulkCount} songs queued — they'll appear as they finish (a few minutes).`,
+        });
+      } catch (error) {
+        console.error('Error in bulk generation:', error);
+        toast({ title: "Generation Error", description: "Could not queue songs", variant: "destructive" });
       }
-
-      toast({
-        title: "Bulk Generation Complete",
-        description: `Successfully generated ${bulkCount} songs for ${genreLabel} - ${moodLabel}`,
-      });
 
       // Remove this batch from tracking after a delay
       setTimeout(() => {
