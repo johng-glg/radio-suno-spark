@@ -24,7 +24,7 @@ interface Song {
   user_liked: boolean;
 }
 
-const GENRES = ["all", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
+const GENRES = ["all", "brasscore", "classical", "country", "edm", "hip-hop", "jazz", "pop", "rock"];
 const MOODS = ["all", "upbeat", "chill", "aggressive", "emotional", "epic", "playful"];
 // 4 columns on desktop x 3 rows
 const PAGE_SIZE = 12;
