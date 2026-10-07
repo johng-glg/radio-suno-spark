@@ -83,6 +83,37 @@ Deno.serve(async (req) => {
       twists = (tw ?? []).map((t: { value: string }) => String(t.value));
     }
 
+    // "More like this": reuse a source song's recipe with fresh variations
+    if (body?.like_song_id) {
+      const { data: src, error: srcErr } = await serviceClient
+        .from('songs').select('id, prompt, genre, mood, holiday, title')
+        .eq('id', String(body.like_song_id)).maybeSingle();
+      if (srcErr || !src) {
+        return new Response(JSON.stringify({ error: 'Source song not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const VARIATIONS = ['a fresh take', 'a new melody', 'a different hook', 'an alternate arrangement', 'a new chord progression'];
+      const likeRows = Array.from({ length: count }, () => ({
+        prompt: `${src.prompt}, ${pick(VARIATIONS)} in the same style`,
+        genre: src.genre,
+        mood: src.mood,
+        holiday: src.holiday,
+        title: src.title ? `${src.title} (Like This)` : 'More Like This',
+        status: 'generating',
+        description: `More like "${src.title ?? 'this'}"`,
+        is_public: true,
+        requested_by: null,
+        original_song_id: src.id,
+      }));
+      const { data: ins, error: insErr } = await serviceClient.from('songs').insert(likeRows).select('id');
+      if (insErr) throw insErr;
+      serviceClient.functions.invoke('complete-pending-generations').catch(() => {});
+      return new Response(JSON.stringify({ success: true, created: ins?.length ?? 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const rows = Array.from({ length: count }, (_, i) => {
       const genre = body?.randomGenre ? pick(genres) : genres[i % genres.length];
       const mood = pick(moods);
