@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart, ListPlus } from "lucide-react";
+import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart, ListPlus, Sparkles } from "lucide-react";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,6 +52,24 @@ export default function SongBrowser() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong } = useAudioPlayer();
+  const { isAdmin } = useAdmin();
+  const [likeBusy, setLikeBusy] = useState<string | null>(null);
+
+  const moreLikeThis = async (song: Song) => {
+    const input = window.prompt(`How many songs like "${song.title}"? (1–10)`, "3");
+    if (input === null) return;
+    const count = Math.max(1, Math.min(10, parseInt(input, 10) || 3));
+    setLikeBusy(song.id);
+    const { data, error } = await supabase.functions.invoke("seed-songs", {
+      body: { like_song_id: song.id, count },
+    });
+    setLikeBusy(null);
+    if (error || !data?.success) {
+      toast({ title: "Couldn't start", description: error?.message || data?.error || "Unknown error", variant: "destructive" });
+      return;
+    }
+    toast({ title: `Making ${data.created} more like "${song.title}"`, description: "They'll appear in the library in a few minutes." });
+  };
 
   useEffect(() => {
     setPage(1);
@@ -405,6 +424,21 @@ export default function SongBrowser() {
                           className={`h-3.5 w-3.5 ${song.user_liked ? 'fill-red-500 text-red-500' : ''}`}
                         />
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          title="Generate more like this"
+                          disabled={likeBusy === song.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moreLikeThis(song);
+                          }}
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {user && (
                         <Button
                           size="icon"
