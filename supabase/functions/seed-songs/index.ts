@@ -104,7 +104,6 @@ Deno.serve(async (req) => {
         description: `More like "${src.title ?? 'this'}"`,
         is_public: true,
         requested_by: null,
-        original_song_id: src.id,
       }));
       const { data: ins, error: insErr } = await serviceClient.from('songs').insert(likeRows).select('id');
       if (insErr) throw insErr;
