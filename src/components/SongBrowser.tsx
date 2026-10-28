@@ -429,6 +429,15 @@ export default function SongBrowser() {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
+                        title="Copy share link"
+                        onClick={(e) => handleShare(song, e)}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
                         onClick={(e) => handleLike(song, e)}
                       >
                         <Heart 
