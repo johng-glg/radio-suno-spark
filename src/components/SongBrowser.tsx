@@ -261,6 +261,17 @@ export default function SongBrowser() {
     }
   };
 
+  const handleShare = async (song: Song, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = `${window.location.origin}/song/${song.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast({ title: "Link copied", description: `Share it and it opens "${song.title}" directly.` });
+    } catch {
+      window.prompt('Copy this link:', link);
+    }
+  };
+
   const getHolidayIcon = (holiday: string | null) => {
     if (!holiday) return null;
     const icon = HOLIDAY_ICONS[holiday];
