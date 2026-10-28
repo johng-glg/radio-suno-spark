@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart, ListPlus, Sparkles } from "lucide-react";
+import { Play, Pause, Music, Snowflake, Ghost, Clover, Flag, Heart, ListPlus, Sparkles, Share2 } from "lucide-react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";

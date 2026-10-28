@@ -14,6 +14,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<RadioPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/song/:id" element={<SongPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <GlobalPlayer />
