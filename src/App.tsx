@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { RadioProvider } from "@/hooks/useRadio";
 import RadioPage from "./pages/RadioPage";
 import AdminPage from "./pages/AdminPage";
+import SongPage from "./pages/SongPage";
 import NotFound from "./pages/NotFound";
 import GlobalPlayer from "./components/GlobalPlayer";
 
@@ -13,6 +14,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<RadioPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/song/:id" element={<SongPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <GlobalPlayer />
